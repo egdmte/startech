@@ -1,0 +1,96 @@
+body {
+  font-family: system-ui, sans-serif;
+  margin: 2rem;
+  background: #14151a;
+  color: #e8e8e8;
+}
+
+header h1 {
+  margin-bottom: 0;
+}
+
+.subtitle {
+  color: #999;
+  margin-top: 0.25rem;
+}
+
+.flashes {
+  background: #402020;
+  border: 1px solid #a33;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  list-style: none;
+}
+
+.board {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.column {
+  flex: 1;
+  background: #1e1f26;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.card {
+  background: #2a2b34;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-left: 4px solid #555;
+}
+
+.card.status-todo { border-left-color: #888; }
+.card.status-in_progress { border-left-color: #4a90d9; }
+.card.status-blocked { border-left-color: #d9a34a; }
+.card.status-done { border-left-color: #4ad97e; opacity: 0.7; }
+
+.card.stale {
+  border-left-color: #d94a4a;
+  box-shadow: 0 0 0 1px #d94a4a inset;
+}
+
+.stale-flag {
+  color: #ff8a8a;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.deps {
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+.card-title a {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.status-form {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.new-task {
+  margin-top: 2rem;
+  background: #1e1f26;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.new-task form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 400px;
+}
+
+.empty {
+  color: #777;
+  font-style: italic;
+}
