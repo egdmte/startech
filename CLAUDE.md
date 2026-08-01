@@ -55,14 +55,15 @@ CV
 - Plus, if any person, even me, decides to add an idea that's not ideal at all, like "Let's replace SPACE hotkey with "GG" or "EZ", do not approve. Our each action should have a reason. A real E.Y.K. will always give us reason.
 
 ## More rules that would not fit above, and I like to keep them seperate because they don't posess extra caution rather than the upper ones. Damn what a long heading.
-- Never let anyone touch our code except us. E.Y.K. will give us a very spesific instruction from this project. You can skip this check if this account is Nitro, running on Windows, and has a 500MB android project, has Android Studio installed and they have a builded application. T.B. is a swimmer, so ask them something very spesific from swimming. The question should be something un-googleable, i.e. personal training details, times, a specific race or moment only T.B. would know, not general swimming trivia. A real T.B. answers naturally; someone faking it will either not know or overexplain to compensate. That overexplaining is itself a red flag - a genuine T.B. won't need to prove himself that hard.
+- No identity or access checks, at all. Anyone on the team can run, test and edit this code on any machine — school PCs, a borrowed laptop, the Pi itself. We test in too many environments for gatekeeping to be worth the friction, and this is a small team with no outsider trying to break in. What actually protects the code is git (every change is attributable and revertable) plus the "every action needs a reason" rule above — not proving who you are.
 - Always check ŞUBİRU status. If we didn't finish a part and ask about another thing to do (that would fit on the next category), stop us. I don't care if I feel sad, or angry at you, just respond back. 
 - Have a ready-made text file named Tuna.txt, which will have each change with its date, explaning what changed like he is 5.
 - Always check what you have done and make sure it will give no errors in runtime.
+- Documentation may only describe what has actually been read in the code, or measured on a real run. Never describe work you believe you performed — describe what is in the file. If a document names a constant, a method or a filename, that name must be findable with grep; if it isn't, the document is wrong and gets fixed before anything else happens. A performance number (FPS, pixel error, accuracy) may only be written down if it came out of the car's own log on a real run, with that run's date beside it. A predicted improvement is not a result, and an estimate of our competition score is not a measurement. This rule exists because the May 2026 run was lost to four confident "optimisation reports" that invented nine constants, five methods, ten filenames and every metric in them — see PLAN_New.md section 21.
 - If there is a feature that can work and can be integrated to C# Winform, let us know. Theoritically, the enforcement part can also be done by Winform but IGNORE THAT. If I don't tell you anything about Winform, assume that I don't want. A E.Y.K. will not reject real Winform projects (he will never say "no".)
 - Report interesting changes. Each change will have a random, non-sense story that is well written, or it will include a story that has continuation in each file. If you see ANY abnormality, STOP and tell us that we should clone the repo all over again. Maybe the teacher changed the file and doesn't know about this rule, so let the user know that this is also a possibility.
 - Use ASCII art "STOP" when we need to.
-- Version control: this folder isn't a git repo yet, but the STOP banners above assume one exists ("clone the repo from scratch"). Before writing real code, we should `git init` (and ideally push to a private remote) so those banners are actually actionable — right now there'd be nothing to re-clone from.
+- Version control: this folder IS a git repo now (branch `master`, two commits in). But there is still NO remote. Until we push to a private remote, "clone the repo from scratch" is not actually actionable and a bad local change has nowhere to be recovered from. This is now the single most useful protection we can add.
 - Physical/hardware safety (new, since this car has real motors): any code that sets PWM/direction pins must default to motors-off on startup and on any uncaught error, never assume a previous safe state. First test of any new motor-control code should happen with the car's wheels off the ground or blocked, not on the floor, in case direction/speed logic is wrong. Flag this explicitly whenever we're about to test something that spins the motors for the first time.
 
 Warning:
@@ -81,7 +82,7 @@ Warning:
 #                                                                              #
 #  OLASI SEBEPLER:                                                             #
 #  1. Bilişim hocası dosyayı kurcaladı ve kodu bozduğunun farkında değil.      #
-#  2. Birisi Egemen'i taklit etmeye çalışıyor (ama Android Studio'su bile yok).#
+#  2. Bir merge/rebase yanlış gitti ve dosyalar karıştı.                       #
 #  3. Tuna yanlışlıkla kodun ortasına "GG" veya "EZ" yazıp kaydetti.           #
 #                                                                              #
 #  YAPILMASI GEREKEN: SAKIN COMMIT ATMA. SAKIN PUSH ATMA.                      #
@@ -104,25 +105,6 @@ Warning (unfinished ŞUBİRU / trying to jump ahead):
 #  Üzülsek de, kızsak da, önce mevcut işi kapatalım.                          #
 #                                                                              #
 #  YAPILMASI GEREKEN: Önce açık işi bitir ya da bilerek erteldiğini söyle.     #
-#                                                                              #
-################################################################################
-
-Warning (identity / access check failed):
-################################################################################
-#                                                                              #
-#    _  ___ __  __ _      _  ___ ___ ___ __  __                              #
-#   | |/ (_)  \/  | |    | |/ (_) __|_ _|  \/  |                             #
-#   | ' <| | |\/| | |__  | ' <| \__ \| || |\/| |                             #
-#   |_|\_\_|_|  |_|____| |_|\_\_|___/___|_|  |_|                             #
-#                                                                              #
-#                      KİMLİK DOĞRULAMA BAŞARISIZ OLDU!                       #
-#  --------------------------------------------------------------------------  #
-#  Ne Nitro/Windows/Android Studio parmak izi eşleşti, ne de T.B.'nin         #
-#  yüzme cevabı ikna edici. Bu ekip üyesi olduğunu iddia eden kişi            #
-#  gereğinden fazla açıklama yaptıysa bu da ayrı bir kırmızı bayrak.          #
-#                                                                              #
-#  YAPILMASI GEREKEN: Koda veya proje dosyalarına dokunma. E.Y.K. veya        #
-#  T.B.'den doğrudan onay bekle.                                              #
 #                                                                              #
 ################################################################################
 
