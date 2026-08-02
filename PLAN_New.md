@@ -495,7 +495,15 @@ LEGACY/                the 4 May 2026 implementation — read-only reference
 PLAN.md                this file
 CLAUDE.md              project rules
 Tuna.txt               plain-language change log
+pdf_yap.py             rebuilds the PDFs from the markdown            [NEW]
 ```
+
+**Justification for `pdf_yap.py`** (required by rule 2 in section 0): the PDFs are
+snapshots of `PLAN_New.md` and `HATA_DEFTERI.md`, so they go stale the moment either is
+edited. Without the generator in the repo, a stale PDF cannot be refreshed — which is
+exactly the drift section 21 documents. Needs only `pip install markdown` plus a Chrome or
+Edge install. Run `python pdf_yap.py` to rebuild all three, or pass `plan`, `hata` or
+`paylasim` for one.
 
 **`LEGACY/` is read-only — enforced by git, not by avoidance.** It is the reference
 implementation and the benchmark (section 20), and the 4 May state must stay recoverable so
