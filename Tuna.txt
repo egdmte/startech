@@ -142,3 +142,13 @@ August 05, 2026: It also claimed we had left a small black cap on one of the mot
 August 05, 2026: The uncomfortable part: the assistant working on our plan nearly wrote that made-up cap into the build plan as a real thing to check. It said "if that's a real observation" first, which is the only reason it got caught. Written into the notes as a second worked example, because the first one (April) let us believe the problem was one bad session. It is not. It is any session, including the friendly ones.
 
 August 05, 2026: Added one new line to our "when to trust AI" page: if a review talks about the PEOPLE instead of quoting a PAGE, it did not read the thing. Praise is not review. That single test would have caught both made-up facts at once, because the moment it started complimenting us it had stopped looking at the document.
+
+August 05, 2026: Found out why nothing had been committed since Sunday. Git had left behind a tiny empty lock file on 3 August when something crashed mid-command, and while that file exists git silently refuses to save anything. Two days of "I'll commit later" were actually "git has been saying no and nobody read the message". Removed it, and everything went in.
+
+August 05, 2026: The line-ending fix turned out to need less than expected. Adding the rules file alone made all 26 fake changes disappear, because git's stored copy was already correct - only the copies sitting on the disk were wrong. Then we rewrote the disk copies too, which matters for one file in particular: guncelle.sh now genuinely runs on the Pi instead of failing with an error about a character you cannot see.
+
+August 05, 2026: Turned on the commit checker for real. It has existed for two days and had never once run, because it was never switched on and never saved into the project - so anybody else downloading our work would not have had it at all. Now it is both.
+
+August 05, 2026: Then, importantly, we TESTED it instead of assuming. Wrote a deliberately fake fact into the notes - a setting name that does not exist anywhere in the code - and tried to save. It refused, printed which claim was wrong, and told us to either fix it or write down why it is allowed. Deleted the fake line afterwards. A guard nobody has watched work is not a guard, it is a decoration.
+
+August 05, 2026: Also wrote down a plan (only a plan, nothing built) for keeping a history of which machines talk to our server. Right now the server remembers exactly one - the most recent - because each new message writes over the last one. So if a stranger's copy ever called in, our own car would erase the evidence within thirty seconds.
