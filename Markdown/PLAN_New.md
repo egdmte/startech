@@ -52,6 +52,9 @@ and it tells you whether the old car was one measurement away from working.
 | Wondering why the old docs lie | §21 |
 | Working on SUBIRU | §22 |
 | Checking rules, points, track layout | §2 |
+| About to re-argue something | §23 — it may already be settled |
+| Stuck on a word | §24 |
+| **Don't know what to do next** | **`SIRA.md` — the ordered checklist** |
 | Buying parts, competition day, practice track | §16, §17, §18 — not urgent in autumn |
 
 **If you are Tuna: read `Tuna.txt`, not this file.** It is written for you, in plain
@@ -99,11 +102,11 @@ Two pieces in one repo:
 
 | Person | Current role (per technical document) |
 |---|---|
-| Egemen Yusuf K. (E.Y.K.) | Software development |
+| Egemen Y. K. (E.Y.K.) | Software development |
 | Tuna B. (T.B.) | Hardware design |
-| Mehmet Emin U. | Advisor teacher |
+| Mehmet E. U. | Advisor teacher |
 
-School: Denizyıldızları Mesleki ve Teknik Anadolu Lisesi, Darıca / Kocaeli.
+School: 
 
 **This division is being revised — see section 11.** As written it gives Egemen 100%
 of the work, because a vision-only car is almost entirely software.
@@ -454,6 +457,28 @@ hard to keep on the road.
 
 `max_pwm` should start near **57%**, not 85%. See section 6.
 
+### 3.6b Observational record of the May run — added 5 August 2026
+
+`HATA_DEFTERI.md` §0.9 now carries a reconstruction of the actual competition run, drawn
+from video and memory. It is the only surviving observational data from Antalya, since the
+code that ran there was edited on site and never saved.
+
+Three things from it change what is known rather than what is suspected:
+
+- **The car pulled consistently to one side.** §3.2 asked for exactly this observation. It
+  does not distinguish an untrimmed motor from the stale quad — both produce it — but it is
+  no longer an assumption.
+- **The car rotated about a single wheel.** That requires opposite-sign wheel commands,
+  which means the pivot branch fired during lane following. §6 reserves pivots for the
+  dead-end manoeuvre. This is physical evidence of a fault that source alone could not
+  establish, and defect 18 provides a mechanism for it.
+- **Zero self-recoveries in the entire run.** Every advance was a marshal replacing the car.
+  The lane-lost path did not work once — a stronger statement than "unreliable", and
+  countable off the diagram.
+
+Also: the pedestrian crossing worked. Detected, stopped, waited. One 50-point task is
+already functioning, and the spin occurred *after* it succeeded.
+
 ### 3.7 Still plausible, not yet evidence-backed
 
 - **Dashed centre lines.** `lane.py` does estimate a lane centre rather than chase the
@@ -536,6 +561,54 @@ Naming follows the project convention of short Turkish names, matching SUBIRU.
   video on Windows; those clips are the regression test set and belong in the repo
   structure rather than on someone's desktop. Large files go to git-lfs or stay local
   with a manifest, decided in Phase 2.
+
+Added 3 August, and listed here per rule 2:
+
+```
+kontrol.py             belgelerdeki iddiaları koda karşı doğrular     [NEW]
+kontrol-izin.txt       gerekçeli istisnalar                           [NEW]
+.githooks/pre-commit   kontrol.py'yi commit öncesi çalıştırır         [NEW]
+```
+
+**Justification.** §21 is the story of four documents asserting nine constants, five
+methods, ten filenames and every metric in them — none of which existed. `CLAUDE.md`
+already forbids that: *"any named constant, method or file must be findable with grep."*
+Nothing checked. `kontrol.py` turns that sentence into a script, and the hook makes it run
+without anyone remembering to.
+
+Four checks: every filename mentioned in the documents exists (or is in §4's list or the
+allowlist), every `ALL_CAPS` constant is findable in the code, every `§N` cross-reference
+resolves to a real heading, and every FPS/pixel figure carries either a date or a word
+saying it's an estimate.
+
+**The allowlist is the interesting file.** Adding a line to it means "this claim can't be
+verified, and here is why" — reasons are written next to each entry. An entry with no
+reason is just the check switched off, and then not having the check would at least be
+honest.
+
+Install once per machine: `git config core.hooksPath .githooks`
+
+### 4.1 Two things that live outside this repository
+
+Added 3 August 2026. Neither belongs *inside* `arac/` — the car does not run them and
+must never depend on them.
+
+**`kalibrasyon-sunucu/`** — a Vercel project in front of Cloudflare R2, holding the
+calibration version history and the system switch (§9.3). Live at
+`dymtal.avartech.net`; panel at `/startech`. At `Downloads\kalibrasyon-sunucu`, in git,
+remote `egdmte/avartech-r2`. **Backed up.**
+
+Deliberately separate from the team's main Vercel application, which serves real users
+from a real database. A school-project endpoint has no business inside it, and one bad
+route there would be debugging a robot inside something people depend on.
+
+**`StarTechConfig/`** — the WinForms calibration tool (§9.1). At
+`Desktop\sinav\StarTechConfig`, **still not a git repository**, no remote. Everything
+built on 2–3 August exists on one disk. This is the exposure `basitarackod` had until the
+morning of 2 August, reappearing in a new folder. Open question 15.
+
+`sunucu.json` — the shared password — is in `.gitignore` in both places and must stay
+there. It is the only thing guarding the endpoint.
 
 ## 5. Starting the car with no screen and no radio
 
@@ -722,6 +795,122 @@ Two additions from the guide:
 All HSV bounds come from `kalibrasyon.json`. **No colour value is ever written in a
 `.py` file.**
 
+### 8.1 What `LEGACY/lane.py` actually does, drawn
+
+The pipeline above is the **plan**. Below is what the May car really did, taken from
+`LEGACY/lane.py:59-162`. The step numbers are the code's own comment numbers, so any box
+can be checked against the file in seconds.
+
+Worth knowing before reading: the two are **not** the same order, and the differences are
+deliberate on both sides.
+
+```
+  picamera2                                              800 x 680
+  RGB kare / frame ------------------------------------> (WIDTH x HEIGHT)
+        |
+        v
+  +--------------------------------------------------------------+
+  | 1. warpPerspective(M)                        lane.py:68      |
+  |    M = getPerspectiveTransform(PERSP_SRC, dst)               |
+  |    PERSP_SRC = [[160,300],[480,300],[0,480],[640,480]]       |
+  |                                                              |
+  |    !! 640x480 icin olculdu, 800x680'e hic guncellenmedi      |
+  |    !! measured for 640x480, never rescaled  -> hata 1        |
+  +----------------------------+---------------------------------+
+                               | kus bakisi / bird's-eye
+                               v
+  +--------------------------------------------------------------+
+  | 2. RGB -> LAB, CLAHE on L only, LAB -> RGB   lane.py:72-75   |
+  |    CLAHE_CLIP_LIMIT = 2.5   CLAHE_TILE_SIZE = 8              |
+  |    Spot yansimalari normalize eder, cizgiyi korur.           |
+  |    (CLAHE is on L in LAB -- NOT on HSV)                      |
+  +----------------------------+---------------------------------+
+                               v
+  +--------------------------------------------------------------+
+  | 3. RGB -> HSV, then ADAPTIVE profile        lane.py:78-96    |
+  |                                                              |
+  |    v_mean = mean(V)                                          |
+  |      < 100  -> WHITE_HSV_LOW_DARK   / _HIGH_DARK             |
+  |      > 200  -> WHITE_HSV_LOW_BRIGHT / _HIGH_BRIGHT           |
+  |      else   -> WHITE_HSV_LOW_NORMAL / _HIGH_NORMAL           |
+  |                                                              |
+  |    inRange -> MORPH_OPEN (3x3) -> MORPH_CLOSE (3x3)          |
+  +----------------------------+---------------------------------+
+                               | ikili maske / binary mask
+                               v
+  +--------------------------------------------------------------+
+  | 4. Sutun surekliligi agirligi / column continuity            |
+  |                                              lane.py:101-103 |
+  |    col_cov      = (mask>0).sum(axis=0)                       |
+  |    min_cov      = bird_h * LANE_CONTINUITY_RATIO             |
+  |    continuity_w = min(col_cov / min_cov, 1.0)                |
+  |                                                              |
+  |    Serit dikeydir, parlama degildir. Bu fikir ORIJINAL       |
+  |    ve iyi -- yeni koda tasinacak (bkz. 20).                  |
+  +----------------------------+---------------------------------+
+                               v
+  +--------------------------------------------------------------+
+  | 5. Yakin / uzak dilim  -> iki histogram      lane.py:108-117 |
+  |                                                              |
+  |    +------------------------+  <- ust: far_rows              |
+  |    |  FAR  (look-ahead)     |     = bird_h * LANE_FAR_RATIO  |
+  |    +------------------------+                                |
+  |    |                        |                                |
+  |    +------------------------+  <- near_start                 |
+  |    |  NEAR (yanal konum)    |     near_rows                  |
+  |    +------------------------+     = bird_h * LANE_NEAR_RATIO |
+  |                                                              |
+  |    her dilim: sum(axis=0) * continuity_w -> GaussianBlur 1x31|
+  +----------------------------+---------------------------------+
+                               v
+  +--------------------------------------------------------------+
+  | 6-7. Tepe bulma + hafiza / peaks + memory   lane.py:120-134  |
+  |    near: _find_peak(..., hafizadan ipucu ile / memory hint)  |
+  |    far : _find_peak(..., ipucu YOK / no hint, free look)     |
+  |    _update_memory('left'/'right', ...)                       |
+  |    Kesikli orta cizgiyi zaten bu hallediyor.                 |
+  +----------------------------+---------------------------------+
+                               v
+  +--------------------------------------------------------------+
+  | 8. Merkez ve hata / centre and error        lane.py:137-154  |
+  |                                                              |
+  |    iki serit de var  -> c = (lp + rp) // 2                   |
+  |    yalniz sol        -> c = lp + ASSUMED_LANE_WIDTH // 2     |
+  |    yalniz sag        -> c = rp - ASSUMED_LANE_WIDTH // 2     |
+  |    hicbiri           -> None                                 |
+  |                                                              |
+  |    near ve far varsa:                                        |
+  |      error = LANE_NEAR_WEIGHT*(mid-near_c)                   |
+  |            + LANE_FAR_WEIGHT *(mid-far_c)                    |
+  +----------------------------+---------------------------------+
+                               |
+              +----------------+-----------------+
+              |                                  |
+         error = int                       error = None
+              |                                  |
+              v                                  v
+      controller.compute(error)      ==>  HATA 18 ZINCIRI
+      normal PD                           the defect-18 chain
+                                          (HATA_DEFTERI, hata 18)
+```
+
+**Differences from the planned pipeline in §8, and why they matter for the rewrite:**
+
+| | `LEGACY/lane.py` | Plan (§8, `goruntu.py`) |
+|---|---|---|
+| Downscale | none — full 800 × 680 every frame | step 2, "single biggest speed win" |
+| Warp | step 1, **before** everything | not in the list at all |
+| CLAHE | on `L` in LAB | not in the list at all |
+| ROI | via warp geometry only | explicit crop, bounds in `ayarlar.json` |
+| Masks run | white lanes only | current state's masks only |
+| Colour values | in `config.py` | `kalibrasyon.json`, never in a `.py` |
+
+Two of those gaps are decisions the rewrite must make on purpose rather than by omission:
+**warping and CLAHE are absent from §8 but were among the May build's genuinely good
+ideas** (§20). If they are dropped, that should be a recorded decision in §23, not a
+silence. Conversely the plan's downscale step is a real improvement — `LEGACY` runs the
+whole pipeline at full resolution.
+
 ## 9. Configuration and calibration
 
 Two separate JSON files, deliberately split by owner:
@@ -753,6 +942,326 @@ under the real lights. It is short. So:
   one command.
 - Save a **timestamped copy** of `kalibrasyon.json` into every run folder (section 10), so
   each run's log states which calibration produced it.
+
+### 9.1 The calibration tool — decisions of 2 August 2026
+
+**Toolkit changed: WinForms, not Flask.** Egemen has started building it in C# WinForms
+rather than the Flask screen described above. `CLAUDE.md` explicitly invites real WinForms
+work, this tool never runs on the car, and keeping analysis tooling out of the car codebase
+is a genuine separation rather than a preference. The Flask decision stands for SUBIRU.
+
+**Consequence to plan around: a WinForms tool cannot run on the Raspberry Pi.** If open
+question 10 comes back as "no laptop may be connected at the venue", there is then no
+calibration tool on site at all. Either resolve q10 early, or keep a minimal
+slider-and-save fallback that runs on the Pi itself. Do not discover this in Antalya.
+
+**The split between the two files is by origin, not by data type:**
+
+> **Calibration** — anything that must be measured again at a different track, in different
+> light, or after remounting the camera. *Discovered.* Tuna's, and usable without Python.
+>
+> **Tuning** — anything chosen with judgement and a stopwatch, still valid at another venue.
+> *Chosen.* Egemen's, lives in `ayarlar.json`.
+
+By that test the perspective quad, `ASSUMED_LANE_WIDTH` and the motor trims are calibration
+even though none of them are colours.
+
+**Design rules:**
+
+1. **Tune against a live mask, not numbers.** Frame on one side, what the mask selects on
+   the other. Nobody picks an HSV range by typing digits.
+2. **Accept a still image or video file, not only a live camera.** This is what makes the
+   tool buildable and testable while the car is at school.
+3. **Write the resolution into the output file, and have `ayar.py` refuse to start on a
+   mismatch.** This is defect 1 of `HATA_DEFTERI.md` designed out. A warning comment was
+   ignored for three months; a hard failure cannot be.
+4. **Save atomically and stamp it** — temp file then rename, so a crash never leaves a
+   half-written `kalibrasyon.json` for the car to load. Stamp with timestamp plus a short
+   content hash: sorts correctly, unique across machines, needs no network.
+5. **Never block on the network.** Any "fetch an older calibration" is a button someone
+   presses, never something the tool does before it will let you work. Radios are off at
+   the venue.
+6. **Fixed order**, matching §17.3: camera check → perspective → white lane → orange vs
+   yellow → red parking → green light → blue signs.
+7. **Output is `kalibrasyon.json`, not Python.** A `tune.py` compatibility mode for running
+   the §20.7 experiment against `LEGACY/` is fine, but it must be an explicit mode — §20.3
+   drops the rewrite-source-with-regex mechanism.
+8. **Orange and yellow are tuned on one screen, both objects in frame, both masks
+   overlaid.** Orange hue stops at 20 and yellow starts at 22; that two-degree gap is the
+   whole defence against overtaking a decoy. Tuned on separate screens, someone widens one
+   into the other and never sees it happen.
+
+**Found in the first mockup (2 August), against `LEGACY/config.py`:**
+
+| In the tool | Actual | Note |
+|---|---|---|
+| Resolution `800 × 600` | `800 × 680` | **Defect 1 recurring.** The tool built to prevent the resolution mismatch shipped with one |
+| Two sliders labelled `KP` | `KP` 0.30, `KD` 0.45 | Second is KD |
+| `K_Speed` 65 | `K_SPEED` 0.45 | A multiplier — `hız = BASE − K_SPEED × |hata|`. At 65 the car floors to minimum speed on any error |
+| `D_C` 8 | `DERIV_CAP` 150 | |
+| `Max hız` 65 | `MAX_SPEED` 85 | If lowered deliberately for the overvoltage (§3.6), record the reason beside it per §20.5 |
+
+Correct in the same mockup: `MIN_LANE_SIGNAL` 200, the quality ratio, `ASSUMED_LANE_WIDTH`
+300, continuity as 15%, CLAHE 2.5. Naming `EVENT_NEAR_ROI_RATIO` **"30cm onay oranı"** is
+better than the original — it says what the number is for rather than what it multiplies,
+and that convention is worth keeping.
+
+All five of those were corrected, and the **Renkler** section was built.
+
+### 9.2 What exists as of 3 August 2026
+
+The tool is written and compiles. It has **not yet produced a calibration used by a car**,
+because there is no car until September. Everything below is therefore built and untested
+against reality — treat it as such.
+
+**`kalibrasyon.json` schema, version 1.** The contract between the tool, `ayar.py` and the
+car. Turkish keys, matching the project's naming. Blocks: `damga`, `kamera`, `perspektif`,
+`serit`, `renkler`, `motor`. Three decisions inside it worth keeping:
+
+- **Every colour is a *list* of ranges, even with one entry.** Red needs two bands because
+  hue wraps the colour wheel. Rather than special-casing red, everything is a list — one
+  code path, and a second band can be added to anything later without a schema change.
+- **The resolution lives inside the `perspektif` block**, not only at the top. You cannot
+  read the quad without seeing which resolution it was measured at. Defect 1 designed out
+  rather than warned about.
+- **`motor.olculdu` starts as `null`, not `1.0`.** In `LEGACY/` the four trims sat at 1.0
+  looking deliberate, and nobody could distinguish "measured, happened to be 1.0" from
+  "never measured." `null` says it out loud.
+
+**`ayarlar.json` schema, version 1.** Chosen values, not measured ones: `kontrol`, `hiz`,
+`olay`. Written by the same button, to a separate file, per the ownership split.
+
+**Validation that refuses to save**, not warnings: HSV out of range, `alt` above `ust`, a
+perspective corner outside the frame, orange's upper hue not below yellow's lower hue, and
+`min_hiz` below the dead-zone PWM. That last one is a `HATA_DEFTERI` finding turned into a
+rule — commanding a speed below `DEAD_ZONE_MIN_PWM` means the motors do not turn at all,
+the error grows, and smooth steering becomes mathematically impossible.
+
+**A live HSV mask preview** over a loaded photograph, using an OpenCV-compatible
+conversion (H 0–180, S/V 0–255) rather than .NET's `Color.GetHue()`, so what the operator
+sees matches what `cv2.inRange` will compute. Currently white only — see §9.4.
+
+**Atomic save with a content stamp.** Temp file then rename. `damga` carries a timestamp
+for ordering and a six-character hash for identity, computed over the file with the `damga`
+block removed. Neither needs a network, and two people calibrating in the same week produce
+distinct files rather than a conflict.
+
+**A print/PDF summary** — one sheet, each value with a line explaining what it does, plus
+§17.5's fourteen-item pre-run checklist on the reverse. This exists because open question
+10 may come back "no laptop at the track", in which case paper is the only interface to
+your own settings; and because §2.2 requires being able to explain any part of the system
+on request.
+
+### 9.3 The version server
+
+`dymtal.avartech.net` — a Vercel project in front of Cloudflare R2. Three endpoints behind
+one shared password: upload, list, download.
+
+**Append-only.** Nothing is overwritten or deleted. The object key comes from the file's
+own stamp — `kalibrasyon/2026-03-14T1522-a3f9c1.json` — so identical content cannot be
+uploaded twice and different content cannot collide. Saving five times while tuning and
+changing one thing produces one new version, not five.
+
+**`ayarlar.json` is uploaded alongside under the same stamp.** Without this, restoring "the
+calibration from the day it worked" would leave the gains at whatever they were last
+dragged to — half a restore, silently.
+
+**Loading shows a diff before applying**, and the download's hash is re-verified.
+
+**Three constraints that are not negotiable:**
+
+1. **Saving to disk never depends on the network.** Upload happens after the file is
+   written, and every failure message begins "Kaydedildi ✓".
+2. **Nothing touches the network unprompted.** Radios are off at the venue; a tool that
+   stalls waiting for a server is a tool you cannot use in the pit.
+3. **Git remains authoritative.** `kalibrasyon.json` is versioned in the repository. R2 is a
+   mirror for machines without a key. If they disagree, git is right.
+
+The shared password is distributed by hand and lives in `sunucu.json` beside the
+executable, never in source. One password for the whole team — proportionate for three
+people, but it means rotation is the only lever for removing access, and it is now
+permanently in a chat history.
+
+Endpoints: `yukle`, `liste`, `indir`, plus `durum` and `anahtar` below. Reachable at both
+`/api/...` and `/startech/api/...`; panel at `/startech`.
+
+### 9.3a The system switch and the panel
+
+Added 3 August. The switch that decides whether the car may update **lives on the server,
+not on the car.** The car cannot override it, and turning it off on race morning is one
+click that requires touching nothing physical.
+
+**The car polls; the server never connects to the car.** `getir.py` makes an outbound
+request to `/durum`. That means no inbound connection, no tunnel, no port forwarding, no
+static IP, and nothing listening on the Pi. It also means the car has no remotely
+commandable surface at all — which matters at inspection, where §2.2 requires explaining
+any part of the system and *"this lets us stop and restart the car over the internet"* is
+not a sentence worth having to say.
+
+**Failure is always toward inaction:**
+
+| Condition | Result |
+|---|---|
+| `durum.json` missing or unreadable | closed |
+| Server unreachable | car does nothing |
+| No version published | car keeps the file it has |
+| Hash mismatch on download | not written |
+
+Every failure mode is "the car doesn't update." None is "the car updates unexpectedly."
+For a machine with motors, that is the direction it must break in.
+
+**Two independent kill switches**, either sufficient alone: the server flag, and the Pi's
+radio. Forgetting one leaves the other holding.
+
+**The panel** (`/startech`) shows the switch large and coloured, which version is
+published, the version history with each entry's note, and two things worth calling out:
+
+- **A heartbeat** — when the car last asked. Green under two minutes, red beyond.
+- **The version the car reports it is actually running.** Amber when it differs from the
+  published one, meaning you published but the car hasn't taken it. Without this, "did the
+  car really update?" is a question only answerable over SSH.
+
+### 9.3c Heartbeat logging — DESIGN ONLY, not built
+
+**Status: nothing in this subsection exists yet.** It is written down so the reasoning
+survives, not because it has been implemented. Read `api/durum.js` before trusting any of
+it.
+
+**The problem, stated as it is in the code.** `durum.js` records a heartbeat by writing to
+`KALP_ANAHTARI` — a single fixed key — on every poll. Object storage has no append, so each
+write replaces the last. **At any moment exactly one heartbeat exists: the most recent
+one.**
+
+That matters because of what the heartbeat was implicitly being relied on for. If a copy of
+the code ever ran somewhere it should not, it would call `durum` and announce itself. But
+`getir.py --izle` polls every `BEKLEME` = 30 seconds, so your own Pi overwrites any such
+record within half a minute — and equally, theirs overwrites yours. The evidence and the
+thing that destroys the evidence are the same line of code.
+
+So the current position is not "logging is thin". It is that **the detection does not
+retain anything at all.**
+
+**What is trustworthy today, and what is not.** Worth being exact, because half the fields
+look like evidence and are not:
+
+| Field | Source | Trustworthy? |
+|---|---|---|
+| `zaman` in the heartbeat | `new Date().toISOString()` on the server | **Yes** |
+| `LastModified` from R2, shown by `liste.js` | object store | **Yes** |
+| `kim` | `istek.query?.kim`, sent by the client | No — any string |
+| `olusturan`, `not` | the uploader's own `damga` block | No — any string |
+
+`kim` still has some value: someone who simply runs `getir.py` without editing it reports
+`platform.node()`, which is their own machine name. That is worth having. It is just not
+worth *relying* on, and the difference should be visible in the panel.
+
+**The proposed change — one line of thinking, not a rewrite.** Give each heartbeat its own
+key instead of one shared key:
+
+```
+kalp/<YYYY-MM-DDTHH>-<kim>-<damga>.json
+```
+
+Then reuse the mechanism `yukle.js` already has: `HeadObjectCommand` first, and if the key
+exists, do nothing. That single decision does three jobs at once —
+
+1. **History accumulates.** Nothing overwrites anything, consistent with the rest of the
+   bucket.
+2. **Volume stays sane.** The key is bucketed by hour, so a machine polling every 30
+   seconds writes **one** object per hour, not 120. Worst case is roughly 24 objects per
+   machine per day. Without the hour bucket it would be about 2 880 a day per machine,
+   which is both a bill and an unlistable folder.
+3. **The dedupe already exists.** The 409 path in `yukle.js` is the same shape. No new
+   concept is introduced, which is the main reason to prefer it.
+
+**What it would then be possible to see** — and this is the only reason to build it:
+
+- Two different `kim` values reporting the same `damga` at the same hour, when only one
+  machine should be running that version.
+- A `kim` nobody recognises.
+- Polling that continues at hours when nobody on the team is working.
+
+None of those is proof. All of them are questions worth being asked automatically.
+
+**What it does not fix.** `anahtar.js` accepts POST from anyone holding the shared
+password, and that is the one endpoint that changes behaviour rather than data. Logging
+would record that it happened; it would not prevent it. Preventing it is a different
+decision and is not proposed here.
+
+**Priority: low, and deliberately so.** This defends against a scenario nobody believes
+will happen. Ahead of it in the queue sit a repository with no remote and a commit hook
+that has never fired — problems that are certain rather than hypothetical. Recorded so it
+is not re-derived from scratch later; not scheduled.
+
+### 9.3b `getir.py` — the Pi side
+
+Draft at `kalibrasyon-sunucu/ornek/getir.py`. Moves to `arac/getir.py` once `arac/`
+exists, via §4 rule 2.
+
+Polls `/durum`; if the system is open and the published stamp differs from the local one,
+downloads, **verifies the hash before writing**, backs up the previous file to
+`kalibrasyon.onceki.json`, writes atomically, and pulls the paired `ayarlar.json`.
+`--yeniden-baslat` goes through `systemctl`, not a kill, so the shutdown path runs and the
+motors stop first.
+
+**The rule that matters most, and the reason it is a separate file:**
+
+> **The car runtime never imports it.** Not `main.py`, not `ayar.py`, not anything they
+> reach. If network code exists anywhere in the car's import graph, one day it fires at the
+> wrong moment — and rule 2.3 makes that a disqualification rather than a bug.
+
+**Decided and rejected on 3 August**, recorded so they are not re-proposed:
+
+- **A second `main.py` that fetches before running.** Two entry points means two control
+  loops, and the one edited least is the one that races. Allowed only as a *wrapper* that
+  calls `main.py` — never a copy of it. The rule is not "one file", it is **never a second
+  copy of the control loop**.
+- **Pushing from the server to the car.** Requires something listening on the Pi. The car
+  polls instead.
+- **A direct laptop→Pi transfer button.** The venue has internet by phone hotspot, so the
+  server route covers it. An ethernet cable in the bag is the free fallback if the hotspot
+  is unusable — a hall with hundreds of teams on one cell is the least reliable link in the
+  chain. §17.4.
+
+### 9.4 Roadmap, in order
+
+Ranked by one test: **does this make the car score more points?**
+
+**The current gap:** the mask preview works for white only. None of the six colours have
+one. That is backwards from the risk — a bad white threshold loses the lane and you watch
+it happen; a bad orange/yellow threshold makes the car **overtake the decoy**, and you find
+out at the competition. The highest-consequence setting is the only one that cannot be
+checked by eye.
+
+Before September, no car needed:
+
+1. **Mask preview for all six colours.** The rendering code already exists; only the
+   selection of which range to preview is missing.
+2. **Orange and yellow overlaid on one image, overlap in red.** Validation catches the
+   collision numerically, but a number does not show *why*. Seeing one corner of the
+   orange vehicle register as yellow is different knowledge.
+3. **One photograph, used by every preview** rather than loaded per-panel.
+4. **Bird's-eye preview of the perspective quad.** Eight coordinates typed blind is not a
+   workflow, and §3.1 is the strongest suspect for the May failure — a stale quad's
+   off-centre warp and missing near-road are obvious the moment they are drawn.
+5. **Arrow keys for ±1 on HSV fields.** The practice round is short.
+6. **The print summary** (built).
+
+September, with the car: live camera instead of a still, then the on-track version.
+
+### 9.5 The September version is a subset, not a port
+
+**The tool targets .NET Framework 4.7.2, which is Windows-only.** Not awkward on Linux —
+it does not run there at all. So the on-car version is a decision rather than a migration.
+
+The recommendation is **a small Flask screen on the Pi**, which is what §9 originally
+specified and what SUBIRU already uses. At the track you need orange/yellow, the white
+threshold, and save. The perspective picker and the PD sliders are workshop tools and do
+not belong on a machine you are crouched next to with four minutes left.
+
+**The two tools need share no code.** `kalibrasyon.json` is the contract. Keep the schema
+fixed and they can be written in different languages by different people, which is also
+what makes the Pi version something a third student could own.
 
 ## 10. Black-box recorder (`kayit.py`)
 
@@ -977,6 +1486,88 @@ happened.
 competently and stopping one step short. A new language is the most enjoyable possible way
 to not fix `PERSP_SRC`.
 
+### The phases at a glance
+
+Each phase is a gate, not a suggestion: the arrow only continues when the exit test passes.
+**Dates are deliberately absent** — §12 says the phases are sequenced, not dated, and
+drawing invented dates would contradict it. The only two fixed points on the calendar are
+the ones that belong to somebody else.
+
+<div class="sema">
+<svg viewBox="0 0 900 560" width="100%" style="max-width:660px" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .h { font: 15px "Segoe UI", sans-serif; fill:#1a1a1a; font-weight:600; }
+    .p { font: 13px "Segoe UI", sans-serif; fill:#fff; font-weight:600; }
+    .t { font: 11px "Segoe UI", sans-serif; fill:#1a1a1a; }
+    .s { font: 10.5px "Segoe UI", sans-serif; fill:#555; }
+    .q { font: 11.5px "Segoe UI", sans-serif; fill:#7a2a2a; font-weight:600; }
+  </style>
+
+  <rect x="20" y="20" width="150" height="46" rx="4" fill="#2a4d7a"/>
+  <text x="32" y="40" class="p">FAZ 0</text>
+  <text x="32" y="58" class="p" style="font-weight:400;font-size:11px">Yasat / survive</text>
+  <text x="182" y="36" class="t">git remote, LEGACY commit, ortam kurulumu</text>
+  <text x="182" y="54" class="s">CIKIS TESTI: depo ikinci bir makineye klonlanip kurulabiliyor</text>
+
+  <line x1="95" y1="66" x2="95" y2="90" stroke="#2a4d7a" stroke-width="2"/>
+  <polygon points="95,96 90,84 100,84" fill="#2a4d7a"/>
+
+  <rect x="20" y="96" width="150" height="46" rx="4" fill="#2a4d7a"/>
+  <text x="32" y="116" class="p">FAZ 1</text>
+  <text x="32" y="134" class="p" style="font-weight:400;font-size:11px">Direksiyon</text>
+  <text x="182" y="112" class="t">motorlar, trim, olu bolge &#8212; goruntu YOK</text>
+  <text x="182" y="130" class="s">CIKIS TESTI: (60, 80) tekrarlanabilir duzgun bir yay ciziyor</text>
+  <rect x="620" y="96" width="260" height="46" rx="4" fill="#f7eeee" stroke="#7a2a2a" stroke-dasharray="5 4"/>
+  <text x="632" y="114" class="q">ACIK SORU 1 BURAYI KILITLER</text>
+  <text x="632" y="132" class="s">kablolama bilinmeden bu test gecemez</text>
+
+  <line x1="95" y1="142" x2="95" y2="166" stroke="#2a4d7a" stroke-width="2"/>
+  <polygon points="95,172 90,160 100,160" fill="#2a4d7a"/>
+
+  <rect x="20" y="172" width="150" height="46" rx="4" fill="#2a4d7a"/>
+  <text x="32" y="192" class="p">FAZ 2</text>
+  <text x="32" y="210" class="p" style="font-weight:400;font-size:11px">Serit gor</text>
+  <text x="182" y="188" class="t">kayitli klipler uzerinde &#8212; ARAC GEREKMEZ</text>
+  <text x="182" y="206" class="s">CIKIS TESTI: ayrilmis klipte kareler icin mantikli serit merkezi</text>
+  <rect x="620" y="172" width="260" height="46" rx="4" fill="#eef7ef" stroke="#1f6b3a" stroke-dasharray="5 4"/>
+  <text x="632" y="190" class="t" style="fill:#1f6b3a;font-weight:600">EVDE, DIZUSTUNDE YAPILIR</text>
+  <text x="632" y="208" class="s">arac erisilmez haftalarda hayatta kalir</text>
+
+  <line x1="95" y1="218" x2="95" y2="242" stroke="#2a4d7a" stroke-width="2"/>
+  <polygon points="95,248 90,236 100,236" fill="#2a4d7a"/>
+
+  <rect x="20" y="248" width="150" height="46" rx="4" fill="#14385e"/>
+  <text x="32" y="268" class="p">FAZ 3</text>
+  <text x="32" y="286" class="p" style="font-weight:400;font-size:11px">Dongu kapa</text>
+  <text x="182" y="264" class="t">goruntu + kontrol birlikte, gercek pistte</text>
+  <text x="182" y="282" class="s">CIKIS TESTI: ust uste 3 tur, SIFIR mudahale</text>
+
+  <line x1="95" y1="294" x2="95" y2="318" stroke="#2a4d7a" stroke-width="2"/>
+  <polygon points="95,324 90,312 100,312" fill="#2a4d7a"/>
+
+  <rect x="20" y="324" width="150" height="46" rx="4" fill="#2a4d7a"/>
+  <text x="32" y="344" class="p">FAZ 4</text>
+  <text x="32" y="362" class="p" style="font-weight:400;font-size:11px">Gorevler</text>
+  <text x="182" y="340" class="t">tek tek, her biri ayri &#8212; kisa seanslara uygun</text>
+  <text x="182" y="358" class="s">CIKIS TESTI (her gorev): 10 denemede en az 8 puan</text>
+
+  <line x1="95" y1="370" x2="95" y2="394" stroke="#2a4d7a" stroke-width="2"/>
+  <polygon points="95,400 90,388 100,388" fill="#2a4d7a"/>
+
+  <rect x="20" y="400" width="150" height="46" rx="4" fill="#2a4d7a"/>
+  <text x="32" y="420" class="p">FAZ 5</text>
+  <text x="32" y="438" class="p" style="font-weight:400;font-size:11px">Tam kosu</text>
+  <text x="182" y="416" class="t">bastan sona, sureyle</text>
+  <text x="182" y="434" class="s">CIKIS TESTI: ust uste 5 tam kosu, her biri 240 s altinda</text>
+
+  <line x1="20" y1="466" x2="880" y2="466" stroke="#d6dbe1"/>
+  <text x="20" y="490" class="h">Takvimde sabit olan tek iki nokta &#8212; ikisi de bizim degil</text>
+  <text x="20" y="512" class="t">~Ocak: yeni kilavuz yayimlanir &#8212; DUR ve bolum 2 ile karsilastir. Kurallar degisir.</text>
+  <text x="20" y="532" class="t">Mayis 2027: yarisma. Geri sayim buradan baslar, bugunden degil.</text>
+  <text x="20" y="554" class="q">Sure yeterse degil, sure YETMEZSE: once sollama, sonra cikmaz sokak, sonra tumsek gider. FAZ 3 ASLA.</text>
+</svg>
+</div>
+
 ### Term shape
 
 The phases are sequenced, not dated, but they are not weightless. A realistic reading:
@@ -1139,10 +1730,104 @@ Each now has an owner and a phase, because unowned questions do not get answered
 | 8 | **Partly answered.** `LEGACY/lane.py` estimates a lane centre via column histogram with continuity weighting — it does *not* chase the brightest blob. Still open: how cleanly it handles **dashed** segments. Answerable by replaying footage through it. See 3.5. | Egemen | Phase 2 |
 | 14 | **Classical CV or ML for signs?** `CLAUDE.md` answers **CV**, but `LEGACY/` contains a trained `sign_model.json` and `train_sign.py`. The plan and the code disagree. Decide before Phase 4. See section 20.3. | Egemen | Phase 4 |
 | 9 | **Is bölge tamamlama 50 points total, or 50 per zone?** The guide says "birden fazla bölge" but awards "50 bölge tamamlama ödül puanı". If it is per zone it may outweigh every other task and reorders all of Phase 4. Ask the coordinators. | Advisor | Phase 4 |
-| 10 | May a laptop be connected to the car in the pit and during deneme turları? Section 9 assumes yes. Confirm on the day and carry a wired fallback. | Egemen | Competition |
+| 15 | **`StarTechConfig/` is still not in a git repository.** `kalibrasyon-sunucu` now is (`egdmte/avartech-r2`) — the calibration tool is not. Two days of work, one disk, no remote. Same exposure `basitarackod` had until 2 August. See §4.1. | Egemen | **Now** |
+| 10 | **May a laptop be connected to the car in the pit and during deneme turları? Raised in priority 2 Aug 2026.** This was "confirm on the day". It is now a design input: the calibration tool is being built in WinForms (§9.1), which **cannot run on the Raspberry Pi**. If the answer is no, the team arrives with no way to adjust colours on site — during the one short window where the real track under real lights is visible. Either get an answer well before May, or keep a minimal slider-and-save fallback that runs on the Pi itself. Carry the wired fallback (HDMI screen + keyboard) regardless. | Egemen + Advisor | **Ask early, not on the day** |
 | 11 | Is a third student joining, and which subsystem do they own? See section 11. | All | Autumn term |
 | 12 | **2027 competition date, guide publication and application deadline**, once announced. The 2026 cycle was: guide ~January, applications closed **20 March**, competition **6–8 May**. See section 17.1. | Advisor + Egemen | **1 January 2027 reminder** |
 | 13 | What documents does the application require, and what is the **kura kaydı** step? Find out in January, not March. | Advisor | January |
+
+### 15.1 Open question 1, drawn
+
+Question 1 is the one blocking Phase 1, and it is much easier to see than to read. Below
+are the pin facts, which are certain, and the pairing, which is not.
+
+<div class="sema">
+<svg viewBox="0 0 900 470" width="100%" style="max-width:660px" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .h  { font: 15px "Segoe UI", sans-serif; fill:#1a1a1a; font-weight:600; }
+    .l  { font: 12px "Segoe UI", sans-serif; fill:#1a1a1a; }
+    .m  { font: 11.5px Consolas,"Courier New",monospace; fill:#1a1a1a; }
+    .s  { font: 10.5px "Segoe UI", sans-serif; fill:#555; }
+    .q  { font: 13px "Segoe UI", sans-serif; fill:#7a2a2a; font-weight:600; }
+  </style>
+  <text x="0" y="15" class="h">Pinler kesin. Hangi motorun nereye bagli oldugu KESIN DEGIL.</text>
+  <text x="0" y="32" class="s">Pins are certain. Which motors hang off which channel is not.</text>
+
+  <rect x="20" y="52" width="200" height="250" rx="6" fill="#eef2f7" stroke="#2a4d7a" stroke-width="2"/>
+  <text x="34" y="76" class="l">Raspberry Pi 5</text>
+  <text x="34" y="94" class="s">BCM / fiziksel pin</text>
+  <text x="34" y="120" class="m">BCM 17  &#8212; pin 11</text>
+  <text x="34" y="140" class="m">BCM 27  &#8212; pin 13</text>
+  <text x="34" y="160" class="m">BCM 22  &#8212; pin 15</text>
+  <text x="34" y="180" class="m">BCM 23  &#8212; pin 16</text>
+  <text x="34" y="206" class="m">BCM 12  &#8212; pin 32  PWM0</text>
+  <text x="34" y="226" class="m">BCM 13  &#8212; pin 33  PWM1</text>
+  <text x="34" y="252" class="m">BCM 16  &#8212; pin 36</text>
+  <text x="34" y="268" class="s">START_BUTTON_PIN</text>
+  <text x="34" y="288" class="s">(defect 11: kaldirildi)</text>
+
+  <line x1="220" y1="130" x2="330" y2="130" stroke="#2a4d7a" stroke-width="2"/>
+  <line x1="220" y1="216" x2="330" y2="216" stroke="#2a4d7a" stroke-width="2"/>
+
+  <rect x="330" y="80" width="210" height="100" rx="6" fill="#fafbfc" stroke="#333" stroke-width="2"/>
+  <text x="344" y="104" class="l">L298N &#8212; kart A</text>
+  <text x="344" y="124" class="m">IN1=BCM17  IN2=BCM27</text>
+  <text x="344" y="142" class="m">ENA=BCM13 (pin 33)</text>
+  <text x="344" y="166" class="s">config.py adi: RIGHT_*</text>
+
+  <rect x="330" y="196" width="210" height="100" rx="6" fill="#fafbfc" stroke="#333" stroke-width="2"/>
+  <text x="344" y="220" class="l">L298N &#8212; kart B</text>
+  <text x="344" y="240" class="m">IN1=BCM22  IN2=BCM23</text>
+  <text x="344" y="258" class="m">ENB=BCM12 (pin 32)</text>
+  <text x="344" y="282" class="s">config.py adi: LEFT_*</text>
+
+  <line x1="540" y1="130" x2="620" y2="130" stroke="#333" stroke-width="2"/>
+  <line x1="540" y1="246" x2="620" y2="246" stroke="#333" stroke-width="2"/>
+
+  <rect x="620" y="60" width="260" height="150" rx="6" fill="#f7eeee" stroke="#7a2a2a"
+        stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="634" y="84" class="q">A) SOL / SAG ?</text>
+  <text x="634" y="104" class="s">config.py boyle isimlendiriyor</text>
+  <text x="634" y="128" class="m">kart A -> sag on + sag arka</text>
+  <text x="634" y="146" class="m">kart B -> sol on + sol arka</text>
+  <text x="634" y="172" class="s">Bu dogruysa bolum 6'daki</text>
+  <text x="634" y="188" class="s">kontrol yasasi calisir.</text>
+
+  <rect x="620" y="230" width="260" height="150" rx="6" fill="#f7eeee" stroke="#7a2a2a"
+        stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="634" y="254" class="q">B) ON / ARKA ?</text>
+  <text x="634" y="274" class="s">CLAUDE.md pin 32/33'u</text>
+  <text x="634" y="290" class="s">&#8220;Front PWM / Back PWM&#8221; diyor</text>
+  <text x="634" y="314" class="m">kart A -> on iki teker</text>
+  <text x="634" y="332" class="m">kart B -> arka iki teker</text>
+  <text x="634" y="358" class="s">Bu dogruysa arac diferansiyel</text>
+  <text x="634" y="374" class="s">olarak DONEMEZ.</text>
+
+  <line x1="20" y1="404" x2="880" y2="404" stroke="#d6dbe1"/>
+  <text x="20" y="428" class="l">Ayni fiziksel pinler, iki celiskili isim. Bir degisken adi kablo degildir.</text>
+  <text x="20" y="448" class="s">Same physical pins, two contradictory namings. An identifier is not a wire.</text>
+  <text x="20" y="464" class="q">CEVAP: iki kabloyu elle takip et. Kod bunu asla soyleyemez.</text>
+</svg>
+</div>
+
+**Where each half of the contradiction comes from.** `LEGACY/config.py:113-118` names the
+six pins `RIGHT_IN1`, `RIGHT_IN2`, `LEFT_IN1`, `LEFT_IN2`, `LEFT_PWM_PIN`, `RIGHT_PWM_PIN`
+— left and right. The project header in `CLAUDE.md` describes the same two PWM pins, 32 and
+33, as *Front* and *Back*. The pin numbers agree exactly (BCM 12 is physical 32, BCM 13 is
+physical 33); only the meaning disagrees.
+
+Both cannot be true, and **the code cannot settle it** — it proves only that two channels
+exist. This is the whole reason question 1 was reopened on 1 August after being wrongly
+closed on the strength of a variable name.
+
+**Why it blocks Phase 1 rather than merely being untidy.** If pairing is front/rear, the
+control law in §6 does not steer the car at all — differential steering needs the two
+channels on opposite *sides*. Phase 1's exit test is "commanded (60, 80) traces a
+repeatable smooth arc." Under front/rear pairing that test cannot pass no matter how the
+software is tuned, and days could be lost tuning gains against a wiring fact.
+
+**It costs about two minutes.** Follow one wire from board A to a wheel, and one from board
+B. Then write the answer here and delete both dashed boxes.
 
 ## 16. Parts, budget and purchasing
 
@@ -1485,6 +2170,44 @@ Added after the legacy code was found (1 August 2026):
 - Old blocking question 1 (motor pairing) is **closed**: `LEGACY/motor.py` drives two
   channels, left and right.
 
+Added 3 August 2026 — the calibration tool became real:
+
+- **The tool is written and compiles** (§9.2). Schema version 1 for both
+  `kalibrasyon.json` and `ayarlar.json` is settled and is now the contract between the
+  tool, `ayar.py` and whatever gets built on the Pi.
+- **A version server exists** at `dymtal.avartech.net` (§9.3) — append-only, paired
+  uploads, diff before restore. Separate Vercel project from the team's live application,
+  deliberately.
+- **A print/PDF summary** pairs the calibration values with §17.5's pre-run checklist on
+  one sheet, for the case where no laptop is allowed at the track.
+- **The tool is Windows-only** (.NET Framework 4.7.2). September's on-car version is
+  therefore a Flask subset on the Pi, not a port — §9.5.
+- **New question 15:** none of this is in a git repository. §4.1.
+
+Added later on 3 August — the deploy path:
+
+- **A system switch on the server** (§9.3a) with a panel at `/startech`. The car polls;
+  the server never connects to the car. No tunnel, no port forwarding, nothing listening
+  on the Pi — and therefore no remotely commandable surface to explain at inspection.
+- **`getir.py`** (§9.3b), the Pi-side downloader, with the rule that the car runtime never
+  imports it.
+- **The panel shows the version the car reports it is running**, not just the one that was
+  published. "Did the car actually take it?" stops being an SSH question.
+- Three designs considered and rejected, recorded in §9.3b so they aren't re-proposed:
+  a second `main.py`, server-pushes-to-car, and a direct laptop→Pi button.
+
+Confirmed working end to end on 3 August: `getir.py` reached the server, authenticated,
+and correctly did nothing because the system reported closed. Fail-closed proven before
+anything was ever published.
+
+Two corrections worth recording rather than quietly fixing:
+
+- A duplicate of the upload logic survived a patch because C# is case-sensitive
+  (`btnSunucuyaGonder_Click` versus `BtnSunucuyaGonder_Click`). Dead code, seventy lines,
+  and exactly the "two copies, one goes stale" failure this plan keeps describing.
+- The form-filling code existed only inside the file-open handler, so downloading a
+  version from the server applied nothing at all. Now one method serves both paths.
+
 Immediate next step: **Phase 0.** Push to a remote, then mine `LEGACY/` per section 20.
 
 ## 20. Inheritance — what carries over from `LEGACY/`
@@ -1709,6 +2432,8 @@ Found in the full audit. Each is a specific thing to design out, not just avoid:
 | `sign_type` consumed but never produced (3.5) | The event dictionary needs a **single declared schema**. A consumer reading a key no producer writes should fail loudly at startup, not silently return `None` for a whole season |
 | Errors caught, motors left running | `main.py`'s loop catches exceptions, prints, and **continues without braking** — up to 30 consecutive failures before it exits. At 25 FPS that is over a second of blind driving at the last commanded speed. The new loop **brakes first, then logs.** This is the `CLAUDE.md` motor-safety rule and the legacy code does not honour it |
 | Crosswalk uses a fixed white threshold while lanes adapt | `events.py` calls the non-adaptive `WHITE_HSV_LOW/HIGH` while `lane.py` picks a DARK / NORMAL / BRIGHT profile by scene brightness. Under venue lighting these disagree. **One brightness decision per frame, shared by every detector** |
+| Derivative taken of a synthetic value (defect 18) | Losing the lane fades the error out, and the next line differentiates that fade — so the steering command **flips sign and swings ~90 units in one frame**, caused entirely by a number the code invented. **A fabricated input must not be differentiated.** Freeze the derivative while the lane is lost, exactly as `error_for_integration = None` already freezes the integral, or decay the *output* rather than the input. The file knows this pattern and applies it to only one of the two terms |
+| Speed scaling undoes dead-zone compensation (defect 19) | `TUMSEK` and both approach states rescale the controller's output, pushing wheel commands back under `DEAD_ZONE_MIN_PWM` after the controller lifted them above it. On the bump the larger wheel lands on 25 against a floor of 30 **for every possible input**. **Dead-zone compensation must be the last thing to touch a command before the motor**, not something a caller can undo — and `ayar.py` must refuse a config where a fixed speed sits below the floor |
 | Nine overlapping tuning tools | One calibration GUI, owned by Tuna (section 9) |
 
 ### 20.9 What the audit says to keep — confirmed by reading, not assumed
@@ -1859,6 +2584,55 @@ now closes.
 had stopped recording **halfway through the run**. If the failure happened in the back half
 of the course, the log was already closed. This is part of why May produced no evidence, and
 `kayit.py` must run for the whole race plus margin.
+
+### 21.6b Second live example — 5 August 2026, a review that reviewed nobody
+
+The April documents (§21.2) were written by a tool working *on* this project, with the
+files in front of it. It would be comforting to conclude the problem was that particular
+session. It was not, and here is a clean counter-example from a different tool, a different
+day, and a task with no code in it at all.
+
+**What was asked.** Egemen gave the newcomer guide to Gemini and asked it to review the
+guide as a newcomer would.
+
+**What came back.** An argument that the authors of the guide are trustworthy. Warm,
+well-organised, headed *"Yes — you should absolutely trust them."* It contained
+approximately zero sentences describing anything on any page of the guide.
+
+**Three checkable claims in roughly 300 words:**
+
+| Claim | Reality | How long to check |
+|---|---|---|
+| "listed all **17** embarrassing mistakes" | `HATA_DEFTERI.md` has **19**, numbered 1-19 | one `grep` |
+| "they leave a black jumper cap on an L298N driver" | never observed; invented outright | asked Egemen |
+| "Cloud Dashboard so **code** doesn't get lost" | it stores calibration files; git stores code | §9.3 |
+
+The defect count is the interesting one. The two it dropped are **18 and 19 — the two
+Egemen found himself**, and 18 is the leading explanation for the spin in §0.9 of the
+defect log. A response praising `kontrol.py` for stopping invented numbers contained an
+invented number that `kontrol.py`'s own philosophy catches in seconds.
+
+**Two things this adds that §21.2 did not.**
+
+*First, praise is a symptom.* The April failure looked like over-claiming about work. This
+one looked like a compliment. Same disease, and the compliment is harder to distrust —
+nobody fact-checks a nice paragraph about themselves. The tell is structural rather than
+factual: **the moment a review starts describing the authors instead of quoting a page, it
+has stopped reading.** That is now a row in `YAPAY-ZEKA-NE-ZAMAN.md` §5.
+
+*Second, it very nearly landed in this file.* The jumper-cap detail is a real failure mode
+for an L298N — a fitted ENA/ENB jumper ties enable high and the PWM input is ignored — so
+it read as the observation of something that had looked closely. The assistant working on
+this plan raised it as a Phase 1 check and offered to write it into §13. It was hedged
+("if that is a real observation") and Egemen answered plainly that it was not. **Had it
+been phrased with confidence instead of a conditional, a hallucinated hardware fact would
+now be in the build plan, sourced to a document, with no way to tell it from a measurement
+three months later.**
+
+That is the actual mechanism by which §21 happened: not one tool inventing something, but a
+second one repeating it in a place that looks authoritative. The guard is the same as ever
+and it is the cheapest rule in this repository — **a claim about the physical car is worth
+nothing until somebody has looked at the car.**
 
 ### 21.7 Actions
 
@@ -2112,3 +2886,142 @@ is a rule.
 Phase 0's bullets (section 12), each with `kind`, `phase: 0`, and `files` filled in.
 Committing `LEGACY/` is task #1 and its evidence is a commit hash — which makes the very
 first use of the system a demonstration of it.
+
+## 23. Decisions — what was settled, and why
+
+Added 3 August 2026.
+
+This section exists because §0 says the project drifted through several assistants each
+starting blind — and a decision with no written reason gets re-argued by the next person
+who has a reasonable-sounding alternative. It happened during the very conversation that
+produced this section: the race-day network risk was raised, settled, and re-raised three
+times before anyone noticed it had already been answered.
+
+**A rejected option written down is worth as much as the chosen one.** Without it, the
+next reader proposes it again, in good faith, and the argument runs from the start.
+
+| Date | Decision | Why | Rejected |
+|---|---|---|---|
+| 1 Aug | **Rewrite the car, don't repair it** | Guide requires explaining any part on request; `LEGACY/CLAUDE.md` documents a bug as "intentional"; Egemen wants control of the code | Repairing `LEGACY/` in place (§20.1) |
+| 1 Aug | **`LEGACY/` stays until the new car beats it** | Turns "start fresh" from a gamble into a measured migration, and leaves a working car if the rewrite stalls in March | Deleting it (§20.6) |
+| 1 Aug | **Run the cheap experiment before committing** | Fix the quad, measure the trims, drive it. Days, not months — and it says whether the old car was one measurement from working | Rewriting first, measuring later (§20.7) |
+| 1 Aug | **Identity and access checks removed** | Team tests on many machines; the historical incident was a teammate making a bad change, which is code review, not access control | Fingerprint and question gates (§19) |
+| 2 Aug | **Two config files, split by owner** | `kalibrasyon.json` is measured and Tuna's; `ayarlar.json` is chosen and Egemen's. Different origin, different owner | One combined file (§9) |
+| 2 Aug | **WinForms for the workshop tool** | `CLAUDE.md` invites real WinForms work; it never runs on the car; keeps analysis tooling out of the car codebase | Flask, which §9 originally specified (§9.1) |
+| 2 Aug | **Turkish keys in `kalibrasyon.json`** | Matches the project's naming and the file's owner is Tuna. Mapping happens once in `ayar.py` | English keys matching `LEGACY` |
+| 3 Aug | **Append-only server, never overwrite** | Key comes from the file's own stamp, so identical content can't upload twice and different content can't collide. Two people calibrating the same afternoon produce two files, not a conflict | Overwrite-latest (§9.3) |
+| 3 Aug | **`ayarlar.json` uploaded under the same stamp** | Otherwise restoring "the calibration from the day it worked" leaves the gains wherever they were last dragged — half a restore, silently (§9.3) | Versioning calibration only |
+| 3 Aug | **The car polls; the server never connects to it** | No inbound connection, no tunnel, no port forwarding, nothing listening on the Pi — and therefore no remotely commandable surface to explain at inspection | Webhook to the car, Cloudflare Tunnel, held-open socket (§9.3a) |
+| 3 Aug | **The switch lives on the server** | The car cannot override it, and race-morning shutdown is one click touching nothing physical. Two independent kill switches, either sufficient | A flag on the car (§9.3a) |
+| 3 Aug | **Never a second copy of the control loop** | Two entry points means the one edited least is the one that races. A *wrapper* calling `main.py` is fine; a *fork* of it is not | A second `main.py` that fetches first (§9.3b) |
+| 3 Aug | **No direct laptop→Pi transfer** | The venue has internet by phone hotspot, so the server route covers it. An ethernet cable is the free fallback | SSH.NET + a "Pi'ye gönder" button (§9.3b) |
+| 3 Aug | **Separate Vercel project, not the main app** | The team's live application serves real users from a real database; one bad route there is debugging a robot inside something people depend on | Adding routes to the existing 6k-line app (§4.1) |
+| 3 Aug | **September's Pi tool is a subset, not a port** | .NET Framework 4.7.2 doesn't run on Linux at all. At the track you need colours and save — not the perspective picker or the PD sliders | .NET 8 + Avalonia for one codebase (§9.5) |
+| 3 Aug | **The schema is the contract; the tools share no code** | Keep `kalibrasyon.json` fixed and the two tools can be different languages by different people — which makes the Pi version something a third student can own | A shared cross-platform library (§9.5) |
+| 3 Aug | **`ayar.py` is the single validator** | Two validators in two languages will drift. Don't prevent it — make it harmless: tool validation is a courtesy, `ayar.py` is the contract, so drift gives "bad file refused at startup" rather than "bad file reached the motors" | Keeping them manually in sync |
+| 3 Aug | **`kontrol.py` + a pre-commit hook** | `CLAUDE.md` already forbade unverifiable claims; nothing checked. §21 is what that costs | Trusting the rule to be remembered (§4) |
+
+### 23.1 Still undecided
+
+These are open questions with consequences, not just unknowns. §15 has the full list; these
+are the ones where the *decision* matters more than the fact.
+
+- **CV or ML for signs** (q14). `CLAUDE.md` says CV; `LEGACY/` contains a trained model that
+  was never wired in. §20.3c found the classifier is HOG plus nearest-neighbour — classical
+  CV with a lookup table — so the question is smaller than it looks, but it is still open.
+- **Whether a laptop may be used at the track** (q10). Decides whether the WinForms tool is
+  usable on the day, and therefore whether the Pi subset is optional or essential.
+- **Whether a third student joins** (q11). Decides whether the Pi tool has an owner.
+
+## 24. Glossary
+
+Added 3 August 2026. This document mixes Turkish file names, English prose, competition
+vocabulary and control theory. For a file whose whole purpose is being picked up cold, one
+page of "what this word means here" is cheap.
+
+**Competition**
+
+| Term | Meaning |
+|---|---|
+| Bölge tamamlama | Completing a marked zone without leaving the track or crossing into the opposite lane. 50 points, and absent from the team's own technical document |
+| Şerit ihlali | Lane violation — any part of the car crossing the white centre line onto the opposite lane's black surface |
+| Sollama serbest | The sign marking a zone where overtaking is permitted. The *sign* is the trigger, not the orange vehicle |
+| Deneme turu | Practice round. Equal time per team, and the only chance to calibrate under the venue's real lighting |
+| Hemzemin geçit | Level crossing. Stop within 30 cm, wait at least 5 s |
+| Yaya geçidi | Pedestrian crossing. Same rule |
+| Hız tümseği | Speed bump. Cross without leaving the lane |
+| Çıkmaz yol | Dead end. Turn right *before* entering — entering fails the task even if you recover |
+| Kura kaydı | A separate draw-registration step on the competition site, distinct from the application itself |
+
+**This project**
+
+| Term | Meaning |
+|---|---|
+| ŞUBİRU / SUBIRU | The monitoring dashboard. Short for *"Şununla bir uğraşsan"* |
+| `LEGACY/` | The 4 May 2026 implementation. Read-only reference and the benchmark the new car must beat |
+| Damga | The stamp on a calibration file — a timestamp for ordering plus a six-character content hash for identity |
+| Kalibrasyon | Anything you would have to measure again at a different track, in different light, or after remounting the camera. Tuna's |
+| Ayarlar | Anything chosen with judgement and a stopwatch, still valid at another venue. Egemen's |
+| Tripwire | A condition agreed in advance that says "change the plan", rather than a deadline you aim for. The one in §12: can the car lap a plain track by itself before the semester break |
+
+**Vision and control**
+
+| Term | Meaning |
+|---|---|
+| HSV | A colour written as three numbers — Hue (which colour, 0–180), Saturation (how vivid, 0–255), Value (how bright, 0–255) |
+| `PERSP_SRC` | Four corners of a road rectangle as the camera sees it. Straightens the angled view into a bird's-eye one. Stale in `LEGACY/` — §3.1 |
+| Kuş bakışı | Bird's-eye view, produced by the perspective warp. Makes "how far off-centre am I" a simple measurement |
+| CLAHE | Local contrast levelling — brightens dark corners and calms highlights tile by tile, so one white threshold works across a half-shadowed image |
+| ROI | Region of interest. The slice of frame actually processed; the rest is thrown away for speed |
+| Ölü bölge | Dead zone. Below about 30% PWM the motors don't turn at all — which is why gentle steering was impossible |
+| Trim | Per-side multipliers correcting the fact that two cheap gearmotors are never equally fast. All four still at 1.0 in `LEGACY/` |
+| PD / KP / KD / KI | The steering controller. KP reacts to error, KD damps the reaction so it doesn't overshoot, KI slowly cancels a constant offset |
+| Debounce | Requiring a detection to persist N frames before believing it. The main defence against false triggers |
+| Homografi | The 3×3 matrix that maps the four source corners onto a rectangle. What `System.Drawing` cannot do and OpenCV can |
+
+**Infrastructure**
+
+| Term | Meaning |
+|---|---|
+| R2 | Cloudflare's object storage. Holds the calibration version history |
+| Append-only | Nothing is ever overwritten or deleted. New content becomes a new object |
+| Fail closed | When something is broken or unreachable, the result is inaction. The car never updates unexpectedly |
+| NAT | Why a server cannot open a connection to a device on a phone hotspot — and why the car polls instead |
+| `sunucu.json` | The shared password and server address. Never in source, always gitignored |
+
+## 25. After May 2027
+
+Added 3 August 2026. The plan ends at the competition; the project doesn't.
+
+This section exists because the kılavuz was started for *"anyone who wants to work on the
+car when we graduate"* — and the handover is the one thing that guide can't cover, because
+it isn't about the car.
+
+**The new car becomes the legacy.** Whatever `arac/` looks like in May is what the next
+team inherits. `LEGACY/` — the 4 May 2026 code — can be archived once the new car has
+beaten it on the practice track and that result is in a run log (§20.6). Not before, and
+not because it feels old.
+
+**What the next team should receive**
+
+- The repository, with `PLAN_New.md`, `HATA_DEFTERI.md` and the kılavuz current as of the
+  last run
+- The run logs from the competition — the black box is worth more than any summary of it
+- The final `kalibrasyon.json` with its `damga.not` saying which hall and which lighting
+- The physical car, and the spares that were never needed
+
+**The problem nobody has looked at yet: the infrastructure is on one person's accounts.**
+
+The domain, the Vercel project, the R2 bucket, the VPS and the GitHub organisation are all
+Egemen's. When he graduates, the calibration history, the version server and the git remote
+leave with him — silently, whenever a card expires or an account lapses.
+
+Nothing needs doing about it now. But it needs deciding before the last term ends, and the
+options are worth knowing: transfer ownership to whoever continues, move the repositories
+to a school-held account, or accept that the server is temporary and make sure the
+repository alone is sufficient. The last is the cheapest and probably right — the server is
+a convenience, and §9.3 already says git is authoritative.
+
+**What is deliberately not planned here.** Whether the team continues, who leads it, and
+whether the next car reuses this one. Those aren't decisions this document can make on
+behalf of people who haven't joined yet.

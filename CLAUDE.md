@@ -1,6 +1,6 @@
 # Project: Autonomous Car Template + Team Monitoring Screen
 
-Status: planning stage, no code written yet. See `readme.txt` for the original notes and inline comments.
+Status: planning, plus tooling. The car code is not started; `LEGACY/` holds the 4 May 2026 build as read-only reference, and `kontrol.py` / `Markdown/` are live. The original `readme.txt` was folded into `Markdown/PLAN_New.md` and deleted.
 
 ## What this project is
 

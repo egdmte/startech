@@ -1,0 +1,88 @@
+# kontrol.py izin listesi
+#
+# Buraya bir şey eklemek "bu iddia doğrulanamıyor ama SEBEBİ var" demektir.
+# Sebebi yanına yazın. Sebepsiz satır, kontrolü kapatmaktan farksızdır — ki o
+# zaman kontrolün hiç olmaması daha dürüst olurdu.
+
+# --- Başka depoda duran gerçek dosyalar -------------------------------------
+# kalibrasyon-sunucu (egdmte/avartech-r2) içinde varlar, burada değiller.
+getir.py
+sunucu.json
+panel.html
+durum.js
+anahtar.js
+liste.js
+indir.js
+yukle.js
+vercel.json
+package.json
+# _ortak.js icindeki sabit; kalp atisi nesnesinin anahtari.
+KALP_ANAHTARI
+
+# StarTechConfig (henüz depoda değil — açık soru 15)
+Form1.cs
+Form1.Designer.cs
+LoadFrom.cs
+SunucuIstemci.cs
+Ayarlar.cs
+Rapor.cs
+StarTechConfig.csproj
+
+# --- Araç çalışırken üretilen dosyalar --------------------------------------
+# Depoda durmaz, koşarken oluşur.
+durum.json
+kalibrasyon.onceki.json
+onceki.json
+error_log.csv
+
+# --- Kasten silinmiş ---------------------------------------------------------
+# §19: silindi, CLAUDE.md tek kural dosyası olsun diye. Belge bunu anlatıyor.
+AGENTS.md
+
+# --- §21'de KASTEN alıntılanan uydurma adlar ---------------------------------
+# Olduğu düşünülen olmayan belgeler
+FINAL_DELIVERY.md
+OPTIMIZASYONLAR_DETAYLI.md
+YARISMA_GUNU_REHBERI.md
+OZET_VE_DEGISIKLIKLER.md
+README_OKUMA_SIRASI.md
+start.sh
+
+# --- §22'de önerilen, henüz yazılmamış SUBIRU alanları -----------------------
+STALL_DAYS
+KALIBRASYON_OMRU
+
+# --- Belge dilinde geçen, sabit olmayan ifadeler -----------------------------
+ALL_CAPS
+
+# --- Örnek damgalar ----------------------------------------------------------
+# Şema anlatılırken kullanılan örnek dosya adları.
+2026-03-14T1522-a3f9c1.json
+
+# §21'de alintilanan diger uydurma dosya adlari (2. tur)
+DEGISIKLIKLER_OZET.md
+HIZLI_REFERANS.md
+OPTIMIZASYONLAR_UYGULAND.md
+TEST_OPTIMIZASYONLAR.py
+
+# --- Tek tek muaf tutulan satirlar (SATIR: <icerdigi metin>) -----------------
+# Satir numarasi degil METIN yaziyoruz; belge duzenlenince numara kayar.
+#
+# Bu satir bir olcum iddia etmiyor, aritmetik yapiyor: "eger 25 FPS ise,
+# 30 kare bir saniyeden uzundur". Kosullu bir cikarim, olculmus bir sonuc degil.
+SATIR: at 25 FPS, over a second of a powered car
+
+# --- Sema etiketlerindeki geometrik piksel sayilari (5 Agustos 2026) ---------
+# Bunlar performans olcumu DEGIL, iki sabitten cikan aritmetik:
+#   800 (WIDTH)  - 640 (PERSP_SRC max x) = 160
+#   680 (HEIGHT) - 480 (PERSP_SRC max y) = 200
+# Kural "olculmemis performans sayisi yazma" diyor; bu ikisi olculmedi cunku
+# olculmesi gerekmiyor — cikarilabiliyorlar. Yanlislarsa aritmetik yanlistir,
+# ki o da dort saniyede kontrol edilir.
+SATIR: 160 px wide
+SATIR: 200 px, aracin onu
+SATIR: 200 px &#8212; aracin onu
+SATIR: 640 px kullaniliyor
+SATIR: 160 px kayip
+
+

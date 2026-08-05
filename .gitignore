@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Cowork/agent oturum verisi — projeye ait degil.
+.claude/

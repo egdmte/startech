@@ -63,6 +63,12 @@ pre { background: #f6f8fa; border: 0.4pt solid #d6dbe1; border-left: 2.2pt solid
       padding: 2.5mm 3mm; margin: 0 0 3mm; white-space: pre-wrap;
       overflow-wrap: break-word; page-break-inside: avoid; }
 pre code { background: none; padding: 0; font-size: 8.2pt; }
+/* Sema kutulari (inline SVG). Bir sema iki sayfaya bolunurse okunmaz hale gelir,
+   bu yuzden page-break-inside: avoid sart. Genislik yuzde olarak verilir ki
+   A4 kenar bosluklarina uysun. */
+.sema { page-break-inside: avoid; break-inside: avoid; margin: 3mm 0 4mm;
+        text-align: center; }
+.sema svg { max-width: 100%; height: auto; }
 blockquote { margin: 0 0 3mm; padding: 2mm 3mm; background: #fff8e6;
              border-left: 2.2pt solid #d9a441; page-break-inside: avoid; }
 blockquote p:last-child { margin-bottom: 0; }
@@ -106,10 +112,10 @@ list of faults is only the evidence for them."""
 JOBS = {
     "plan": ("PLAN_New.md", "PLAN.pdf", "PLAN",
              "Otonom Ara&ccedil; &mdash; full project plan",
-             WARN_PLAN, ("#2a4d7a", "#14385e", "#eef2f7"), False),
+             WARN_PLAN, ("#2a4d7a", "#14385e", "#eef2f7"), True),
     "hata": ("HATA_DEFTERI.md", "HATA_DEFTERI.pdf", "HATA DEFTER\u0130",
              "LEGACY defect log &mdash; 4 May 2026 build",
-             WARN_HATA, ("#7a2a2a", "#5e1414", "#f7eeee"), False),
+             WARN_HATA, ("#7a2a2a", "#5e1414", "#f7eeee"), True),
     "paylasim": ("HATA_DEFTERI.md", "HATA_DEFTERI_PAYLASIM.pdf", "HATA DEFTER\u0130",
                  "Autonomous car &mdash; defect log of a previous build",
                  WARN_HATA, ("#7a2a2a", "#5e1414", "#f7eeee"), True),
