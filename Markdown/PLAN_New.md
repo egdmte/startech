@@ -735,6 +735,56 @@ duty, with charged cells. If it reads near 10 V the arithmetic holds. If the mot
 out not to be 6 V, recompute. This is a five-minute measurement that sets a number every
 other tuning decision depends on — do it in the first Phase 1 session.
 
+### 6.1 The 57% ceiling does not fit the other speeds — found 5 August 2026
+
+Found by the calibration tool refusing to save, which is the tool doing its job.
+
+Applying §6's advice — `max_pwm` around **57%** — makes `BASE_SPEED = 62` illegal, because
+a cruise speed above the ceiling is a contradiction. §6 recommends the ceiling and says
+nothing about the three speeds underneath it. That gap is the finding.
+
+**Scaling the others down does not work either.** Everything was tuned against
+`MAX_SPEED = 85`, so the proportional factor is 57 ÷ 85 = 0.671:
+
+| | now | x0.671 | problem |
+|---|---|---|---|
+| `MAX_SPEED` | 85 | 57 | the proposed ceiling |
+| `BASE_SPEED` | 62 | 42 | fine |
+| `MIN_SPEED` | 25 | 17 | **below `DEAD_ZONE_MIN_PWM = 30`** |
+
+`DEAD_ZONE_MIN_PWM` is a property of the motors, not of the supply voltage — it does not
+scale. A commanded 17 makes the wheels not turn at all, which §9.2 already refuses to save.
+
+**And this is already true today.** `MIN_SPEED = 25` is **below** `DEAD_ZONE_MIN_PWM = 30`
+in `LEGACY/config.py` right now. Every time the controller drops to `MIN_SPEED` — which
+defect 20 says is most frames — the dead-zone compensation has to lift it back up. The two
+constants have been contradicting each other since before May.
+
+**The cost nobody has priced.** The usable control band is between the dead zone and the
+ceiling:
+
+- today: 30 to 85 = **55 units**
+- with a 57% ceiling: 30 to 57 = **27 units**
+
+**Roughly half the steering resolution disappears**, and the half that survives sits on top
+of the dead zone where the motors behave worst.
+
+**What this does NOT mean.** It is not an argument for ignoring the overvoltage. Running
+6 V motors at ~10 V is real and §3.6 stands. It means the fix is not one number:
+
+1. **Measure the voltage first.** §6's 57% is arithmetic on an assumed 6 V motor and an
+   assumed pack voltage, and is marked `[UNVERIFIED]`. A multimetre could make this whole
+   section moot in five minutes.
+2. **Measure the dead zone too.** 30 is inherited, not measured, and §13 notes it may
+   partly be an artefact of 100 Hz software PWM. If raising the PWM frequency shrinks the
+   dead zone, the band widens again from below.
+3. Only then choose `MIN`, `BASE` and `MAX` **together**, as one set with the dead zone
+   underneath them — not by scaling the old numbers.
+
+Until those two measurements exist, **do not lower `max_pwm` to 57 and leave the rest**.
+Either change the set together or leave it alone; a ceiling below the cruise speed is the
+one option that is definitely wrong.
+
 All gains (`Kp`, `Kd`), base speed, clamps, deadband, slew limits and trim live in
 `ayarlar.json`. None of them are hardcoded.
 
