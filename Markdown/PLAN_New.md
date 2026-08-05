@@ -363,7 +363,12 @@ is a permanent pull to one side. The PD controller then spends the entire run fi
 systematic bias instead of following the road — and with `KI = 0.04` the integral term
 partly masks it on straights, then dumps the accumulated bias into the next corner.
 
-**[VERIFY — Egemen]** Did the car pull consistently to one side? If yes, this is very
+**[CEVAPLANDI 5 Agustos 2026 — yarisma goruntusunden]** Evet: arac cogu zaman **saga**
+kaydi. Bkz. §3.6b ve `HATA_DEFTERI.md` §0.9. Bu, olculmus degil gozlemlenmis bir cevaptir
+ve trim dengesizligi ile bayat perspektif dortgenini birbirinden AYIRMAZ — ikisi de ayni
+sonucu verir. Ayirmak icin §20.7'deki ucuz deney gerekir.
+
+~~Did the car pull consistently to one side?~~ If yes, this is very
 likely the answer, and the fix is one afternoon with a tool that already exists.
 
 ### 3.3 Two latent trim bugs — masked now, will bite on first calibration
@@ -648,7 +653,8 @@ dead one. Minimum viable: one LED and one buzzer, or two LEDs.
 Cheap, and it converts "why isn't it going" from a mystery at the table into a glance.
 An LED is not a sensor, so it is not affected by the sensor ban.
 
-**Battery.** The guide states no extra time is given at the track for charging. Cells must
+**Battery.** The guide states no extra time is given at the track for charging.
+**[KAYNAK YOK — 5 Agu 2026]** madde numarasi yok; Ocak'ta 2027 kilavuzunda dogrulanacak. Cells must
 arrive charged, with charged spares — battery swaps between rounds are explicitly allowed.
 
 ## 6. The control law — specification for the rewrite
@@ -1725,23 +1731,23 @@ spare that has never been tested in the car is not a spare.
 
 Each now has an owner and a phase, because unowned questions do not get answered.
 
-| # | Question | Owner | Needed by |
+| # | Question | Ne gerekiyor | Ne zaman |
 |---|---|---|---|
-| 1 | **REOPENED 1 Aug 2026 — blocking.** Was closed on the grounds that `LEGACY/motor.py` names its two channels `LEFT` and `RIGHT`. **That reasoning was wrong:** identifiers are labels, not wiring. The code proves only that there are *two* channels, not which motors hang off them. The schematic appears to show motor wires **crossing between boards**, which would mean front/rear pairing — and if so the control law in section 6 does not work as written (a front/rear car cannot steer differentially). Physical evidence outranks a variable name. **Trace two wires.** | Tuna | **Blocks Phase 1** |
-| 2 | Does the car fit 20 × 30 cm, under 25 cm tall, wheels ≤ 10 cm? | Tuna | Phase 1 |
-| 3 | Are there any non-camera sensors still physically on the car, connected or not? | Tuna | Phase 1 |
-| 4 | **Largely answered — and badly.** `LEGACY/main.py` says *"GPIO 16 buton kaldırıldı"* and starts on `GG`/`EZ`/`SPACE` via a keyboard. So the 50-point button start was probably **not** being earned in May. Remaining question: is the button still physically on the car, or was it removed too? See 3.3. | Tuna | **Phase 1** |
-| 5 | **Battery configuration** — *partly answered by the August 2026 photo.* The Pi runs from **2× 18650 through a DC-DC stepdown regulator**, and the L298N from a separate **3× 18650** pack. Separate rails, so the brownout risk is largely already handled — good design that had not been written down. **Still open:** measure the actual voltage at the motor terminals at full duty. See section 6, motors appear to be driven at ~175% of rating. | Tuna | **Phase 1, first session** |
-| 6 | **How many motors does the car have?** The photo shows two yellow gearmotors clearly, but there are two L298N boards, which implies four. The software drives two channels either way (q1), so this no longer blocks — but it decides whether motors are paralleled per side, which affects stall current and the L298N's 2 A per-channel limit. | Tuna | Phase 1 |
-| 7 | **Camera: CSI now, USB intended — this is a DECISION, not an error to be corrected.** The hardware currently has a CSI ribbon and the legacy code uses `picamera2`; that is the *present state*. Egemen stated the *intent* to move to USB with CSI kept as a secondary backend. Those do not conflict, and an assistant "correcting" the plan to match the hardware would be overwriting a human decision with an observation. **Only Egemen closes this.** Either way `goz.py` carries three backends (USB, picamera2, video file), so the decision changes which is the default, not the architecture. | Egemen | Phase 2 |
-| 8 | **Partly answered.** `LEGACY/lane.py` estimates a lane centre via column histogram with continuity weighting — it does *not* chase the brightest blob. Still open: how cleanly it handles **dashed** segments. Answerable by replaying footage through it. See 3.5. | Egemen | Phase 2 |
-| 14 | **Classical CV or ML for signs?** `CLAUDE.md` answers **CV**, but `LEGACY/` contains a trained `sign_model.json` and `train_sign.py`. The plan and the code disagree. Decide before Phase 4. See section 20.3. | Egemen | Phase 4 |
-| 9 | **Is bölge tamamlama 50 points total, or 50 per zone?** The guide says "birden fazla bölge" but awards "50 bölge tamamlama ödül puanı". If it is per zone it may outweigh every other task and reorders all of Phase 4. Ask the coordinators. | Advisor | Phase 4 |
-| 15 | **`StarTechConfig/` is still not in a git repository.** `kalibrasyon-sunucu` now is (`egdmte/avartech-r2`) — the calibration tool is not. Two days of work, one disk, no remote. Same exposure `basitarackod` had until 2 August. See §4.1. | Egemen | **Now** |
-| 10 | **May a laptop be connected to the car in the pit and during deneme turları? Raised in priority 2 Aug 2026.** This was "confirm on the day". It is now a design input: the calibration tool is being built in WinForms (§9.1), which **cannot run on the Raspberry Pi**. If the answer is no, the team arrives with no way to adjust colours on site — during the one short window where the real track under real lights is visible. Either get an answer well before May, or keep a minimal slider-and-save fallback that runs on the Pi itself. Carry the wired fallback (HDMI screen + keyboard) regardless. | Egemen + Advisor | **Ask early, not on the day** |
-| 11 | Is a third student joining, and which subsystem do they own? See section 11. | All | Autumn term |
-| 12 | **2027 competition date, guide publication and application deadline**, once announced. The 2026 cycle was: guide ~January, applications closed **20 March**, competition **6–8 May**. See section 17.1. | Advisor + Egemen | **1 January 2027 reminder** |
-| 13 | What documents does the application require, and what is the **kura kaydı** step? Find out in January, not March. | Advisor | January |
+| 1 | **REOPENED 1 Aug 2026 — blocking.** Was closed on the grounds that `LEGACY/motor.py` names its two channels `LEFT` and `RIGHT`. **That reasoning was wrong:** identifiers are labels, not wiring. The code proves only that there are *two* channels, not which motors hang off them. The schematic appears to show motor wires **crossing between boards**, which would mean front/rear pairing — and if so the control law in section 6 does not work as written (a front/rear car cannot steer differentially). Physical evidence outranks a variable name. **Trace two wires.** | **araç gerekir** / needs the car | Phase 1, ilk seans |
+| 2 | Does the car fit 20 × 30 cm, under 25 cm tall, wheels ≤ 10 cm? | **araç + cetvel** / car + ruler | Phase 1 |
+| 3 | Are there any non-camera sensors still physically on the car, connected or not? | **araç + cetvel** / car + ruler | Phase 1 |
+| 4 | **Largely answered — and badly.** `LEGACY/main.py` says *"GPIO 16 buton kaldırıldı"* and starts on `GG`/`EZ`/`SPACE` via a keyboard. So the 50-point button start was probably **not** being earned in May. Remaining question: is the button still physically on the car, or was it removed too? See 3.3. | **araç gerekir** / needs the car | Phase 1 |
+| 5 | **Battery configuration** — *partly answered by the August 2026 photo.* The Pi runs from **2× 18650 through a DC-DC stepdown regulator**, and the L298N from a separate **3× 18650** pack. Separate rails, so the brownout risk is largely already handled — good design that had not been written down. **Still open:** measure the actual voltage at the motor terminals at full duty. See section 6, motors appear to be driven at ~175% of rating. | **araç + multimetre** / car + multimeter | Phase 1, ilk seans |
+| 6 | **KAPANDI 5 Agu 2026 — dort motor, kanal basina iki paralel.** §3 bunu 296. satirda zaten belirtiyordu; bu satir 1400 satir sonra ayni seyi soru olarak soruyordu. Kalan is bir soru degil bir olcum: paralel iki motorun cektigi akim, L298N'in kanal basina ~2 A sinirina karsi. The software drives two channels either way (q1), so this no longer blocks — but it decides whether motors are paralleled per side, which affects stall current and the L298N's 2 A per-channel limit. | **araç + cetvel** / car + ruler | Phase 1 |
+| 7 | **Camera: CSI now, USB intended — this is a DECISION, not an error to be corrected.** The hardware currently has a CSI ribbon and the legacy code uses `picamera2`; that is the *present state*. Egemen stated the *intent* to move to USB with CSI kept as a secondary backend. Those do not conflict, and an assistant "correcting" the plan to match the hardware would be overwriting a human decision with an observation. **Only Egemen closes this.** Either way `goz.py` carries three backends (USB, picamera2, video file), so the decision changes which is the default, not the architecture. | **sadece dizüstü** / laptop only | Phase 2 |
+| 8 | **Partly answered.** `LEGACY/lane.py` estimates a lane centre via column histogram with continuity weighting — it does *not* chase the brightest blob. Still open: how cleanly it handles **dashed** segments. Answerable by replaying footage through it. See 3.5. | **sadece dizüstü** / laptop only | Phase 2 |
+| 14 | **Classical CV or ML for signs?** `CLAUDE.md` answers **CV**, but `LEGACY/` contains a trained `sign_model.json` and `train_sign.py`. The plan and the code disagree. Decide before Phase 4. See section 20.3. | **karar** / a decision | Phase 4 |
+| 9 | **Is bölge tamamlama 50 points total, or 50 per zone?** The guide says "birden fazla bölge" but awards "50 bölge tamamlama ödül puanı". If it is per zone it may outweigh every other task and reorders all of Phase 4. Ask the coordinators. | **koordinatöre sorulur** / ask the coordinators | Ocak'tan önce |
+| 15 | **`StarTechConfig/` is still not in a git repository.** `kalibrasyon-sunucu` now is (`egdmte/avartech-r2`) — the calibration tool is not. Two days of work, one disk, no remote. Same exposure `basitarackod` had until 2 August. See §4.1. | **sadece dizüstü** / laptop only | Şimdi |
+| 10 | **May a laptop be connected to the car in the pit and during deneme turları? Raised in priority 2 Aug 2026.** This was "confirm on the day". It is now a design input: the calibration tool is being built in WinForms (§9.1), which **cannot run on the Raspberry Pi**. If the answer is no, the team arrives with no way to adjust colours on site — during the one short window where the real track under real lights is visible. Either get an answer well before May, or keep a minimal slider-and-save fallback that runs on the Pi itself. Carry the wired fallback (HDMI screen + keyboard) regardless. | **koordinatöre sorulur** / ask the coordinators | KAPANDI 5 Ağu — evet |
+| 11 | Is a third student joining, and which subsystem do they own? See section 11. | **karar** / a decision | Güz dönemi |
+| 12 | **2027 competition date, guide publication and application deadline**, once announced. The 2026 cycle was: guide ~January, applications closed **20 March**, competition **6–8 May**. See section 17.1. | **duyuru beklenir** / wait for the announcement | 1 Ocak 2027 hatırlatma |
+| 13 | What documents does the application require, and what is the **kura kaydı** step? Find out in January, not March. | **koordinatöre sorulur** / ask the coordinators | Ocak |
 
 ### 15.2 Answers given 5 August 2026 — with provenance
 
@@ -1858,6 +1864,31 @@ was not accessible on this date, so nothing here was measured. The distinction b
   to be per zone, every hour already spent on lane reliability pays more than expected,
   which is the right way round for an uncertainty to break. Ask before January so the answer
   can shape Phase 4 rather than arrive during it.
+
+### 15.0 Why this table has no owner column — decided 5 August 2026
+
+Until today every question here was assigned to a person, and **all six Phase 1 questions
+were assigned to Tuna — including the one marked "Blocks Phase 1".** §11 states as a
+deliberate design point that Tuna's work *never blocks* Egemen's. The two said opposite
+things, and the assignment table was the one that would have decided how the year actually
+went.
+
+Egemen's call: **stop assigning work to people.** "It depends on the day anyway."
+
+The column now records **what a question needs** — the car, a ruler, a multimeter, a
+laptop, a coordinator, or just a decision. That is the thing which actually determines when
+it can be answered, and unlike a name it is true on every day of the week. It also sorts the
+work usefully: everything marked *sadece dizüstü* can be done alone, at home, in November,
+by whoever opened the laptop.
+
+**This does not weaken `CLAUDE.md`'s division rule, because that rule is about attribution,
+not assignment.** "Knowing who touched what" is answered by `git log` after the fact, and
+answered better than by a plan written in August. What has been dropped is the *prediction*
+of who will do a thing — which is the half that was never accurate.
+
+**Consequence for §22 (SUBIRU).** Its design has per-person owner fields and a stall
+detector built on them. Those need rethinking against this decision. Not done here; flagged
+so the two documents do not quietly disagree the way §11 and §15 just did.
 
 ### 15.1 Open question 1, drawn
 
@@ -2360,7 +2391,8 @@ Immediate next step: **Phase 0.** Push to a remote, then mine `LEGACY/` per sect
 Not because the legacy code is bad — sections 3.0 shows it is genuinely sophisticated.
 The reasons are:
 
-1. **The guide requires that any part of the code can be explained on request.** Code
+1. **The guide requires that any part of the code can be explained on request.**
+   **[KAYNAK YOK — 5 Agu 2026]** madde numarasi yok; Ocak'ta dogrulanacak. Code
    assembled by several LLMs across sessions, which nobody can now defend line by line,
    is a rule exposure at the judging table, not merely a maintenance problem.
 2. **`LEGACY/CLAUDE.md` documents the double-applied trim as "intentional."** That is the

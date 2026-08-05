@@ -34,7 +34,10 @@ Explained below
 - Is the Windows build simulation-only, or does it serve another purpose?
 Simulation
 - Classical CV (edge/color-based) vs. a lightweight ML model for the vision pipeline?
-CV
+Both, split by purpose (answered 5 Aug 2026, PLAN_New.md 15.2 q14): the trained model is
+for SIGN CLASSIFICATION only. Everything else - lane lines, crossings, the speed bump,
+colour segmentation - is classical CV. LEGACY/ already contains sign_model.json and
+train_sign.py, so this matches what is on disk rather than overruling it.
 - Which GUI toolkit to standardize on across both the car config screens and the monitoring screen (e.g. Qt/PySide vs. a local web app)?
 
 ## Conventions / preferences
