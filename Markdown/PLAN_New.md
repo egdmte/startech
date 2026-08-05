@@ -1736,6 +1736,113 @@ Each now has an owner and a phase, because unowned questions do not get answered
 | 12 | **2027 competition date, guide publication and application deadline**, once announced. The 2026 cycle was: guide ~January, applications closed **20 March**, competition **6–8 May**. See section 17.1. | Advisor + Egemen | **1 January 2027 reminder** |
 | 13 | What documents does the application require, and what is the **kura kaydı** step? Find out in January, not March. | Advisor | January |
 
+### 15.2 Answers given 5 August 2026 — with provenance
+
+Answered by Egemen in conversation. **Provenance is recorded per answer** because the car
+was not accessible on this date, so nothing here was measured. The distinction between
+*stated* and *verified* is the entire subject of §21 and §3.
+
+#### Closed — decisions, which are Egemen's to make
+
+- **q7 — Camera.** *Both* CSI and USB are supported options, not one replacing the other.
+  The pipeline takes a backend, and neither is "the correct one to fix the plan to."
+- **q14 — Signs: CV *and* the trained model.** The apparent contradiction dissolves —
+  **the trained model is for sign classification; classical CV is for everything else**
+  (lines, crossings, the bump, colour segmentation). `CLAUDE.md` says only "CV" and is
+  therefore incomplete rather than wrong; it should be qualified.
+- **q11 — A third student is likely, and would take Tuna's half of the division.** This
+  changes §11 and the SUBIRU ownership fields. Recorded as stated; not yet a plan.
+
+#### Closed — facts Egemen can state without the car in front of him
+
+- **q6 — Four motors**, two paralleled per channel. Confirms the stall-current question is
+  real: two motors share one L298N channel's 2 A limit. Measuring that current is Phase 1.
+- **q3 — No non-camera sensors on the car**, connected or otherwise. Consistent with
+  `CLAUDE.md`'s standing rule.
+- **q13 — Application: teachers enter the robot information, select a captain and the
+  students.** Team members do not file it themselves.
+- **q12 — 2027 dates cannot be known yet.** Correct answer; wait for the announcement.
+
+#### Answered, but NOT closed — the answer given is not the question asked
+
+- **q5 — Battery.** Egemen restated the configuration: **3S 18650 for the motors, 2S through
+  a stepdown for the Pi.** That part was already recorded. **The open half is the
+  measurement** — volts at the motor terminals at full duty, which decides whether
+  `MAX_SPEED` means what the code thinks it means. Still Phase 1, still unmeasured.
+
+- **q4 — The start button is not physically on the car.** Egemen's stated plan is to use
+  **the power switch on the 2S pack** as the start key. **This conflicts with §5 and should
+  not be built as described.**
+
+  §5 quotes the rule as: the car is brought to a ready state by a button or similar trigger,
+  **"from software already loaded"**. A switch that energises the Pi cannot satisfy that
+  clause — at the moment the trigger is operated, no software is loaded yet. That is the
+  50-point award at risk on wording alone.
+
+  The timing is the worse half. Powering on starts a Raspberry Pi OS boot, then
+  `arac.service`, then camera warm-up. **The green-light task awards 50 for a correct start
+  on the first attempt** — and a car still booting cannot see the light change. One switch
+  would put both awards on the same coin flip.
+
+  **§5 already contains the correct design and it needs no revision**: power up early and
+  let the car boot during setup (steps 1-4, motors off, LED solid = ready), then a
+  *separate* GPIO button starts the run (step 5). Powering the car and starting the run are
+  two different events and the competition rule is about the second one. The old GPIO 16
+  button was the right idea; §3.3 records that removing it probably forfeited the 50 points
+  in May.
+
+  Restoring a run button is Phase 1 and remains the cheapest 50 points available.
+
+- **q1 — Egemen states the pairing is LEFT/RIGHT.** This is the answer the control law in
+  §6 needs, and it matches `config.py`'s naming.
+
+  **Provenance: Egemen has wired this car repeatedly and states it from having built it.**
+  That is materially stronger than the evidence that got question 1 wrongly closed on
+  1 August — that closure rested on `motor.py` naming its channels `LEFT` and `RIGHT`, which
+  is a variable name and no physical evidence at all. Builder's knowledge of his own
+  assembly is a different class of thing. **§6 may proceed on this.**
+
+  **What remains open is not the answer — it is the conflict.** Question 1 was reopened
+  because *the schematic appears to draw motor wires crossing between boards*, which would
+  mean front/rear. The schematic and the builder now disagree. One of them is wrong, and
+  whichever it is, **the schematic is the artifact that will still be on the table in March**
+  when somebody who did not build the car reads it. So the action is not "prove Egemen
+  right"; it is **correct or annotate the schematic**, and confirm with a two-minute wire
+  trace at the same time since the car will be in front of you anyway.
+
+  Downgraded from **blocking** to **confirm during Phase 1 assembly check**.
+
+- **q2 — Egemen states the car fits 20 x 30 x 25 cm with wheels under 10 cm.** Same
+  provenance: stated, not measured. Lower stakes than q1, same rule — measure once, in
+  Phase 1, with a ruler, and write the numbers down.
+
+- **q8 — Dashed centre lines "should be handled with correct HSV".** A reasonable
+  expectation and consistent with the lane-memory design, but it is a hypothesis about code
+  behaviour and Phase 2 answers it directly by replaying footage. Cheap to confirm; leave
+  open until it has been.
+
+#### Changed the shape of the plan
+
+- **q10 — A laptop IS permitted in the pit and during deneme turlari.** This closes the
+  risk raised on 2 August: the WinForms calibration tool is usable on site after all, and
+  the Pi-side slider fallback is no longer mandatory. Carry the wired fallback anyway.
+
+- **q9 — Bolge tamamlama is 50 points PER ZONE, not 50 total.** If confirmed, this is the
+  single largest scoring fact in the document and it **reorders Phase 4**: staying in lane
+  across every zone outscores any individual task, and possibly several of them combined.
+  It also strengthens the existing sacrifice order rather than changing it — lane keeping
+  was already first, and this makes it first by a wider margin.
+
+  **Source: Egemen's reading of the 2026 guide text — not confirmed by the coordinators.**
+  That is exactly the passage §2 already flags as ambiguous ("birden fazla bolge" alongside
+  a single "50 bolge tamamlama odul puani"). Two competent readers can disagree about it,
+  so it stays **open and assigned to the advisor**.
+
+  **Do not bank it.** Plan Phase 4 as though bolge tamamlama were 50 total; if it turns out
+  to be per zone, every hour already spent on lane reliability pays more than expected,
+  which is the right way round for an uncertainty to break. Ask before January so the answer
+  can shape Phase 4 rather than arrive during it.
+
 ### 15.1 Open question 1, drawn
 
 Question 1 is the one blocking Phase 1, and it is much easier to see than to read. Below
