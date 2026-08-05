@@ -97,3 +97,9 @@ SATIR: 160 px kayip
 # Egemen'in TUMSEK betiginin dosya adi bosluk iceriyor; kalip "np.py" yakaliyor.
 # Dosya gercekten var: LEGACY/import numpy as np.py
 np.py
+
+# --- Hata 20'nin korumasinda ONERILEN, henuz yazilmamis sabit adlari ----------
+# HATA_DEFTERI hata 20 diyor ki: bir orana karsi karsilastirilan her esik,
+# biriminini KENDI ADINDA tasimali. Asagidaki iki ad o kuralin ornegidir --
+# heniz hicbir dosyada yoktur ve olmamalidir; yeni kod yazilirken secilecek.
+DERIV_SLOWDOWN_PX_PER_SEC

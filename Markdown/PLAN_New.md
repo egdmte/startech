@@ -2625,6 +2625,54 @@ eliminated the two most likely causes for the price of an afternoon.
 This does not reverse the rewrite decision — the reasons in 20.1 stand regardless. It
 changes how much of `lane.py` you should be in a hurry to replace.
 
+### 20.7a What was prepared on 5 August so the experiment can actually run
+
+`LEGACY/` was committed unmodified first, so everything below is visible in a diff. These
+are **diagnostic changes only**, per §4's rule. No control-law constant was altered.
+
+**Three bugs in `yol_takip.py` — the file 20.7 step 3 tells you to drive.** All three would
+have made the experiment produce nothing:
+
+1. `logger.log(error, l, r)` — **no such method.** `ErrorLogger` has `update()` and
+   `finish()`; `logger.py`'s own docstring says so. The run would have died with
+   `AttributeError` on the first frame the lane was found.
+2. Wrong signature even by name — `update()` takes only `error`.
+3. `if error is not None:` guarded the call, so **lost frames never reached the logger** —
+   and lost-lane percentage is the first number 20.7 asks you to read. It would have
+   printed 0 % no matter what happened.
+
+`logger.finish()` was also never called anywhere, so the stability report and the CSV were
+never produced at all.
+
+**Two trim bugs removed from `controller.py`** (§3.3), as 20.7 step 2 requires: trim now
+lives only in `motor.py`, which already applied it correctly per wheel. This is §20.3's own
+verdict — *"trim is a motor-hardware concern and must live only in the motor layer"*.
+
+**`motor_balance_test.py` now prints the four names `config.py` actually reads**, and warns
+when `TEST_SPEED` sits between the LOW and HIGH profiles, where the measurement is a blend
+of both and cleanly measures neither. `--hiz` and `--sure` were added because the new
+output tells you to re-run at 35 and 80, which was previously impossible without editing
+the file.
+
+**`LOG_DURATION_SEC` 120 → 300.** A 240-second race logged for 120 seconds.
+
+**`config.py` now prints a warning when `PERSP_SRC` does not span the frame**, with the
+pixel counts and a scaled starting point clearly labelled as not-a-measurement. It does not
+stop the program — `LEGACY/` is the experiment, and refusing to run would block the thing
+20.7 exists to do. The hard failure belongs in `ayar.py` (§9.1 rule 3).
+
+**Diagnostic counters in `controller.py`**, printed by `tani_raporu()`: frames, lane lost,
+forced to `MIN_SPEED`, medium slowdown, derivative saturated, and opposite-sign wheel
+commands. These change no behaviour. They exist because of what they immediately revealed —
+see **defect 20** in `HATA_DEFTERI.md`, found by running this code rather than reading it:
+at 30 FPS a lane-centre estimate moving more than about 1 px between frames drives the car
+into `MIN_SPEED` and into the pivot branch, with the lane in full view. The first September
+run will report whether that is happening as a percentage.
+
+**Still required before driving, and still not doable without the car:** running
+`calibrate.py` to measure a real `PERSP_SRC`, and running `motor_balance_test.py` to
+measure real trims. Neither can be invented from a desk.
+
 ### 20.8 Defects the rewrite must not reproduce
 
 Found in the full audit. Each is a specific thing to design out, not just avoid:

@@ -61,7 +61,8 @@ def run_straight_test():
     
     if abs(sapma) < 2:
         print("\n✅ Araç dengeli! Trim değişikliği gerekmiyor.")
-        print("   config.py'de LEFT_TRIM = 1.0, RIGHT_TRIM = 1.0 kalabilir.")
+        print("   config.py'deki dört değer de 1.0 kalabilir:")
+        print("   LEFT_TRIM_LOW / LEFT_TRIM_HIGH / RIGHT_TRIM_LOW / RIGHT_TRIM_HIGH")
         return
 
     # Trim önerisi
@@ -72,17 +73,45 @@ def run_straight_test():
         new_right = round(1.0 - abs(oran) * 0.5, 3)
         new_left  = 1.0
         print(f"\n⚠️  Araç SAĞA sapıyor ({sapma:.1f} cm)")
-        print(f"   Önerilen trim: LEFT_TRIM = {new_left}, RIGHT_TRIM = {new_right}")
+        print(f"   Ölçülen oran: sol {new_left}, sağ {new_right}")
     else:
         # Sola sapıyor
         new_left  = round(1.0 - abs(oran) * 0.5, 3)
         new_right = 1.0
         print(f"\n⚠️  Araç SOLA sapıyor ({sapma:.1f} cm)")
-        print(f"   Önerilen trim: LEFT_TRIM = {new_left}, RIGHT_TRIM = {new_right}")
+        print(f"   Ölçülen oran: sol {new_left}, sağ {new_right}")
 
-    print("\n📋 config.py'ye şunu yapıştır:")
-    print(f"   LEFT_TRIM  = {new_left}")
-    print(f"   RIGHT_TRIM = {new_right}")
+    # -----------------------------------------------------------------
+    # DÜZELTİLDİ 5 Ağustos 2026 — PLAN_New.md 20.3e, HATA_DEFTERİ hata 3.
+    #
+    # Bu betik eskiden "LEFT_TRIM" ve "RIGHT_TRIM" adlarını yazdırıyordu.
+    # config.py bu iki adı OKUMUYOR. Gerçekte dört değer var:
+    #   LEFT_TRIM_LOW  LEFT_TRIM_HIGH  RIGHT_TRIM_LOW  RIGHT_TRIM_HIGH
+    # Yani çıktıyı yapıştıran kişi config.py'ye hiçbir etkisi olmayan iki
+    # satır ekliyordu; ölçüm yapılmış gibi görünüyor, araç değişmiyordu.
+    # Mayıs'ta dört trim'in de 1.0 kalmasının muhtemel sebebi budur.
+    # -----------------------------------------------------------------
+    profil = ("LOW" if TEST_SPEED < 40 else
+              "HIGH" if TEST_SPEED > 70 else "ARADA")
+
+    print("\n📋 config.py'ye yapıştır — DÖRT ad da config.py'nin okuduğu adlardır:")
+    if profil == "LOW":
+        print(f"   LEFT_TRIM_LOW   = {new_left}")
+        print(f"   RIGHT_TRIM_LOW  = {new_right}")
+        print("   (HIGH profili için testi 70'in ÜSTÜNDE bir hızla tekrarla)")
+    elif profil == "HIGH":
+        print(f"   LEFT_TRIM_HIGH  = {new_left}")
+        print(f"   RIGHT_TRIM_HIGH = {new_right}")
+        print("   (LOW profili için testi 40'ın ALTINDA bir hızla tekrarla)")
+    else:
+        print(f"   ⚠️  TEST_SPEED = {TEST_SPEED} — bu değer 40 ile 70 ARASINDA.")
+        print("   motor.py:_get_trim bu aralıkta LOW ve HIGH'ı harmanlıyor,")
+        print("   yani bu ölçüm İKİ profilden hiçbirini temiz vermiyor.")
+        print("   Betiği iki kez çalıştır:")
+        print("     python motor_balance_test.py --hiz 35   → LOW profili")
+        print("     python motor_balance_test.py --hiz 80   → HIGH profili")
+        print(f"   (ölçülen oranlar yine de: sol {new_left}, sağ {new_right})")
+
     print("\nDeğişikliği yaptıktan sonra testi tekrar çalıştırarak doğrula.")
 
 
@@ -108,7 +137,25 @@ def run_pwm_sweep():
 
 
 if __name__ == "__main__":
+    # --hiz eklendi 5 Agustos 2026. Sebep: cikti "testi 35 ve 80 ile tekrarla"
+    # diyordu ama hizi degistirmenin tek yolu dosyayi elle duzenlemekti.
+    # Calistirilamayan bir talimat, talimat degildir.
+    import argparse
+    _ap = argparse.ArgumentParser(description="Motor denge kalibrasyonu")
+    _ap.add_argument("--hiz", type=float, default=TEST_SPEED,
+                     help="test hizi %% (LOW profili icin <40, HIGH icin >70)")
+    _ap.add_argument("--sure", type=float, default=TEST_DURATION,
+                     help="ileri gidis suresi, saniye")
+    _a = _ap.parse_args()
+    TEST_SPEED    = _a.hiz
+    TEST_DURATION = _a.sure
+
     print("Motor Denge Kalibrasyonu")
+    print(f"   TEST_SPEED = {TEST_SPEED}  TEST_DURATION = {TEST_DURATION}")
+    print("")
+    print("  ⚠️  TEKERLEKLER YERDEN YUKSEK OLSUN — bu betik motorlari dondurur.")
+    print("      Ilk calistirmada araci havada veya bloklu tut (CLAUDE.md).")
+    print("")
     print("1) Düz gidiş testi (trim hesapla)")
     print("2) PWM süpürme testi (motor fiziksel kontrolü)")
     

@@ -36,6 +36,12 @@ class PDController:
         self.lost_frames: int   = 0
         self.integral:    float = 0.0
 
+        # Tani sayaclari — eklendi 5 Agustos 2026. Davranisi DEGISTIRMEZ,
+        # yalnizca sayar. Sebep: 20.7 deneyi "arac duzeldi mi" diye soruyor,
+        # ama hangi dalin kac kez calistigini bilmeden cevap yorumlanamaz.
+        self.tani = {"kare": 0, "yavaslama": 0, "orta": 0,
+                     "deriv_doydu": 0, "pivot": 0, "kayip": 0}
+
     # ------------------------------------------------------------------
     def compute(self, error) -> tuple:
         """(sol_hız, sağ_hız) tuple'ı döndürür, her biri yüzde [0, 100].
@@ -72,10 +78,22 @@ class PDController:
         # Hem düzde salınım hem de keskin viraj girişinde türev büyüdüğünde yavaşla.
         speed = float(BASE_SPEED - K_SPEED * abs(error))
 
+        self.tani["kare"] += 1
+        # DIKKAT: bu noktada 'error' artik None OLAMAZ — yukarida
+        # prev_error*0.8 ile degistirildi. Kayip kareyi tespit etmenin dogru
+        # yolu error_for_integration'dir. (Ilk yazimda bunu kacirdim ve sayac
+        # her zaman 0 gosterdi; testte yakalandi.)
+        if error_for_integration is None:
+            self.tani["kayip"] += 1
+        if abs(derivative) >= DERIV_CAP:
+            self.tani["deriv_doydu"] += 1
+
         if abs(derivative) > DERIV_SLOWDOWN_THRESHOLD:
             speed = MIN_SPEED
+            self.tani["yavaslama"] += 1
         elif abs(derivative) > DERIV_MEDIUM_THRESHOLD:
             speed = BASE_SPEED - 10
+            self.tani["orta"] += 1
 
         speed = float(np.clip(speed, MIN_SPEED, MAX_SPEED))
 
@@ -103,16 +121,79 @@ class PDController:
         right_raw = speed - correction
 
         # Ölü Bölge Telafisi: common-mode'u kaldır, diferansiyeli koru
+        if left_raw * right_raw < 0:
+            self.tani["pivot"] += 1
+
         left, right = self._apply_dead_zone_pair(left_raw, right_raw)
 
-        # Hız profiline göre trim seçimi
-        left = self._apply_speed_dependent_trim(left)
-        right = self._apply_speed_dependent_trim(right)
+        # TRIM BURADAN KALDIRILDI — 5 Agustos 2026.
+        #
+        # Eskiden burada _apply_speed_dependent_trim(left) ve (right) cagriliyordu.
+        # Iki ayri hata vardi (PLAN_New.md 3.3, HATA_DEFTERI hata 4 ve 5):
+        #
+        #   1. YANLIS TEKER. Metot trim'i tekerin KIMLIGINE degil, PWM'in ISARETINE
+        #      gore seciyordu:  trim = LEFT_TRIM_LOW if pwm >= 0 else RIGHT_TRIM_LOW
+        #      Iki teker de ileri giderken (normal surus) IKISI DE sol trim'i aliyordu.
+        #      Iki tekere ayni carpani uygulamak, tekerler ARASINDAKI dengesizligi
+        #      duzeltmez — sadece toplam hizi olceklendirir. Yani duzeltmesi gereken
+        #      seyi tanim geregi duzeltemiyordu.
+        #
+        #   2. IKI KEZ UYGULAMA. motor.py:set_speed zaten trim uyguluyor, hem de
+        #      DOGRU sekilde (sol tekere sol trim, sag tekere sag trim). Ikisi birden
+        #      calisinca sol teker LEFT_TRIM^2, sag teker LEFT_TRIM*RIGHT_TRIM
+        #      aliyordu.
+        #
+        # Ikisi de trim'ler 1.0 oldugu surece GORUNMEZ (1 x 1 = 1). Yani ilk gercek
+        # olcum yapildigi anda aktiflesirlerdi — tam da 20.7 deneyinin yapacagi sey.
+        #
+        # Duzeltme PLAN_New.md 20.3'un kendi hukmu: "Trim is a motor-hardware concern
+        # and must live *only* in the motor layer". Tek yer = motor.py.
+        #
+        # _apply_speed_dependent_trim metodu asagida DURUYOR ama artik cagrilmiyor;
+        # silinmedi cunku LEGACY bir kanit dosyasi ve hatanin nasil yazildigini
+        # gormek isteyen olabilir.
 
         self.prev_error = error
         self.prev_time  = now
 
         return left, right
+
+    # ------------------------------------------------------------------
+    def tani_raporu(self) -> None:
+        """Hangi dalin ne siklikta calistigini yazdirir. Eklendi 5 Agustos 2026.
+
+        Neden: PLAN_New.md 20.7 "araci surun ve raporu okuyun" diyor. Mevcut
+        rapor hatanin ne kadar buyuk oldugunu soyluyor ama denetleyicinin NE
+        YAPTIGINI soylemiyor. Asagidaki dort sayi arasindaki fark, "kalibrasyon
+        yanlisti" ile "kontrol yasasi kendi kendini bogdu" arasindaki farktir.
+        """
+        t = self.tani
+        n = max(t["kare"], 1)
+        def y(k):
+            return "%6d  (%5.1f %%)" % (t[k], 100.0 * t[k] / n)
+        print("")
+        print("======================================")
+        print("       DENETLEYICI TANI RAPORU        ")
+        print("======================================")
+        print("  Toplam kare      : %6d" % t["kare"])
+        print("  Serit kayip      : %s" % y("kayip"))
+        print("  MIN_SPEED'e dustu: %s" % y("yavaslama"))
+        print("  Orta yavaslama   : %s" % y("orta"))
+        print("  Turev DOYDU      : %s" % y("deriv_doydu"))
+        print("  ZIT ISARET/pivot : %s" % y("pivot"))
+        print("======================================")
+        print("  Nasil okunur:")
+        print("   - 'MIN_SPEED'e dustu' yuksekse (yuzde 20 ustu), arac neredeyse")
+        print("     hep %d hizinda demektir; BASE_SPEED=%d hic kullanilmiyor." % (
+              MIN_SPEED, BASE_SPEED))
+        print("   - 'ZIT ISARET' sifirdan buyukse, arac serit takip ederken")
+        print("     kendi etrafinda donmustur. Bolum 6 pivotu SADECE cikmaz")
+        print("     sokak icin ayirmistir; serit takibinde olmamalidir.")
+        print("   - Turev piksel/SANIYE cinsindendir. 30 FPS'te kare basina")
+        print("     1.67 px degisim MIN_SPEED'i tetikler (esik %d)." % (
+              DERIV_SLOWDOWN_THRESHOLD,))
+        print("======================================")
+        print("")
 
     # ------------------------------------------------------------------
     def _apply_dead_zone_pair(self, left: float, right: float) -> tuple:
@@ -183,3 +264,6 @@ class PDController:
         self.prev_time   = time.time()
         self.lost_frames = 0
         self.integral    = 0.0
+        # NOT: self.tani sayaclari BILEREK sifirlanmiyor. reset() bir kosu
+        # icinde birkac kez cagrilabilir; tani sayilari ise TUM kosuyu
+        # ozetlemeli, yoksa 20.7 raporu son parcayi anlatir.

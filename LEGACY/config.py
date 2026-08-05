@@ -23,6 +23,56 @@ ROI_TOP_RATIO = 0.55
 # ⚠️  800×680 çözünürlük için yeniden kalibre edilmeli (calibrate.py çalıştırın).
 PERSP_SRC = [[160, 300], [480, 300], [0, 480], [640, 480]]  # sol-üst, sağ-üst, sol-alt, sağ-alt
 
+
+def _perspektif_kontrol():
+    """PERSP_SRC gercekten bu karenin tamamini kapsiyor mu?
+
+    Eklendi 5 Agustos 2026. HATA_DEFTERI hata 1 ve PLAN_New.md 3.1.
+
+    Uc ay boyunca PERSP_SRC'nin ustunde "800x680 icin yeniden kalibre edilmeli"
+    diye bir YORUM durdu ve kimse uygulamadi. Bir yorum okunabilir; bir yorum
+    goz ardi edilebilir. Ekrana basilan bir uyari daha zor goz ardi edilir.
+
+    NEDEN DURDURMUYOR: LEGACY bir kanit ve deney dosyasidir (PLAN_New 20.7).
+    Programi durdurmak, calistirmak istedigimiz deneyin ta kendisini engellerdi.
+    Sert hata YENI koda, ayar.py'ye ait — plan zaten oyle diyor (9.1 kural 3).
+    """
+    xs = [p[0] for p in PERSP_SRC]
+    ys = [p[1] for p in PERSP_SRC]
+    if max(xs) >= WIDTH and max(ys) >= HEIGHT:
+        return  # dortgen kareyi kapsiyor, sorun yok, sessiz kal
+
+    ox, oy = float(max(xs)), float(max(ys))
+    sx, sy = WIDTH / ox, HEIGHT / oy
+    olcek = [[int(round(x * sx)), int(round(y * sy))] for x, y in PERSP_SRC]
+
+    print("")
+    print("=" * 72)
+    print("  UYARI: PERSP_SRC bu karenin tamamini kapsamiyor")
+    print("=" * 72)
+    print("  Kare      : %d x %d  (WIDTH x HEIGHT)" % (WIDTH, HEIGHT))
+    print("  Dortgen   : en fazla x=%d, y=%d" % (max(xs), max(ys)))
+    print("  Gorulmeyen: sagda %d piksel, altta %d piksel" % (WIDTH - max(xs),
+                                                              HEIGHT - max(ys)))
+    print("")
+    print("  Alttaki serit ARACIN ONUDUR — 'yakin' histogram aslinda orta mesafe.")
+    print("  Ayrica dortgenin yatay merkezi %d, karenin merkezi %d:" % (
+        (min(xs) + max(xs)) // 2, WIDTH // 2))
+    print("  duz giden bir arac sifir olmayan bir hata okur ve surekli duzeltir.")
+    print("")
+    print("  YAPILMASI GEREKEN:  python calibrate.py   (ve cikan degerleri buraya yaz)")
+    print("")
+    print("  Baslangic noktasi olarak olceklenmis hali (OLCUM DEGILDIR):")
+    print("    PERSP_SRC = %s" % olcek)
+    print("  Bu yalnizca 800x680 karesi, 640x480 ile AYNI sahnenin buyutulmus hali")
+    print("  ise dogrudur. Kamera modu degistiyse gorus acisi da degismistir ve bu")
+    print("  sayilar yanlistir. Sadece calibrate.py karar verir.")
+    print("=" * 72)
+    print("")
+
+
+_perspektif_kontrol()
+
 # ---------------------------------------------------------------------------
 # Şerit tespiti
 # ---------------------------------------------------------------------------
@@ -137,7 +187,11 @@ SHOW_PREVIEW = True
 # ---------------------------------------------------------------------------
 # Kayıt
 # ---------------------------------------------------------------------------
-LOG_DURATION_SEC = 120
+LOG_DURATION_SEC = 300   # DEGISTI 5 Agustos 2026: 120 -> 300.
+# Sebep (PLAN_New.md 21.6): yaris siniri 240 saniye. 120 saniyede kayit kesiliyordu,
+# yani kosunun IKINCI YARISI hakkinda hicbir verimiz yoktu — ve arac genellikle orada
+# bozuluyordu. Tam 240 da yetmez: kayit yesil isiktan ONCE, butona basildiginda basliyor.
+# 300 = 240 + kurulum payi. Maliyeti birkac yuz kilobayt metin.
 LOG_FILE         = "error_log.csv"
 
 # ---------------------------------------------------------------------------

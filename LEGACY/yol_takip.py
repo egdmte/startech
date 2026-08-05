@@ -157,8 +157,19 @@ def drive_loop():
             motor.set_speed(l, r)
             
             # Hata logla (CSV'ye)
-            if error is not None:
-                logger.log(error, l, r)
+            #
+            # DUZELTILDI 5 Agustos 2026 — burada UC ayri hata vardi ve ucu birlikte
+            # 20.7 deneyini tamamen olcusuz birakiyordu:
+            #
+            #  1. logger.log(...) diye bir metot YOK. ErrorLogger'da update() ve
+            #     finish() var (logger.py'nin kendi ornek kullanimi da oyle diyor).
+            #     Serit ilk bulundugu karede AttributeError ile cokuyordu.
+            #  2. Imza da yanlisti: update yalnizca error alir, (error, l, r) degil.
+            #  3. 'if error is not None' korumasi, KAYIP kareleri logger'a hic
+            #     ulastirmiyordu. Oysa kayip kare sayaci tam olarak update(None)
+            #     ile artiyor — yani "kayip serit yuzdesi" her zaman %0 cikardi.
+            #     20.7'nin okumamizi istedigi ilk sayi budur.
+            logger.update(error)   # None DA gonderilir; kayip kareyi o sayar
         else:
             # Henüz başlamadı — durur
             motor.brake()
@@ -301,6 +312,14 @@ def _shutdown(sig, frame):
     time.sleep(0.5)
     motor.stop()
     camera.close()
+    # Eklendi 5 Agustos 2026: finish() hicbir yerde cagrilmiyordu, yani
+    # stabilite raporu da CSV de asla uretilmiyordu. 20.7 adim 3 "raporu oku"
+    # diyor; okunacak rapor yoktu.
+    try:
+        logger.finish()
+        controller.tani_raporu()
+    except Exception as _e:
+        print("[yol_takip] Rapor uretilemedi: %s" % _e)
     sys.exit(0)
 
 

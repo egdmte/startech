@@ -640,6 +640,102 @@ config file that cannot work, and nothing said so. → *Plan §6, §9, §20.8*
 
 ---
 
+### 20 — The derivative threshold is in the wrong units, so the car pivots on camera noise
+
+**Found 5 August 2026, by running `LEGACY/controller.py` rather than reading it.** This is
+the first defect in this book found by execution instead of inspection, and it is probably
+the largest.
+
+**The line.** `controller.py:63`
+
+```python
+derivative = (error - self.prev_error) / dt
+```
+
+Dividing by `dt` makes `derivative` **pixels per second**. The two constants tested against
+it are:
+
+```python
+DERIV_SLOWDOWN_THRESHOLD = 50    # |derivative| > 50  -> speed = MIN_SPEED
+DERIV_CAP                = 150   # clip
+```
+
+50 and 150 are entirely sensible numbers **per frame**. As numbers **per second** they
+are tiny.
+
+Aracın gerçek kare hızı **hiç ölçülmedi** — aşağıdaki 30 FPS bir varsayımdır:
+
+Aşağıdaki sağ sütun **aritmetiktir, ölçüm değildir**: sabiti kare hızına bölmek, yani
+50 ÷ 30 ve 150 ÷ 30. Yanlışsa aritmetik yanlıştır ve dört saniyede kontrol edilir.
+
+| | px/second (sabit) | px/**frame** (30 FPS varsayımı, ölçülmedi) |
+|---|---|---|
+| Forces `speed = MIN_SPEED` | 50 | **~1.67 px** |
+| Saturates `DERIV_CAP` | 150 | **~5.0 px** |
+
+`ASSUMED_LANE_WIDTH` is 300 px. So a lane-centre estimate that moves **0.56% of a lane
+width between two frames** (yaklaşık 1.67 px) drops the car to `MIN_SPEED = 25` — and the same derivative,
+multiplied by `kd_eff` = `KD` x `CROSSING_KD_MULT` = 0.45 x 1.2 = 0.54, produces a
+correction of up to 0.54 x 150 = **81 against a speed of 25.** `|correction| > speed` means
+`left` and `right` get opposite signs, which is the pivot branch.
+
+**Measured, on this code, 5 August 2026.** `PDController` driven at 33 ms intervals with
+Gaussian noise on the lane centre and **the lane never lost**:
+
+| ölçüm tarihi | lane-centre noise (std) | frames forced to `MIN_SPEED` | frames with opposite-sign wheels |
+|---|---|---|---|
+| 2026-08-05 | 0.5 px | 0.0 % | 0.0 % |
+| 2026-08-05 | 1.0 px | 19.0 % | 19.0 % |
+| 2026-08-05 | 2.0 px | 59.0 % | 59.0 % |
+| 2026-08-05 | 3.0 px | 72.0 % | 72.0 % |
+| 2026-08-05 | 5.0 px | 83.0 % | 83.0 % |
+
+Her satır 100 kare, 33 ms aralıkla, `PDController` doğrudan çağrılarak. Araç üzerinde
+değil, bu makinede. Tekrarlamak için: `random.seed(1)`, `random.gauss(0, std)`.
+
+Above roughly **1 pixel** of frame-to-frame noise the car begins spinning in place. Above
+2 px it does so on the majority of frames. This is with a perfectly visible lane.
+
+**Why this matters more than defect 18.** Defect 18 needs the lane to be *lost*. This needs
+nothing at all — only a camera. It reproduces **both** observed failure modes from §0.9
+during ordinary driving:
+
+- *"Very slowly goes forward"* — `speed` pinned at `MIN_SPEED = 25`, so `BASE_SPEED = 62`
+  is never reached.
+- *"Circling with the centre being the right rear tire"* — opposite-sign wheel commands,
+  the pivot branch, exactly as §0.9 inferred from the rotation centre.
+
+§0.9 explained those through the lane-lost path. This explains them without it.
+
+**What is NOT established.** The real frame-to-frame noise of `lane.py`'s estimate is
+unknown, and so is the car's actual FPS — `logger.py` prints FPS but no run was ever kept.
+So this predicts the May behaviour; it does not prove it. **Lower FPS makes it milder**: at
+10 FPS the slowdown needs 5 px/frame rather than 1.67.
+
+**Now measurable.** `controller.py` gained diagnostic counters on 5 August that change no
+behaviour and count six things, printed by `tani_raporu()` at the end of a run. The first
+September drive will report what percentage of frames hit `MIN_SPEED` and what percentage
+pivoted. If those are near zero, this defect is theoretical. If they are 60%, it is the
+answer.
+
+**Not fixed, deliberately.** There are two candidate corrections and they encode different
+guesses about intent:
+
+1. **The thresholds are wrong.** Multiply them by the frame rate — 50 px/frame at 30 FPS is
+   1500 px/s.
+2. **The division is wrong.** Drop `/ dt` and treat the derivative as per-frame, which is
+   what the constants read like — at the cost of handling variable frame time.
+
+Picking one is a control-law decision, not a bug fix, and §6 says the gains belong in
+`ayarlar.json` with reasons beside them. **Egemen decides.** The rewrite must not inherit
+the ambiguity: whichever is chosen, the unit belongs in the constant's name.
+
+**Guard.** Any threshold compared against a rate must state its unit in its own name —
+`DERIV_SLOWDOWN_PX_PER_SEC` or `..._PX_PER_FRAME`. A bare `50` cannot be reviewed, because
+being wrong by a factor of the frame rate looks exactly like being right.
+
+---
+
 ## 3. Points left on the table
 
 ### 6 & 7 — `sign_type` is read but never written
