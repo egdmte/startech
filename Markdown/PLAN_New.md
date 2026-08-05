@@ -448,6 +448,26 @@ So the model exists, the consumer exists, and the wire between them was never ru
 the single largest recoverable points loss found so far, and it is a plumbing job rather
 than an algorithm one.
 
+> **CORRECTION, 5 August 2026 — this was a DECISION, not an accident.**
+>
+> This section originally read as a seam failure: two efforts that never met. Egemen has
+> stated it plainly — **he aborted the sign work himself.** Time before the competition was
+> short, the training photographs were not finished, and lane keeping mattered more. His
+> reasoning at the time: the tasks the tracks actually presented were being handled without
+> the classifier.
+>
+> That is a defensible call under time pressure and it should not be filed as an oversight.
+> **The disconnection is the same; the cause is not.** An unconnected feature nobody noticed
+> is a process problem. A feature deliberately descoped to protect the critical path is
+> project management, and the right response to it is different — you resume it, you do not
+> guard against it.
+>
+> Recorded because §3's framing above ("three features were never connected") lists this as
+> one of its examples. It is now one fewer. `sign_type` moves from *seam failure* to
+> *deferred work*, and §20.8's guard for it — a declared event schema that fails loudly —
+> still stands on its own merits, because a consumer reading a key no producer writes is
+> worth catching regardless of why it happened.
+
 **This also resolves open question 14 in a useful direction:** the ML-versus-CV argument is
 partly moot, because the ML side was never actually in the loop. Whatever May scored, it
 scored with classical CV only.
@@ -2552,7 +2572,27 @@ dict as `sign_type`. That unlocks **çıkmaz yol (100 points)** and the no-overt
 logic, and the model covers all six sign types, not only the two `main.py` currently reads.
 
 Caveat: 192 vectors from roughly 5–7 source images per class, ×6 augmentations. It will
-work but it is thin — more training photos are a good, bounded, well-defined job for Tuna.
+work but it is thin.
+
+**Seen 5 August 2026 — the training photographs.** Egemen shared the set. Six classes are
+covered (yaya geçidi, sollama, hemzemin, park, and the dead-end variants), shot at a range
+of angles, which is the right instinct for a HOG classifier. But every photograph is taken
+**indoors on a pale desk**, with laptops, hands and table edges in frame.
+
+That matters more than the count. On the track the crop will come from `_detect_sign_blue()`
+finding a blue region against a **black** surface, at distance, under hall lighting — a
+different background, a different scale and a different exposure from anything in the
+training set. A classifier can be perfect on its own photographs and still fail on the
+first real frame, and it will not say so; it will simply return the nearest neighbour it
+has, confidently.
+
+So the bounded job is not only *more* photographs. It is photographs **taken through the
+car's own camera, from the car's own position, on the track** — which makes it a Phase 4
+task that needs the track built (§18), not a desk task that can be done in an evening.
+
+One image in the set has a cat pasted over the sign. If that was a deliberate occlusion
+test it is a good one; if it was a joke it is still a useful reminder that nothing in the
+set is occluded, and on a real track something eventually will be.
 
 ### 20.3d The documentation is fabricated — this is the real disease
 
