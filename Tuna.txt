@@ -158,3 +158,13 @@ August 05, 2026: Correcting something the assistant got wrong today. When drawin
 August 05, 2026: There IS a jumper cap on the boards, and it is meant to be there. It is the ENB one, left on because we never use the OUT3-OUT4 side. Nothing is wired to that side, so an enabled empty channel drives nothing. Writing this down so nobody sees it in a photo one day, panics, and pulls it off.
 
 August 05, 2026: Also learned that our commit checker cannot catch this kind of mistake at all. It only looks at names with an underscore in them, so short ones like ENA, PWM or GPIO are invisible to it. Not fixed today, but written down as a known hole so we stop assuming a green result means everything was checked.
+
+August 05, 2026: Answered fifteen long-standing questions and wrote next to each one HOW we know it, not just what the answer is. Seven are properly closed. One is good news: a laptop IS allowed beside the track, so the Windows calibration tool will actually be usable on the day, which we had been worried about since Sunday.
+
+August 05, 2026: The wiring question is no longer blocking. Egemen has built this car several times and says the two boards are left and right, which is far better evidence than the reason it was closed the first time (someone read a variable name). What is still unresolved is that our own schematic seems to draw the wires crossing the other way. One of the two is wrong, and the drawing is what a stranger will be looking at in March, so the drawing gets fixed either way.
+
+August 05, 2026: The assistant told Egemen not to build the start switch the way he planned, claiming it broke a competition rule. It then turned out the "rule" it quoted was a sentence in our OWN notes with no source attached - no page, no article, no Turkish original. Somebody wrote a paraphrase months ago and today it was quoted back as if it were the rulebook. Warning withdrawn, and the sentence in section 5 is now marked as unverified until someone actually reads the 2027 guide.
+
+August 05, 2026: Egemen also settled it from memory of the real event: at the competition the officials waited for the car to finish booting and THEN started the green light. So the whole worry about the car missing the light while starting up was imaginary. Being there beats reasoning about it, again.
+
+August 05, 2026: One scoring answer got written down carefully rather than eagerly. Egemen believes zone completion pays 50 points for EVERY zone rather than 50 once, which if true is the biggest number in the whole competition for us. But that comes from reading a guide sentence that our own notes already call confusing. So it is recorded as a reading, not a fact, and we will plan as if it were the smaller number until a coordinator says otherwise.

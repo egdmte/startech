@@ -616,7 +616,14 @@ there. It is the only thing guarding the endpoint.
 
 Rule: the car must be brought to a ready state by a **button or similar trigger**, from
 software already loaded, **with no external computer connection**. That is the 50-point
-award. And under 2.3 there is no Wi-Fi, so there is no SSH to type `python main.py`.
+award.
+
+> **[KAYNAK YOK — 5 Agustos 2026]** The sentence above carries no article number, no page
+> and no Turkish original. On 5 August it was quoted back as though it were the guide's own
+> wording and a design was nearly rejected on that basis. Treat the phrase *"from software
+> already loaded"* as **unverified paraphrase** until someone reads it in the 2027 guide.
+> Observed practice in 2026 contradicts the strict reading: officials waited for the car to
+> boot before starting the green light. And under 2.3 there is no Wi-Fi, so there is no SSH to type `python main.py`.
 
 So the boot path has to be:
 
@@ -1771,27 +1778,36 @@ was not accessible on this date, so nothing here was measured. The distinction b
   `MAX_SPEED` means what the code thinks it means. Still Phase 1, still unmeasured.
 
 - **q4 — The start button is not physically on the car.** Egemen's stated plan is to use
-  **the power switch on the 2S pack** as the start key. **This conflicts with §5 and should
-  not be built as described.**
+  **the power switch on the 2S pack** as the start key.
 
-  §5 quotes the rule as: the car is brought to a ready state by a button or similar trigger,
-  **"from software already loaded"**. A switch that energises the Pi cannot satisfy that
-  clause — at the moment the trigger is operated, no software is loaded yet. That is the
-  50-point award at risk on wording alone.
+  **Corrected the same day.** An earlier version of this entry said the plan "conflicts with
+  §5 and should not be built as described", on the strength of §5's phrase *"from software
+  already loaded"*. **That phrase has no source.** §5 introduces it with the word "Rule:"
+  and cites no article, no page and no Turkish original — it is our own paraphrase, and it
+  was then quoted back as though it were the guide. That is §21's pattern applied to this
+  document rather than to `LEGACY/`. **§5's rule line needs a citation or it needs removing;
+  either way it must be checked against the 2027 guide in January.**
 
-  The timing is the worse half. Powering on starts a Raspberry Pi OS boot, then
-  `arac.service`, then camera warm-up. **The green-light task awards 50 for a correct start
-  on the first attempt** — and a car still booting cannot see the light change. One switch
-  would put both awards on the same coin flip.
+  **Observed at the 2026 competition (Egemen, first-hand): the officials waited for the car
+  to finish booting and then initiated the green light.** The light is not on a timer
+  running independently of the car. That is direct observation of how the rule is applied,
+  and it outranks our unsourced paraphrase. The scenario described above — a booting car
+  missing the light change — **did not and would not occur.** Withdrawn.
 
-  **§5 already contains the correct design and it needs no revision**: power up early and
-  let the car boot during setup (steps 1-4, motors off, LED solid = ready), then a
-  *separate* GPIO button starts the run (step 5). Powering the car and starting the run are
-  two different events and the competition rule is about the second one. The old GPIO 16
-  button was the right idea; §3.3 records that removing it probably forfeited the 50 points
-  in May.
+  What survives is a preference, not a rule violation, and the reason is development speed
+  rather than points:
 
-  Restoring a run button is Phase 1 and remains the cheapest 50 points available.
+  - A power switch means **one boot per run.** A separate GPIO button means power on once,
+    then run, adjust, run again. Over a one-hour school session with a Pi boot plus camera
+    warm-up between every attempt, that difference is most of the session.
+  - §5's ready-signal design (LED solid = ready, waiting for press) only has something to
+    wait for if there is a button.
+  - A run button satisfies both readings of the award wording; a power switch satisfies only
+    the looser one. If the 2027 guide tightens the phrasing, the button needs no rework.
+
+  None of that is urgent and none of it blocks Phase 1. `LEGACY/main.py`'s `GPIO 16 buton
+  kaldirildi` plus keyboard start is still worth undoing, because a keyboard implies an
+  external computer and that clause **is** in §2's scoring table.
 
 - **q1 — Egemen states the pairing is LEFT/RIGHT.** This is the answer the control law in
   §6 needs, and it matches `config.py`'s naming.
