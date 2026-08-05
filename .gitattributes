@@ -1,0 +1,91 @@
+# =============================================================================
+# .gitattributes — satır sonlarını tek bir kurala bağlar
+#
+# NEDEN VAR (5 Ağustos 2026):
+# `git status` bir anda LEGACY/ altındaki 26 dosyayı "değişmiş" gösterdi.
+# Kimse onlara dokunmamıştı. `git diff --ignore-all-space` tamamen boştu —
+# yani içerik aynıydı, sadece satır sonları LF'ten CRLF'e dönmüştü.
+#
+# Bu dosya olmadan sorun geri gelir: Windows'ta bir düzenleyici dosyayı
+# kaydeder, satır sonlarını değiştirir, ve gerçek bir değişiklik 26 sahte
+# değişikliğin arasında kaybolur. Asıl tehlike şu: 26 dosyalık bir diff'e
+# kimse bakmaz. Bakılmayan diff, gözden kaçan hatadır.
+#
+# Ve bu yalnızca kozmetik değil — bkz. aşağıdaki .sh kuralı.
+#
+# UYGULAMA: bu dosyayı eklemek yetmez, bir kez normalleştirme gerekir:
+#     git add .gitattributes
+#     git commit -m "satir sonu kurallari"
+#     git add --renormalize .
+#     git commit -m "satir sonlarini LF'e normalize et"
+# İkinci commit çok dosyaya dokunur. Bu normaldir ve SADECE BİR KEZ olur.
+# Kendi işini önce commit'le, bunu ayrı ve tek başına yap.
+# =============================================================================
+
+# --- Varsayılan --------------------------------------------------------------
+# Git metin dosyalarını kendi belirler ve depoda HER ZAMAN LF olarak tutar.
+# Depo LF'tir; checkout'ta ne olduğu aşağıdaki kurallara bakar.
+* text=auto eol=lf
+
+
+# --- Linux'ta ÇALIŞMASI gereken dosyalar — LF ŞART ---------------------------
+# Bunlar kozmetik değil. CRLF satır sonlu bir kabuk betiği Pi'de şu hatayı
+# verir:   bash: ./guncelle.sh: /bin/bash^M: bad interpreter
+# Görünmez bir karakter yüzünden dosya hiç çalışmaz.
+*.sh            text eol=lf
+*.service       text eol=lf
+*.py            text eol=lf
+
+# Uzantısı olmayan git kancaları. .githooks/pre-commit bir kabuk betiğidir
+# ve CRLF alırsa sessizce çalışmaz — yani kontrol.py hiç koşmaz ve commit
+# engellenmesi gerekirken geçer. "Sessizce kapanan koruma" en kötü türdür.
+.githooks/*     text eol=lf
+
+
+# --- Sadece Windows'ta çalışan dosyalar — CRLF -------------------------------
+# Bir .bat dosyası CRLF ister; LF ile bazı Windows sürümlerinde bozulur.
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+*.ps1           text eol=crlf
+
+# StarTechConfig henüz bu depoda değil (açık soru 15). Buraya girerse diye
+# kuralları şimdiden duruyor: WinForms araçları CRLF bekler ve Visual Studio
+# aksi halde her dosyayı yeniden yazar.
+*.cs            text eol=crlf
+*.csproj        text eol=crlf
+*.sln           text eol=crlf
+*.resx          text eol=crlf
+*.config        text eol=crlf
+
+
+# --- İkili dosyalar — Git bunlara ASLA dokunmamalı ---------------------------
+# Bir PDF'in içinde 0x0D baytı bulunup "satır sonu" sanılırsa dosya bozulur ve
+# bozulduğu açılana kadar anlaşılmaz. `binary` = "diff'leme, dönüştürme".
+*.pdf           binary
+*.docx          binary
+*.xlsx          binary
+*.pptx          binary
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.bmp           binary
+*.gif           binary
+*.mp4           binary
+*.mov           binary
+*.zip           binary
+
+# NOT: eğitilmiş HOG modeli bugün .json olarak kaydediliyor
+# (LEGACY/train_sign.py:120, json.dump). Yani ayrı bir ikili kural GEREKMİYOR.
+# .pkl / .npy / .onnx için kural yazmadık çünkü öyle bir dosyamız yok —
+# olmayan bir dosya için kural, doğruluğu hiç sınanmayan kuraldır.
+# Model formatı değişirse buraya bir satır ekleyin ve sebebini yazın.
+
+
+# --- Diff'i okunur kılan küçük ayarlar ---------------------------------------
+# Git bu dosyalarda fonksiyon/başlık adını diff başlığına yazar, böylece
+# "@@ -63,7" yerine "@@ def compute" görürsün.
+*.py            diff=python
+*.md            diff=markdown
+
+# Kayıt dosyaları: karşılaştırması anlamsız, sadece büyürler.
+*.csv           text eol=lf -diff
