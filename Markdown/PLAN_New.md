@@ -26,14 +26,15 @@ section you need, when you need it. This page is the front door.
    and metrics. Do not trust `BASLA_BURADAN.txt`, `DOSYALAR_GUNCELEME_DURUSU.txt`,
    `DEGISIKLIKLER_OZET.txt` or `IMPLEMENTATION_SUMMARY.txt`. (§21)
 
-**Do this first, from anywhere, no car needed — 15 minutes:**
-commit `LEGACY/` unmodified and push to the VPS. Every finding above lives on one untracked
-disk until then. (§12, Phase 0)
+**Bu adim 5 Agustos 2026'da TAMAMLANDI.** `LEGACY/` degistirilmeden commit'lendi, iki
+uzak depoya (VPS `origin` + GitHub `github`) push'landi, satir sonlari LF'e sabitlendi ve
+commit oncesi kontrol kancasi kuruldu ve calistigi test edildi. Bulgular artik tek diskte
+degil. (§12, Phase 0)
 
 **First session with the car and a floor — four physical checks:**
 
-1. **Trace two motor wires.** Left/right or front/rear? Blocks everything; if it is
-   front/rear the control law cannot work at all. (§15 q1)
+1. **Trace two motor wires** ve semayi duzelt. Egemen 5 Agu'da **sol/sag** dedi ve §14
+   bunu zaten kayda gecirmis; kalan is dogrulama ve semanin duzeltilmesi. (§15.2 q1)
 2. Confirm the motors are on the L298N **OUT** pins, not IN.
 3. Check what PWM is actually running — no frequency is set anywhere, so it defaults to
    100 Hz. (§13)
@@ -168,8 +169,8 @@ far as the black-box log (section 10) shows it still completing cleanly.
 - Must fit **easily inside a 20 × 30 cm box**. Maximum height **25 cm**.
 - Wheel diameter **≤ 10 cm**. No weight limit.
 - **Camera only.** Distance sensors, Lidar, IR, ultrasonic — any of them means
-  elimination. **[ACTION]** Confirm the car carries no leftover HC-SR04 or IR module
-  from an earlier build, including unconnected ones still bolted on.
+  elimination. **[CEVAPLANDI 5 Agu 2026 — q3: hayir, arac uzerinde kamera disinda hicbir sensor yok,
+  bagli veya bagsiz.]** Faz 1'de goze bir kez daha bakilir, ama beklenen sonuc temiz.
 - **No limit on the number of cameras.** See section 2.5 — this is an opportunity.
 - No restriction on controller board, motor count or motor RPM.
 - **Original software required.** Block-based or ready-made commercial control software
@@ -296,8 +297,10 @@ mode, no logging, RPi.GPIO on a Pi 5 — are **all false**. Strike them out.
 channels**, named `LEFT` and `RIGHT`, and the car has **four motors, two paralleled per
 L298N channel**. What the code does *not* establish is which physical motors are on which
 channel — those names are labels chosen by a programmer, not a wiring diagram. The
-schematic suggests wires crossing between boards, i.e. front/rear. **Question 1 is reopened
-and blocking** (section 15). If the pairing really is front/rear, the control law in
+schematic suggests wires crossing between boards. **§14 bunu aciklyor:** kartlar govdenin
+onune ve arkasina monteli ama esleme sol/sag, ve bu durumda kablolarin kartlar arasinda
+**caprazlanmasi zorunludur**. Yani sema sol/sag ile CELISMIYOR. Soru 1 artik engelleyici
+degil, Faz 1'de dogrulanacak (§15.2). If the pairing really is front/rear, the control law in
 section 6 cannot work and that alone explains May.
 
 **Current-limit consequence of four motors:** two motors share one L298N channel's ~2 A
@@ -457,7 +460,7 @@ From the assembly photo: the L298N runs from **3× 18650**, so the 6 V motors se
 
 An overvolted motor is faster and more torquey than the PD gains were tuned for. Every
 correction lands harder than intended, which makes overshoot worse and tuning far more
-difficult. Combined with an uncalibrated imbalance (3.1), this is a car that is genuinely
+difficult. Combined with an uncalibrated imbalance (3.2), this is a car that is genuinely
 hard to keep on the road.
 
 `max_pwm` should start near **57%**, not 85%. See section 6.
@@ -522,10 +525,10 @@ requirements.txt       pinned dependency versions                        [NEW]
 klipler/               recorded track footage for offline testing        [NEW]
 subiru/                the monitoring dashboard (already exists)
 LEGACY/                the 4 May 2026 implementation — read-only reference
-PLAN.md                this file
+Markdown/PLAN_New.md   this file            (5 Agu: Markdown/ altina tasindi)
 CLAUDE.md              project rules
 Tuna.txt               plain-language change log
-pdf_yap.py             rebuilds the PDFs from the markdown            [NEW]
+Markdown/pdf_yap.py    rebuilds the PDFs from the markdown
 ```
 
 **Justification for `pdf_yap.py`** (required by rule 2 in section 0): the PDFs are
@@ -581,10 +584,18 @@ already forbids that: *"any named constant, method or file must be findable with
 Nothing checked. `kontrol.py` turns that sentence into a script, and the hook makes it run
 without anyone remembering to.
 
-Four checks: every filename mentioned in the documents exists (or is in §4's list or the
+Bes kontrol (5 Agu 2026'da bir tane eklendi: **beklenen belgeler bulunabiliyor mu** —
+belgeler `Markdown/` altina tasininca kontrol.py onlari bulamadi ve bulamadigi seyler icin
+TAMAM dedi). Digerleri: every filename mentioned in the documents exists (or is in §4's list or the
 allowlist), every `ALL_CAPS` constant is findable in the code, every `§N` cross-reference
 resolves to a real heading, and every FPS/pixel figure carries either a date or a word
 saying it's an estimate.
+
+**Kor nokta, 5 Agustos 2026'da bulundu.** Bu bolumun dosya listesi ayni zamanda
+`kontrol.py`'nin izin kaynaklarindan biridir. Yani §4'te yazan YANLIS bir dosya adi kendi
+kendini affeder — nitekim bu belgeyi kendi eski adiyla anan satir aylardir yanlisti ve
+kontrol hic sikayet etmedi.
+Bu bolumu elle okumak gerekir; betik burayi denetleyemez.
 
 **The allowlist is the interesting file.** Adding a line to it means "this claim can't be
 verified, and here is why" — reasons are written next to each entry. An entry with no
@@ -628,7 +639,11 @@ award.
 > wording and a design was nearly rejected on that basis. Treat the phrase *"from software
 > already loaded"* as **unverified paraphrase** until someone reads it in the 2027 guide.
 > Observed practice in 2026 contradicts the strict reading: officials waited for the car to
-> boot before starting the green light. And under 2.3 there is no Wi-Fi, so there is no SSH to type `python main.py`.
+> boot before starting the green light.
+
+What is **not** in doubt: under 2.3 there is no Wi-Fi, so there is no SSH and no way to
+type `python main.py` at the venue. The boot path below is required regardless of how the
+trigger is worded.
 
 So the boot path has to be:
 
@@ -671,7 +686,7 @@ Normal lane keeping uses **proportional differential steering**, not pivots.
 
 1. From the region of interest, find the lane boundaries and estimate the **lane centre**.
    Where only one boundary is visible, infer the centre from it and the known lane width.
-   Where the centre line is dashed and currently absent, this is normal — see 3.2.
+   Where the centre line is dashed and currently absent, this is normal — see 3.7.
 2. Compute `error` = how far the estimated lane centre sits from the image centre.
    Negative means the lane is to the left, positive to the right.
 3. Compute a steering correction from that error using a proportional term plus a
@@ -710,7 +725,7 @@ That is roughly **175% of their rated voltage at full duty.** Consequences:
 
 - 100% PWM is not "fast", it is abusive. It shortens gearbox life and raises current draw.
 - It made every tank pivot more violent than intended, which would have amplified the
-  oscillation in section 3.1. This is a contributing cause of the May failure, not just a
+  oscillation in section 3.1 (the quad's false error) and the pull in 3.2. This is a contributing cause of the May failure, not just a
   hardware detail.
 - **`max_pwm` in `ayarlar.json` should start around 57%** (6 ÷ 10.6), not 100%. Treat the
   range above it as headroom that exists but is not used.
@@ -937,6 +952,9 @@ Two separate JSON files, deliberately split by owner:
 value is missing or out of range — and signals it via `bildir.py`, since there is no
 screen. A bad config must never reach the motors.
 
+> **Bu paragraf 2 Agustos'ta §9.1 tarafindan degistirildi: atolye araci WinForms.
+> Asagidaki Flask tarifi Pi ustunde calisacak kucuk altkume (§9.5) icin gecerlidir.**
+
 A small Flask calibration screen (same toolkit as SUBIRU) shows the live camera feed
 with sliders for each HSV bound and writes `kalibrasyon.json`. This satisfies the
 `CLAUDE.md` requirement that every option be configurable through a GUI, and it is what
@@ -948,9 +966,8 @@ under the real lights. It is short. So:
 
 - The calibration GUI must be usable in **minutes, not an hour**. Sliders per colour,
   one save button, no restart required to apply.
-- Wi-Fi is only forbidden **during a run**. During practice and in the pit a laptop is
-  presumably fine — **[VERIFY] with the referees on the day**, and have a wired fallback
-  (HDMI screen plus keyboard, or a phone via USB tethering) in case it is not.
+- Wi-Fi is only forbidden **during a run**. **KAPANDI 5 Agu 2026 (q10): pit'te ve deneme
+  turlarinda dizustu SERBEST.** Kablolu yedegi (HDMI ekran + klavye) yine de goturun.
 - Bring `kalibrasyon.json` under version control so a bad on-site tune can be reverted in
   one command.
 - Save a **timestamped copy** of `kalibrasyon.json` into every run folder (section 10), so
@@ -963,10 +980,10 @@ rather than the Flask screen described above. `CLAUDE.md` explicitly invites rea
 work, this tool never runs on the car, and keeping analysis tooling out of the car codebase
 is a genuine separation rather than a preference. The Flask decision stands for SUBIRU.
 
-**Consequence to plan around: a WinForms tool cannot run on the Raspberry Pi.** If open
-question 10 comes back as "no laptop may be connected at the venue", there is then no
-calibration tool on site at all. Either resolve q10 early, or keep a minimal
-slider-and-save fallback that runs on the Pi itself. Do not discover this in Antalya.
+**Consequence to plan around: a WinForms tool cannot run on the Raspberry Pi.**
+**KAPANDI 5 Agu 2026: q10 = evet, dizustu serbest.** Yani WinForms araci sahada
+kullanilabilir ve Pi ustundeki slider yedegi ZORUNLU degil, sadece ihtiyatli. 2 Agustos'ta
+acilan risk kapandi.
 
 **The split between the two files is by origin, not by data type:**
 
@@ -1341,12 +1358,12 @@ an exit test.
 The cheapest phase and the one that protects every other one.
 *Updated 1 August 2026 after the `LEGACY/` audit.*
 
-- **Commit `LEGACY/` first, before anything else.** All 26 files, unmodified. Every finding
-  in sections 3, 20 and 21 rests on them, and they currently exist on **one disk, untracked,
-  with no remote**. This is now the highest-priority item in the plan: the evidence is worth
-  more than the plan that describes it.
-- **Push to a private git remote — the team has a VPS, so use it.** Flagged as the most
-  valuable missing protection since before summer. It is a task now, not a wish.
+- ~~**Commit `LEGACY/` first, before anything else.**~~ **YAPILDI 5 Agustos 2026.** 26
+  dosyanin tamami, degistirilmeden. Ayrica `.gitattributes` ile satir sonlari LF'e
+  sabitlendi — `guncelle.sh` CRLF ile Pi'de hic calismiyordu.
+- ~~**Push to a private git remote**~~ **YAPILDI 5 Agustos 2026.** Iki uzak depo:
+  `origin` = VPS (`ototot.git`, varsayilan dal `master` — dogrulandi), `github` =
+  `egdmte/startech`. Asagidaki kurulum notlari kayit icin birakildi.
   - On the VPS: `git init --bare ~/ototot.git` — a bare repo is just storage, nothing to
     host, nothing to secure beyond SSH.
   - Locally: `git remote add origin <user>@<vps>:ototot.git`, then push `master`.
@@ -1357,14 +1374,17 @@ The cheapest phase and the one that protects every other one.
   - No GitHub account required, no free-tier limits, no privacy question.
     `LEGACY/CLAUDE.md` refers to a GitHub remote (`egdmte/ototot`) that this repo does not
     have; the VPS sidesteps whether that account still exists.
-  - **This is what finally makes `CLAUDE.md`'s "delete the folder and clone it again" STOP
-    banner actionable.** Until now there has been nowhere to clone from.
+  - **`CLAUDE.md`'nin "klasoru sil ve bastan clone et" uyarisi 5 Agustos 2026 itibariyla
+    ilk kez GERCEKTEN uygulanabilir.** `CLAUDE.md` 69. satir hala "remote yok" diyor —
+    duzeltilmesi gereken Egemen'in dosyasi.
 - **Nightly backup of what git should not hold.** The VPS can also take the large binaries
   a repo should not carry: the SD card image, track footage for `klipler/`, the `.docx`. A
   scheduled `rsync` costs nothing and covers the corrupt-card-before-competition scenario
   this plan already calls fatal.
-- Commit the rest of what is uncommitted: `CLAUDE.md`, `Tuna.txt`, `PLAN_New.md`, `run.bat`,
-  the `subiru/app.py` port change. (`AGENTS.md` was deleted on 1 Aug — see section 19.)
+- ~~Commit the rest of what is uncommitted~~ **YAPILDI 5 Agustos 2026** — `CLAUDE.md`,
+  `Tuna.txt`, `Markdown/`, `kontrol.py`, `SIRA.md`, `YAPAY-ZEKA-NE-ZAMAN.md`,
+  `.githooks/`. Halen commit'lenmemis tek dosya: `LEGACY/import numpy as np.py` (Egemen'in
+  TUMSEK betigi — adi ve yeri ona ait bir karar).
 - **Fix `motor_balance_test.py`'s output** so it prints the four names `config.py` actually
   reads (`LEFT_TRIM_LOW/HIGH`, `RIGHT_TRIM_LOW/HIGH`) instead of the two dead ones. Do this
   **before** Phase 1 runs it, or Phase 1's first measurement will silently do nothing again
@@ -1375,9 +1395,9 @@ The cheapest phase and the one that protects every other one.
   `gpiozero` — plus the Python version and OS image recorded.
 - **Image the working SD card** once the Pi boots correctly, and keep the image. A corrupt
   card two days before the competition is otherwise fatal.
-- Answer the open questions in section 15. Most take minutes. **q1 is reopened and blocks
-  Phase 1** — tracing two motor wires is the single highest-priority physical check in the
-  project, because if the pairing is front/rear the control law cannot work at all.
+- Answer the open questions in section 15. **Onbesi de 5 Agustos 2026'da cevaplandi —
+  §15.2.** Geriye kalanlar arac gerektiriyor: q1 dogrulama + sema duzeltmesi, q2 olculer,
+  q5 motor uclarindaki gerilim.
 - **Fix `LOG_DURATION_SEC`** — it is `120` against a 240-second race (section 21.6). One
   number, and it is the difference between having evidence from the back half of a run and
   not.
@@ -1729,7 +1749,8 @@ spare that has never been tested in the car is not a spare.
 
 ## 15. Open questions
 
-Each now has an owner and a phase, because unowned questions do not get answered.
+Her sorunun **neye ihtiyac duydugu** ve hangi fazda cevaplanacagi yazili. Sahip sutunu
+5 Agustos 2026'da kaldirildi — gerekcesi §15.0'da.
 
 | # | Question | Ne gerekiyor | Ne zaman |
 |---|---|---|---|
@@ -2214,7 +2235,8 @@ good track can arrive in November; the risk cannot wait that long.
 
 **Film the footage with the car's own camera, at the car's own height.** Phone video from
 standing height has a completely different perspective, and the region of interest tuned
-against it will not transfer. `PLAN.md` previously said Egemen could bootstrap with a
+against it will not transfer. This plan (under its earlier name) previously said Egemen
+could bootstrap with a
 phone video — true for getting started, but every ROI number must come from camera-height
 footage. Mount the camera on the chassis and push the car by hand.
 
@@ -2295,8 +2317,10 @@ Decisions already made and applied:
   solves, not an access problem.
 - `Tuna.txt` was created; it did not previously exist.
 - The GUI toolkit question is settled: **Flask**, matching SUBIRU.
-- The repo has git but **no remote**. Pushing to a private remote is the single most
-  valuable protection still missing — it is now Phase 0, not a wish.
+  > **2 Agustos'ta kismen degisti (§9.1):** atolye kalibrasyon araci **WinForms**. Flask
+  > karari SUBIRU ve Pi ustundeki altkume icin gecerliligini koruyor.
+- ~~The repo has git but **no remote**.~~ **5 Agustos 2026: iki uzak depo eklendi ve
+  push'landi.** VPS + GitHub.
 
 Added in this revision (1 August 2026), after reading the official category guide:
 
@@ -2341,6 +2365,10 @@ Added after the legacy code was found (1 August 2026):
 - **Section 20, Inheritance** — the decision to rewrite, and what carries over.
 - Old blocking question 1 (motor pairing) is **closed**: `LEGACY/motor.py` drives two
   channels, left and right.
+  > **Bu kapanis 1 Agustos'ta YANLIS gerekceyle yapildi** ve soru yeniden acildi: bir
+  > degisken adi kablolama kaniti degildir (§15). 5 Agustos'ta Egemen aracin sol/sag
+  > eslendigini kendi montajindan soyledi ve §14 bunu zaten kaydetmisti — dogru cevap,
+  > yanlis gerekce. Kayit olarak birakildi cunku 19. bolum bir gunluktur.
 
 Added 3 August 2026 — the calibration tool became real:
 
@@ -2416,7 +2444,7 @@ test. **Throw the code away. Do not throw those away.**
 | `controller.py` algorithm | **Inherit, minus trim** | PD + dynamic gain + derivative cap + curve slowdown is sound. Trim is a motor-hardware concern and must live *only* in the motor layer — that missing split is what created the bug in 3.2 |
 | `motor.py` structure | **Inherit, fix two things** | Clean `gpiozero` wrapper. Fix the wrong-wheel trim selection; convert the hardcoded direction inversion into a config flag that names the wiring fact it compensates for |
 | `events.py` debouncing | **Inherit the concept** | Requiring a detection to persist N frames is the main defence against false triggers. Review the individual detectors separately |
-| `sign_model.json` | **Keep the file, decide the approach** | 241 KB of trained model, expensive to reproduce. But `CLAUDE.md` answers "classical CV vs ML" with **CV**, and this is ML. Contradiction needs an explicit decision — new question 8 |
+| `sign_model.json` | **Keep the file, decide the approach** | 241 KB of trained model, expensive to reproduce. But `CLAUDE.md` answers "classical CV vs ML" with **CV**, and this is ML. Contradiction needs an explicit decision — question 14. **KAPANDI 5 Agu 2026:** ikisi de — model YALNIZCA tabela siniflandirmasi icin, geri kalan her sey klasik CV (§15.2 q14) |
 | `config.py` + `config_to_be_migrated.py` | **Drop both** | Two config files, one named "to be migrated," and `tune.py` rewrites Python source via regex to save values. Replaced by `ayarlar.json` + `kalibrasyon.json` (section 9) |
 | The nine tuning scripts | **Consolidate into one** | `tune.py`, `hsv_tune.py`, `pd_tune.py`, `calibrate.py`, `kalibrasyon.py`, `camera.py`, `camtester.py`, `motor_balance_test.py`, `sign_test.py`. This is the sprawl in its purest form. Section 9 already specifies one calibration GUI, owned by Tuna |
 | `main.py` | **Rewrite** | The most tangled file, and where the missing button and the `GG` start live |
@@ -2444,7 +2472,10 @@ same `1.0` trims, older gain multipliers (`1.0` where `config.py` has `1.3`/`1.2
 Turkish comments are **mojibake** (`TÃ¼m` — UTF-8 read as Latin-1). It is a corrupted older
 copy containing nothing unique.
 
-**`guncelle.sh` confirms a remote existed** (`origin/main`). The current repo has none.
+**`guncelle.sh` confirms a remote existed** (`origin/main`). **5 Agustos 2026: VPS'te
+halen bir `main` dali var ve icinde yalnizca "Initial commit" bulunuyor; gercek is
+`master`'da. VPS'in varsayilan dali `master` olarak dogrulandi, yani temiz bir clone dogru
+yere dusuyor.** Bos `main` dali zararsiz bir kalinti.
 
 ### 20.3c The `sign_type` fix is ~20 lines and it is the best-value work in the project
 
@@ -3110,12 +3141,17 @@ next reader proposes it again, in good faith, and the argument runs from the sta
 These are open questions with consequences, not just unknowns. §15 has the full list; these
 are the ones where the *decision* matters more than the fact.
 
-- **CV or ML for signs** (q14). `CLAUDE.md` says CV; `LEGACY/` contains a trained model that
-  was never wired in. §20.3c found the classifier is HOG plus nearest-neighbour — classical
-  CV with a lookup table — so the question is smaller than it looks, but it is still open.
-- **Whether a laptop may be used at the track** (q10). Decides whether the WinForms tool is
-  usable on the day, and therefore whether the Pi subset is optional or essential.
-- **Whether a third student joins** (q11). Decides whether the Pi tool has an owner.
+- ~~**CV or ML for signs** (q14)~~ — **KAPANDI 5 Agu: ikisi de, amaca gore bolunmus.**
+  Egitilmis model YALNIZCA tabela siniflandirmasi icin; serit, gecit, tumsek ve renk
+  segmentasyonu klasik CV. §20.3c zaten siniflandiricinin HOG + en yakin komsu oldugunu
+  bulmustu, yani "ML" tartismasi bastan kucuktu. `CLAUDE.md` 5 Agu'da guncellendi.
+- ~~**Whether a laptop may be used at the track** (q10)~~ — **KAPANDI 5 Agu: evet.** Pi
+  altkumesi artik zorunlu degil, ihtiyatli.
+- ~~**Whether a third student joins** (q11)~~ — **5 Agu: muhtemel.** §15.2.
+
+**5 Agustos 2026 notu:** bu basligin altindaki UC madde de ayni gun cevaplandi. Yeni bir
+sey eklenmedigi surece "Still undecided" listesi artik bostur — ve bos oldugunu soylemek,
+eski uc maddeyi orada birakmaktan iyidir.
 
 ## 24. Glossary
 

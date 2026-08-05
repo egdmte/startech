@@ -86,3 +86,14 @@ SATIR: 640 px kullaniliyor
 SATIR: 160 px kayip
 
 
+
+# --- 5 Agustos 2026: 4. bolumun kendi kendini affetmesi kapatilinca cikanlar --
+# `PLAN.md` artik §4 listesinde degil (dogru adi Markdown/PLAN_New.md). Geriye
+# kalan tek atif §4'un KENDI kor noktasini anlatan cumledir — yani dosyanin
+# varligini iddia etmiyor, yoklugunu anlatiyor.
+# (SATIR: girisi kaldirildi — satir muafiyeti YALNIZCA olcum kontrolunde calisiyor,
+#  dosya adi kontrolunde degil. Cumleler dosya adini hic anmayacak sekilde yeniden yazildi,
+#  ki bu her turlu muafiyetten iyidir.)
+# Egemen'in TUMSEK betiginin dosya adi bosluk iceriyor; kalip "np.py" yakaliyor.
+# Dosya gercekten var: LEGACY/import numpy as np.py
+np.py
