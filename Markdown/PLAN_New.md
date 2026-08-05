@@ -1772,13 +1772,13 @@ are the pin facts, which are certain, and the pairing, which is not.
   <rect x="330" y="80" width="210" height="100" rx="6" fill="#fafbfc" stroke="#333" stroke-width="2"/>
   <text x="344" y="104" class="l">L298N &#8212; kart A</text>
   <text x="344" y="124" class="m">IN1=BCM17  IN2=BCM27</text>
-  <text x="344" y="142" class="m">ENA=BCM13 (pin 33)</text>
+  <text x="344" y="142" class="m">enable &lt;- BCM13 (pin 33)</text>
   <text x="344" y="166" class="s">config.py adi: RIGHT_*</text>
 
   <rect x="330" y="196" width="210" height="100" rx="6" fill="#fafbfc" stroke="#333" stroke-width="2"/>
   <text x="344" y="220" class="l">L298N &#8212; kart B</text>
   <text x="344" y="240" class="m">IN1=BCM22  IN2=BCM23</text>
-  <text x="344" y="258" class="m">ENB=BCM12 (pin 32)</text>
+  <text x="344" y="258" class="m">enable &lt;- BCM12 (pin 32)</text>
   <text x="344" y="282" class="s">config.py adi: LEFT_*</text>
 
   <line x1="540" y1="130" x2="620" y2="130" stroke="#333" stroke-width="2"/>
@@ -1809,6 +1809,24 @@ are the pin facts, which are certain, and the pairing, which is not.
   <text x="20" y="464" class="q">CEVAP: iki kabloyu elle takip et. Kod bunu asla soyleyemez.</text>
 </svg>
 </div>
+
+**Correction, 5 August 2026 — read this before the diagram.** An earlier version of the
+drawing above labelled the two enable inputs `ENA` on one board and `ENB` on the other.
+**Neither string appears anywhere in the code** (`grep -rn "ENA\|ENB" LEGACY/*.py` returns
+nothing) and the second one was wrong: both boards drive **channel A only**. The labels were
+invented by an assistant while drawing, in the one document that exists because of invented
+labels. Corrected to `enable`, which is the most that can be said from `config.py`.
+
+`kontrol.py` could not have caught this. Its constant check requires at least one underscore
+(`[A-Z][A-Z0-9]*(?:_[A-Z0-9]+){1,}`), so short all-caps names like `ENA`, `PWM` or `GPIO`
+are structurally invisible to it. **Known blind spot, not yet fixed.**
+
+**The ENB jumper is fitted on purpose — do not remove it.** Channel B (`IN3`/`IN4`,
+`OUT3`/`OUT4`) is unused on both boards, so its enable jumper was left in place. Nothing is
+wired to `OUT3`/`OUT4`, so an enabled empty channel drives nothing. Recorded here because a
+fitted jumper on an L298N *does* matter when the channel is in use, and a photograph of one
+is exactly the kind of detail that invites a confident wrong diagnosis from someone who was
+not there — which is precisely what happened on 5 August (§21.6b).
 
 **Where each half of the contradiction comes from.** `LEGACY/config.py:113-118` names the
 six pins `RIGHT_IN1`, `RIGHT_IN2`, `LEFT_IN1`, `LEFT_IN2`, `LEFT_PWM_PIN`, `RIGHT_PWM_PIN`
@@ -2628,6 +2646,17 @@ this plan raised it as a Phase 1 check and offered to write it into §13. It was
 been phrased with confidence instead of a conditional, a hallucinated hardware fact would
 now be in the build plan, sourced to a document, with no way to tell it from a measurement
 three months later.**
+
+**Postscript, same day — the invention had a real object underneath it.** Egemen confirmed
+there *is* a jumper cap on a board: the **ENB** jumper, left fitted on purpose because
+channel B is unused (§15.1). So the review had seen something real in a photograph and
+narrated a wrong conclusion about it with no hedge and no question. It never asked *which*
+jumper, which is the only question that decides whether it matters at all.
+
+And the correction did not stop there. While drawing §15.1's diagram, the assistant working
+on this plan labelled the two enable pins `ENA` and `ENB` — strings that exist in no file,
+on a board pairing that is wrong. Egemen caught it by knowing his own hardware. **Two
+different tools, on the same day, both invented an L298N detail neither had looked at.**
 
 That is the actual mechanism by which §21 happened: not one tool inventing something, but a
 second one repeating it in a place that looks authoritative. The guard is the same as ever

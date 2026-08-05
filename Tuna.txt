@@ -152,3 +152,9 @@ August 05, 2026: Turned on the commit checker for real. It has existed for two d
 August 05, 2026: Then, importantly, we TESTED it instead of assuming. Wrote a deliberately fake fact into the notes - a setting name that does not exist anywhere in the code - and tried to save. It refused, printed which claim was wrong, and told us to either fix it or write down why it is allowed. Deleted the fake line afterwards. A guard nobody has watched work is not a guard, it is a decoration.
 
 August 05, 2026: Also wrote down a plan (only a plan, nothing built) for keeping a history of which machines talk to our server. Right now the server remembers exactly one - the most recent - because each new message writes over the last one. So if a stranger's copy ever called in, our own car would erase the evidence within thirty seconds.
+
+August 05, 2026: Correcting something the assistant got wrong today. When drawing the wiring diagram it labelled the two motor boards' enable pins "ENA" and "ENB". Those two names appear in none of our files - it made them up while drawing - and the second one was wrong anyway, because both boards use channel A only. Egemen spotted it because he knows what is actually screwed to the car. Fixed to just say "enable", which is all the code can honestly tell us.
+
+August 05, 2026: There IS a jumper cap on the boards, and it is meant to be there. It is the ENB one, left on because we never use the OUT3-OUT4 side. Nothing is wired to that side, so an enabled empty channel drives nothing. Writing this down so nobody sees it in a photo one day, panics, and pulls it off.
+
+August 05, 2026: Also learned that our commit checker cannot catch this kind of mistake at all. It only looks at names with an underscore in them, so short ones like ENA, PWM or GPIO are invisible to it. Not fixed today, but written down as a known hole so we stop assuming a green result means everything was checked.
