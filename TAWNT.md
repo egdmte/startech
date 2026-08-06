@@ -858,3 +858,306 @@ kayit.py istek, ret ve sonucu yazar
 En önemli kural:
 
 > 3awnt doğru yapılandırılmış olsa bile `surucu.py` atlanabiliyorsa araç korunmuyor.
+
+---
+
+## 17. 3awnt v2 davranış sözleşmesi
+
+> **SÖZLEŞME — HENÜZ UYGULANMADI.** Bu bölüm, v2 yazılmadan önce hangi davranışın
+> doğru kabul edileceğini belirler. Mevcut `tawnt.py` bu sözleşmenin tamamını sağlamaz.
+
+Sözleşmenin amacı yöntem adlarını çoğaltmak değil, şu soruya kesin cevap vermektir:
+
+> Belirli bir anda gerçek motor komutunun uygulanabilmesi için nelerin doğru olması gerekir?
+
+### 17.1 Değişmez güvenlik kuralları
+
+V2 uygulaması hangi biçimde yazılırsa yazılsın aşağıdaki kurallar bozulamaz:
+
+1. Programın başlaması motor izni vermez.
+2. Motorlar varsayılan olarak kapalıdır.
+3. Gerçek PWM'e giden tek yol `surucu.py` içindeki zorunlu kapıdır.
+4. Geçersiz komut fiziksel çıkışa ulaşmadan reddedilir.
+5. Yakalanmamış hata son PWM'i korumaz.
+6. Evre değişimi ciddi arıza kilidini kaldıramaz.
+7. Python veya servis yeniden başlatmak ciddi kilidi kendiliğinden kaldıramaz.
+8. Yazılımın “sıfır PWM istedim” kaydı, tekerleklerin fiziksel olarak durduğunu kanıtlamaz.
+9. `OLCULDU` etiketi ölçüm beyanıdır; ölçümün gerçekten yapıldığını kanıtlamaz.
+10. İnsan incelemesi ve Egemen'in canlı donanım izni olmadan `LIVE` hareket yoktur.
+
+Bu kurallardan biri yalnız kullanım alışkanlığına bağlıysa koruma eksiktir. Mümkün olan
+kurallar kod ve test tarafından zorlanmalıdır.
+
+---
+
+## 18. Çalışma profilleri
+
+> **SÖZLEŞME — HENÜZ UYGULANMADI.**
+
+Tek bir doğrulama seviyesi hem Windows klip testi hem gerçek araç için uygun değildir.
+V2 üç açık profil kullanır:
+
+| Profil | Kullanım | Motor çıkışı | Varsayım politikası |
+|---|---|---|---|
+| `OFFLINE` | Video, algoritma ve masaüstü testi | Gerçek çıkış kesinlikle yok | `VARSAYILDI` kabul edilebilir; raporda görünür |
+| `BENCH` | Sahte sürücü veya fiziksel olarak kısıtlı test | Varsayılan sahte; gerçek için ayrıca insan kapısı | Kritik varsayımlar uyarı veya ret olabilir |
+| `LIVE` | Zeminde gerçek araç hareketi | Yalnız silahlı ve doğrulanmış sistem | Güvenlik-kritik değerler `OLCULDU` olmalı |
+
+Profil kod içinde gizli bir Boolean olmayacaktır:
+
+```python
+# ÖNERİ — HENÜZ UYGULANMADI
+tawnt.validateBeforeStart(profile="LIVE")
+```
+
+`LIVE` seçmek tek başına motorları açmaz. Yalnız daha sıkı doğrulama kurallarını seçer.
+
+### 18.1 Güvenlik-kritik değer örnekleri
+
+Gerçek hareketten önce ölçülmesi veya fiziksel olarak doğrulanması beklenenler:
+
+- motor PWM tavanı,
+- motor uç gerilimi,
+- motor ölü bölgesi,
+- sol/sağ motor eşlemesi,
+- motor trimleri,
+- kamera çözünürlüğü,
+- perspektif dörtgeni ve bağlı kamera profili.
+
+Renk eşikleri de gerçek pistte yeniden ölçülmelidir; fakat yanlış renk değeri ile doğrudan
+motor aşırı gerilimi aynı hata sınıfına konmak zorunda değildir. Kritik alan listesi şema
+içinde açıkça belirtilir.
+
+---
+
+## 19. Kritik değerin yaşam döngüsü
+
+> **SÖZLEŞME — HENÜZ UYGULANMADI.**
+
+Bir v2 değeri aşağıdaki durumlardan birindedir:
+
+| Durum | Anlamı |
+|---|---|
+| `UNDEFINED` | Ad ve kurallar yok |
+| `DEFINED` | Kurallar var, değer yok |
+| `RECORDED` | Değer ve kaynak kaydedildi |
+| `VALIDATED` | Seçilen profil için kontrolleri geçti |
+| `STALE` | Bağlı bir değer/donanım değişti veya tazelik süresi geçti |
+| `SEALED` | Başlangıç tamamlandı; koşu sırasında sessizce değiştirilemez |
+
+Örnek geçiş:
+
+```text
+defineValue → DEFINED
+recordValue → RECORDED
+validateBeforeStart → VALIDATED
+seal → SEALED
+kamera çözünürlüğü değişti → STALE
+```
+
+Kurallar:
+
+- `UNDEFINED` veya `DEFINED` değer zorunlu kapıdan geçemez.
+- `STALE` değer `LIVE` profilinde kullanılamaz.
+- `SEALED` değer normal atamayla değiştirilemez.
+- Değişiklik gerekiyorsa açık yeniden-kalibrasyon oturumu başlatılır.
+- Bir bağımlılık değiştiğinde ona bağlı değerler otomatik `STALE` olur.
+
+Örnek: kamera çözünürlüğü değişirse perspektif dörtgeni ve ona bağlı ROI değerleri
+eskimiş sayılır.
+
+---
+
+## 20. Sistem ve hareket durumları
+
+> **SÖZLEŞME — HENÜZ UYGULANMADI.** Bunlar yarışma görev evrelerinden ayrıdır.
+
+| Durum | Anlamı | Hareket |
+|---|---|---|
+| `BOOT` | Program açılıyor | Yasak |
+| `VALIDATING` | Ayarlar ve bağımlılıklar kontrol ediliyor | Yasak |
+| `READY_UNARMED` | Kontroller geçti, insan izni bekleniyor | Yasak |
+| `ARMED` | Açık insan arming'i alındı | Evre izin verirse mümkün |
+| `MUTED` | Geçici görev/evre susturması | Yasak |
+| `LATCHED_FAULT` | Ciddi arıza kilitlendi | Yasak |
+
+Normal sıra:
+
+```text
+BOOT → VALIDATING → READY_UNARMED → ARMED
+```
+
+Program hiçbir koşulda `BOOT → ARMED` atlaması yapmaz.
+
+### 20.1 Arming sözleşmesi
+
+`arm()` için gerekenler:
+
+- profil ve yapılandırma doğrulandı,
+- zorunlu değerler `VALIDATED`,
+- ciddi kilit yok,
+- gerçek sürücü seçildiyse insan incelemesi kaydedildi,
+- Egemen canlı donanım izni verdi,
+- tehlikeli adımdan hemen önce son onay alındı.
+
+Arming program açılışından miras kalmaz. Yeniden başlatmada tekrar insan kapısı gerekir.
+
+---
+
+## 21. Hata seviyeleri
+
+> **SÖZLEŞME — HENÜZ UYGULANMADI.**
+
+| Seviye | Davranış | Örnek |
+|---|---|---|
+| `WARNING` | Kaydet; güvenli davranış sürüyorsa devam edebilir | Opsiyonel değer eski |
+| `STOP` | Komutu reddet, sıfır PWM uygula | Geçici evre uyuşmazlığı |
+| `LATCHED_FAULT` | Sıfır PWM, kalıcı hareket yasağı | `NaN`, watchdog kaybı, bypass girişimi |
+
+`LIVE` profilinde aşağıdakiler ciddi kilit üretir:
+
+- sayı olmayan, `NaN` veya sonsuz motor komutu,
+- belirlenen mutlak güvenlik sınırının çok üzerindeki PWM,
+- hareketin yasak olduğu evrede hareket komutu,
+- şerit takipte izinsiz ters yön/pivot,
+- kamera veya kontrol watchdog süresi aşımı,
+- gerçek motor kapısını atlama girişimi,
+- yakalanmamış ana döngü hatası.
+
+Küçük ayar uyuşmazlıklarında sessiz clamp yerine açık ret tercih edilir. Hangi hatanın
+`STOP`, hangisinin `LATCHED_FAULT` olduğu test tablosunda sabitlenir; çalışma sırasında
+LLM veya çağıran modül karar vermez.
+
+---
+
+## 22. Ciddi kilidin kalıcılığı ve sıfırlanması
+
+> **SÖZLEŞME — HENÜZ UYGULANMADI.** Mevcut `_kilit` yalnız süreç belleğindedir.
+
+V2 ciddi arızası süreç/servis yeniden başlatmasında kaybolmaz. Kalıcı kayıtta en az:
+
+- neden,
+- ayrıntı,
+- zaman,
+- profil,
+- Git commit/yapılandırma damgası,
+- reddedilen son komut
+
+bulunur.
+
+Kalıcı kayıt bozuk veya okunamıyorsa `LIVE` sistemi güvenli tarafta kalır ve silahlanmaz.
+SD karta yazılamaması fiziksel motor kapatmayı engellemez; önce çıkış sıfırlanır, sonra
+kayıt denenir.
+
+### 22.1 İnsan sıfırlama sözleşmesi
+
+Kilit ancak şu koşullarla temizlenebilir:
+
+1. Motor güç anahtarının kapalı olduğu insan tarafından doğrulandı.
+2. Arıza nedeni okundu ve çözüldü.
+3. Sıfırlayan kişi ve zaman kaydedildi.
+4. Sistem yeniden `VALIDATING` durumundan geçti.
+5. Yeni arming ve son onay alındı.
+
+`enterPhase`, servis restartı, yeni config yükleme veya özel bir metin kilidi açamaz.
+
+---
+
+## 23. Önerilen v2 API sözleşmesi
+
+> **SÖZLEŞME — HENÜZ UYGULANMADI.** Eski adlar geçici uyumluluk takma adı olabilir.
+
+| Yöntem | Başarı sonucu | Başarısızlık |
+|---|---|---|
+| `defineValue(...)` | Ad/handle | Geçersiz veya tekrar tanım hatası |
+| `recordValue(...)` | Kaydedilen değer | Kaynak, tarih, tip veya sınır hatası |
+| `dependsOn(...)` | Bağımlılık kaydı | Döngü veya bilinmeyen ad hatası |
+| `requireMeasured(...)` | Kural kaydı | Bilinmeyen ad hatası |
+| `validateBeforeStart(profile)` | Doğrulama özeti | Tek toplu hata raporu |
+| `seal()` | Değerleri değişmez yapar | Eksik doğrulama hatası |
+| `enterPhase(phase)` | Yeni evre | İzin verilmeyen geçiş hatası |
+| `validatePhase(phase)` | Evre hazır | Eksik gereksinim ve sıfır PWM |
+| `isMotionAllowed()` | Yalnız durum sorgusu | Yan etki yapmaz |
+| `validateMotorCommand(...)` | Doğrulanmış komut nesnesi | Sıfır PWM + belirlenen hata seviyesi |
+| `latchFault(...)` | Kilit kaydı | Kapatma yine denenir |
+| `resetFault(...)` | `VALIDATING` durumuna dönüş | İnsan/anahtar koşulu eksikse ret |
+
+Boolean sonuç güvenlik için tek başına kullanılmaz. `validateMotorCommand(...)` ya
+doğrulanmış bir komut döndürür ya da komutun gerçek çıkışa ulaşmasını engeller.
+
+---
+
+## 24. Motor komutunun zorunlu doğrulama sırası
+
+> **SÖZLEŞME — HENÜZ UYGULANMADI.**
+
+`surucu.applyMotorCommand(sol, sag, evre)` şu sırayı izler:
+
+1. Gerçek sürücü seçili mi?
+2. Sistem `ARMED` mı?
+3. Kilit veya susturma var mı?
+4. Evre hareket ve yönlere izin veriyor mu?
+5. Değerler sayı ve sonlu mu?
+6. Mutlak/ölçülmüş sınırlar içinde mi?
+7. Sol/sağ farkı evre için uygun mu?
+8. Önceki komuta göre değişim slew sınırında mı?
+9. Kamera ve kontrol heartbeat'i güncel mi?
+10. Doğrulanmış komut özel fiziksel yazma yöntemine gönderilir.
+
+Herhangi bir adım başarısızsa 10. adıma geçilmez. Önce sıfır PWM denenir, sonra hata
+kaydedilir. Çağıran kodun Boolean sonucu kontrol etmeyi unutması bu kapıyı atlayamaz.
+
+---
+
+## 25. V2 test sözleşmesi
+
+Bu sözleşme test adı olarak da okunabilmelidir. Asgari test grupları:
+
+### Bugünkü davranışı doğrulayan v1 testleri
+
+- tekrar tanım ve bozuk sınır reddedilir,
+- tanıtılmadan değer kaydı reddedilir,
+- sınır dışı değer ve tarihsiz ölçüm reddedilir,
+- eksik ikiz ve bozuk kardeş sırası reddedilir,
+- farklı birim karşılaştırması reddedilir,
+- perspektif sapma sınırı uygulanır,
+- geçici susturma evre değişince kalkar,
+- ciddi süreç-içi kilit evre değişince kalkmaz.
+
+### Henüz uygulanmadığı için atlanan v2 testleri
+
+- `LIVE`, varsayılan güvenlik-kritik değeri reddeder,
+- başlangıç silahsızdır,
+- değerler doğrulamadan sonra mühürlenir,
+- bağımlılık değişince değer `STALE` olur,
+- evreye aykırı komut fiziksel yazmaya ulaşmaz,
+- `NaN` ve aşırı PWM ciddi kilit üretir,
+- kilit restarttan sonra kalır,
+- insan doğrulaması olmadan reset reddedilir,
+- doğrudan PWM/GPIO erişimi statik kontrolde bulunur.
+
+Atlanan test “başarılı” değildir. Test çıktısında her biri `skipped` ve uygulanmama
+nedeniyle görünür. V2 uygulaması sırasında ilgili skip kaldırılır; test gerçekten geçmeden
+özellik tamamlandı sayılmaz.
+
+---
+
+## 26. Sözleşmenin sınırı
+
+Bu v2 sözleşmesi yazılımın ne yapması gerektiğini açıklar. Şunları hâlâ kanıtlayamaz:
+
+- fiziksel anahtarın çalıştığını,
+- motor kablolarının doğru eşlendiğini,
+- tekerleklerin sıfır PWM sonrası gerçekten durduğunu,
+- ölçümün gerçekten yapıldığını,
+- yarışma alanında yasak donanım bulunmadığını.
+
+Bu nedenle son zincir değişmez:
+
+```text
+yazılım doğrulaması + assertion testleri + insan kod incelemesi
+                   + kontrollü fiziksel test + fiziksel anahtar
+```
+
+V2 kodu ancak bu sözleşme US tarafından kabul edildikten ve ayrı uygulama planı
+onaylandıktan sonra yazılır.

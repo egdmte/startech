@@ -230,3 +230,9 @@ August 05, 2026: So the job is not "take more photos". It is "take photos throug
 6 Ağustos 2026: TAWNT.md'ye introduce, acquire ve preacquire yöntemlerinin aynı bellek defteri üzerinden nasıl çalıştığını gösteren öğrenci örnekleri eklendi. Normal VAR=DATA atamasıyla sınır, kaynak, tarih ve ilişki taşıyan 3awnt kaydı karşılaştırıldı; çağrıların aynı dosyada değil, aynı Python sürecindeki aynı tawnt modülünde bulunması gerektiği açıklandı.
 
 6 Ağustos 2026: LLM'nin hardcoded veya tehlikeli PWM komutu yazmasına karşı önerilen kapı belgelendi. isExpectedCurrent adının elektrik akımıyla karışacağı için validateMotorCommand önerildi. Gerçek PWM yazımı yalnız surucu.py içinde kalacak, doğrulama yazma işleminin içinden zorunlu çağrılacak ve evreye göre geçerli komutlar değişecek. Bunların tamamı öneridir; hiçbir Python çalışma kodu bu kayıtta değiştirilmedi.
+
+6 Ağustos 2026: 3awnt v2 için koddan önce davranış sözleşmesi yazıldı. OFFLINE/BENCH/LIVE profilleri, değer yaşam döngüsü, silahsız açılış, hata seviyeleri, restarttan sonra kalan ciddi kilit, insan kontrollü reset ve zorunlu motor komutu doğrulama sırası tanımlandı. Bunlar sözleşmedir; tawnt.py henüz v2 değildir.
+
+6 Ağustos 2026: tawnttest.py basit gösterimden assertion tabanlı unittest dosyasına dönüştürüldü. Bugünkü v1 davranışını gerçekten çalıştıran 14 test geçti; henüz uygulanmayan v2 korumalarını adları ve nedenleriyle gösteren 9 test skipped kaldı. Skip başarı değildir; ilgili özellik yazılırken kaldırılıp test gerçekten geçmelidir.
+
+6 Ağustos 2026: Testlerin temiz bir Git klonunda da tawnt modülünü bulabilmesi için daha önce izlenmeyen mevcut tawnt.py v1 prototipi içeriği değiştirilmeden Git'e eklendi. Bu işlem v2 özelliklerini uygulamaz; yalnız sözleşmenin test ettiği mevcut başlangıç noktasını tekrar üretilebilir yapar.
