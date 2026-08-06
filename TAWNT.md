@@ -1,6 +1,7 @@
 # 3awnt (`tawnt.py`) — öğrenci ve geliştirici kılavuzu
 
-> **Durum:** Deneysel prototip. Henüz aracın üretim çalışma zincirine bağlı değildir.
+> **Durum (6 Ağustos 2026):** V2 güvenlik çekirdeği kodlandı ve otomatik testleri
+> geçiyor. Henüz aracın gerçek motor/PWM çalışma zincirine bağlı değildir.
 >
 > **En önemli cümle:** 3awnt, kritik sayıların nereden geldiğini ve birbirleriyle
 > çelişip çelişmediğini denetlemeye çalışan bir yazılım katmanıdır. Fiziksel acil
@@ -14,7 +15,8 @@ Bu belge dört şeyi birbirinden ayırır:
 4. gelecekte eklenebilecek yöntemler.
 
 Bir başlığın altında **ÖNERİ — HENÜZ YOK** yazıyorsa o özellik `tawnt.py` içinde varmış
-gibi davranılamaz.
+gibi davranılamaz. **KÜTÜPHANEDE UYGULANDI** ifadesi ise kodun ve birim testinin var
+olduğunu söyler; gerçek araç entegrasyonu veya fiziksel güvenlik kanıtı değildir.
 
 ---
 
@@ -49,12 +51,18 @@ biçimde saklayabilir. Bu yüzden insan incelemesinin yerine geçmez.
 Sistemin adı `3awnt` olarak anılıyor; Python dosyası `tawnt.py` olmak zorunda, çünkü
 Python modül adı rakamla başlayamaz.
 
-Adın kökeni `защит` sözcüğünün bir yapay zekâ tokenleştirme hatasından gelmesidir.
-İsim bir güvenlik sertifikası değildir; takımın projeye verdiği addır.
+Takımın açılımı **3rd-party Automated Watchdog for Network Threats** biçimindedir.
+Ayrıca ad, “korumak” anlamıyla ilişkilendirilen `защит` yazısının bir yapay zekâ
+tokenleştirme hatasından doğmuştur.
+
+Bu açılım hedeflenen kimliği anlatır; bugünkü `tawnt.py` **ağ trafiğini izlemez**, paket
+incelemez ve ağ saldırısı tespit etmez. Şu an kritik değerleri, sistem durumunu, heartbeat'i
+ve motor komutu politikasını denetleyen yerel bir Python güvenlik katmanıdır. İsim bir
+güvenlik sertifikası değildir.
 
 ---
 
-## 3. Bugün gerçekten bulunan yöntemler
+## 3. V1 uyumluluk yöntemleri
 
 Bu bölüm, mevcut `tawnt.py` dosyasının davranışını açıklar.
 
@@ -122,9 +130,10 @@ Bugünkü uygulama şunları denetler:
 - ikiz değer de atanmış mı,
 - kayıtlı kardeş sıralaması tutuyor mu.
 
-**Önemli mevcut sınır:** `preacquire`, `VARSAYILDI` kaynağını yalnızca kaynak türü
-nedeniyle reddetmez. Yani “kritik değerler mutlaka ölçülmüş olmalı” kuralı bugün otomatik
-uygulanmıyor. Bunu yapan gelecek yöntemi §8.2'de önerilmiştir.
+**Önemli sınır:** Geriye uyumluluk için `preacquire`, `VARSAYILDI` kaynağını yalnızca
+kaynak türü nedeniyle reddetmez. Gerçek araç için bunun yerine kritik değer
+`critical=True` ile tanımlanmalı ve `validateBeforeStart(profile=LIVE)` kullanılmalıdır;
+bu kapı ölçülmemiş kritik değeri reddeder.
 
 ### 3.4 `IsTwinOf(...)`: birlikte anlam taşıyan değerler
 
@@ -135,9 +144,8 @@ tawnt.IsTwinOf("PERSP_SRC", "KARE")
 Perspektif köşeleri, ölçüldükleri görüntü çözünürlüğü olmadan anlamlı değildir. İkiz
 ilişkisi, iki değerden biri hiç atanmamışsa bunu açılış kontrolünde gösterir.
 
-**Önemli mevcut sınır:** İki ikiz ilk kez atandıktan sonra yalnızca birinin yeniden
-atanması bugün otomatik olarak “öteki eskidi” işareti üretmez. Revizyon takibi §8.3'te
-önerilmiştir.
+V2 çekirdeğinde ikizler aynı zamanda karşılıklı bağımlılık olarak kaydedilir. Birinin
+değeri değişirse diğeri `STALE` olur ve tekrar doğrulanmadan `LIVE` başlangıcını geçemez.
 
 ### 3.5 `siblingIntAppr(...)`: sayısal sıralama ilişkisi
 
@@ -219,8 +227,9 @@ Bugünkü uygulamada bu çağrı:
 Adında `SIGINT` geçmesi, yöntemin işletim sistemi sinyalini kendiliğinden yakaladığı anlamına
 gelmez. `main.py` ayrıca `SIGINT`, `SIGTERM` ve beklenmeyen hataları bağlamalıdır.
 
-Kilit tek yönlüdür; aynı süreç içinde yeniden açılamaz. Ancak program yeniden başlatılırsa
-bellekteki kilit sıfırlanır.
+Kilit tek yönlüdür. `configureFaultStore(...)` ile kalıcı kayıt yapılandırılmışsa program
+yeniden başlasa da geri yüklenir. `LIVE` profili kalıcı kayıt yolu olmadan başlangıç
+doğrulamasını reddeder.
 
 ### 3.10 `flushPWM(...)` ve `evreDegisti(...)`: geçici susturma
 
@@ -236,7 +245,7 @@ Kilit ile susturma aynı şey değildir:
 
 | Durum | Amaç | Kendiliğinden kalkar mı? |
 |---|---|---|
-| Kilit | Beklenmeyen arıza sonrası yeniden çalışmayı engellemek | Hayır; süreç yeniden başlar |
+| Kilit | Beklenmeyen arıza sonrası yeniden çalışmayı engellemek | Hayır; insan kontrollü reset gerekir |
 | Susturma | Normal evre geçişinde geçici motor komutunu engellemek | Evet; evre değişince |
 
 Susturma kalıcı kilidi açamaz.
@@ -251,9 +260,10 @@ if not tawnt.pwmSerbestMi():
     return
 ```
 
-**Kritik mevcut davranış:** Yeni bir Python süreci başladığında `pwmSerbestMi()` bugün
-`True` döner. Yani 3awnt tek başına “varsayılan kapalı” arming sistemi değildir. Gerçek
-motor katmanı ayrıca kendi fail-closed durumunu uygulamalıdır.
+**Kritik mevcut davranış:** Yeni bir Python süreci başladığında `pwmSerbestMi()`
+`False` döner. Başlangıç doğrulaması, evre seçimi ve `arm()` tamamlanmadan hareket izni
+verilmez. Buna rağmen gerçek motor katmanı bu sonucu zorunlu kapı yapmadıkça 3awnt fiziksel
+PWM'i engelleyemez.
 
 ### 3.12 `report()`: beyan raporu
 
@@ -272,19 +282,21 @@ bu raporu tek başına `KANIT` kabul etmemelidir.
 
 ## 4. Bugünkü gerçek entegrasyon durumu
 
-6 Ağustos 2026 itibarıyla yapılan depo incelemesine göre:
+6 Ağustos 2026 itibarıyla:
 
-- `tawnt.py` vardır fakat Git tarafından henüz izlenmemektedir.
-- `TAWNT.md`, `tawnttest.py` ve `tawnt_guvenlik.log` da izlenmeyen dosyalardır.
-- Üretim aracı çalışma zinciri 3awnt'ı çağırmamaktadır.
-- Yalnızca `tawnttest.py` 3awnt'ı içe aktarmaktadır.
-- Test dosyası çıktı üretir fakat otomatik `assert` kontrolleri içermez.
-- SIGINT, SIGTERM, yakalanmamış hata, kamera watchdog'u ve GPIO sürücüsü bağlı değildir.
-- Herhangi bir üretim motor sürücüsü `pwmSerbestMi()` sonucunu zorunlu kapı olarak kullanmaz.
+- `tawnt.py`, `tawnttest.py` ve bu kılavuz Git tarafından izlenmektedir.
+- V2 çekirdeği 34 otomatik `unittest` davranış testiyle doğrulanmaktadır.
+- Değer yaşam döngüsü, OFFLINE/BENCH/LIVE profilleri, fail-closed arming, evre politikası,
+  heartbeat/watchdog, kalıcı ciddi kilit ve statik motor erişimi taraması kütüphanede vardır.
+- Üretim aracı çalışma zinciri 3awnt'ı henüz çağırmamaktadır.
+- SIGINT, SIGTERM, yakalanmamış hata, kamera üreticisi ve GPIO sürücüsü henüz bağlanmamıştır.
+- Hiçbir üretim motor sürücüsü `validateMotorCommand(...)` sonucunu zorunlu fiziksel kapı
+  olarak kullanmamaktadır.
 
 Bu nedenle doğru ifade şudur:
 
-> 3awnt için bir prototip vardır; araç güvenlik zincirine entegrasyon henüz yapılmamıştır.
+> 3awnt v2 kütüphanesi vardır ve testlidir; araç güvenlik zincirine entegrasyonu henüz
+> yapılmamıştır.
 
 “3awnt aracı koruyor” ifadesi bugün doğru değildir.
 
@@ -293,18 +305,21 @@ Bu nedenle doğru ifade şudur:
 ## 5. Bilinen sınırlar ve yanlış güven tehlikesi
 
 1. `OLCULDU` etiketi ölçümü doğrulamaz; yalnızca beyanı saklar.
-2. `preacquire`, varsayılan değerleri kaynak türü nedeniyle reddetmez.
-3. İkizlerden biri tekrar değiştiğinde ötekinin eskidiğini takip etmez.
-4. Kilit yalnızca çalışan Python sürecinin belleğindedir.
-5. Servis programı otomatik yeniden başlatırsa kilit kaybolabilir.
-6. Başlangıçta PWM izni açıktır; gerçek arming kapısı değildir.
+2. Geriye uyumlu `preacquire`, varsayılan değerleri kaynak türü nedeniyle reddetmez;
+   `LIVE` için `validateBeforeStart` kullanılmalıdır.
+3. Kalıcı kilit yalnız `configureFaultStore(...)` doğru yapılandırılmışsa restarttan sonra kalır.
+4. `resetFault(..., motor_power_off=True)` fiziksel anahtarı okuyamaz; insan beyanını kaydeder.
+5. Heartbeat yalnız bu Python sürecindeki üreticinin yöntemi çağırdığını gösterir; kameranın
+   doğru görüntü verdiğini kanıtlamaz.
+6. Başlangıçta hareket izni kapalıdır; fakat motor sürücüsü 3awnt'ı çağırmazsa atlanabilir.
 7. Kapatma geri çağrısı fiziksel duruşu ispatlamaz.
 8. 3awnt, motor kablolarının doğru bağlandığını bilemez.
 9. 3awnt, yasak bir haberleşme modülünün araçtan fiziksel olarak çıkarıldığını bilemez.
 10. 3awnt, kameranın gördüğü maskenin gerçekte doğru renge ait olduğunu bilemez.
 11. Günlük dosyasına yazılması olayın gerçekleştiğini değil, yazılımın yazdığını gösterir.
 12. Bütün kurallar tek modülde büyürse modül anlaşılması zor bir “tanrı nesne”ye dönüşebilir.
-13. Başka bir modül doğrudan GPIO/PWM yazarsa bütün 3awnt kontrolleri atlanabilir.
+13. Statik tarama şüpheli doğrudan GPIO/PWM yazımlarını bulmaya çalışır; dinamik veya
+    gizlenmiş her bypass'ı bulacağının garantisi yoktur.
 
 En tehlikeli hata, çalışmayan koruma değil; çalıştığı sanılan korumadır.
 
@@ -390,19 +405,24 @@ Programın açılması motorların otomatik olarak silahlanması anlamına gelme
 
 ---
 
-## 8. Gelecekte eklenebilecek 3awnt yöntemleri
+## 8. Uygulanan ve gelecekte eklenebilecek yöntemler
 
-Bu bölümdeki her madde **ÖNERİ — HENÜZ YOK** durumundadır. Her biri kod değişikliği için
-ayrı plan, insan incelemesi, test ve Git commit gerektirir.
+Her yöntemin durumu kendi başlığının altında yazılıdır. “Uygulandı” yalnız kütüphane ve
+otomatik test anlamına gelir; araç entegrasyonu yine ayrı plan ve insan incelemesi ister.
 
 ### 8.1 `seal()` — kayıt defterini dondurmak
+
+> **KÜTÜPHANEDE UYGULANDI.** `arm()` da doğrulanmış değerleri otomatik mühürler.
 
 Başlatma doğrulandıktan sonra kritik değerlerin sessizce değiştirilmesini engeller.
 Kalibrasyon değişecekse yeni bir oturum veya açık bir yeniden-kalibrasyon işlemi gerekir.
 
 ### 8.2 `requireMeasured(...)` — ölçülmüş kaynak zorunluluğu
 
-Örnek fikir:
+> **KÜTÜPHANEDE UYGULANDI.** Ayrıca `critical=True`, değeri `LIVE` için otomatik olarak
+> ölçüm zorunluluğuna ekler.
+
+Örnek:
 
 ```python
 tawnt.requireMeasured("MAX_PWM", "MOTOR_GERILIMI", "PERSP_SRC")
@@ -412,6 +432,8 @@ Bu kapı `VARSAYILDI` ve gerekirse `DEVRALINDI` değerleri fiziksel test öncesi
 Bilgisayar üzerindeki klip testinde farklı, gerçek motor testinde daha sıkı profil kullanılabilir.
 
 ### 8.3 `dependsOn(...)` ve revizyon sayacı
+
+> **KÜTÜPHANEDE UYGULANDI.** Bilinmeyen ad ve bağımlılık döngüsü reddedilir.
 
 Bir değer değiştiğinde ona bağlı değerleri “eskimiş” yapar.
 
@@ -423,11 +445,15 @@ tawnt.dependsOn("PERSP_SRC", "KARE", "KAMERA_YUKSEKLIGI")
 
 ### 8.4 `derive(...)` — türetilmiş değerin formülü
 
+> **ÖNERİ — HENÜZ YOK.**
+
 Bir değerin elle kopyalanması yerine hangi formülle üretildiğini kaydeder. Örneğin PWM
 tavanı; pil gerilimi, motor nominal gerilimi ve güvenlik payından türetilebilir. Formül
 ölçümün yerini almaz fakat hesabın tekrar üretilebilmesini sağlar.
 
 ### 8.5 `bindCalibrationProfile(...)` — kalibrasyonu donanıma bağlamak
+
+> **ÖNERİ — HENÜZ YOK.**
 
 Kalibrasyon dosyasına şunları bağlar:
 
@@ -442,13 +468,19 @@ Yanlış kamera profili yüklenirse araç silahlanmaz.
 
 ### 8.6 `arm()` / `disarm()` — fail-closed yazılım kapısı
 
+> **KÜTÜPHANEDE UYGULANDI.** `LIVE` arming, donanım yetkisi ve son onay bayraklarını
+> açıkça ister; bu bayraklar yine çağıran insan arayüzünün beyanıdır.
+
 Başlangıçta izin kapalı olur. Bütün self-testler geçmeden ve açık insan arming olayı
 gelmeden PWM açılamaz. `disarm()` her zaman mümkündür; arıza kilidinden sonra `arm()`
 reddedilir.
 
 Bu yöntem fiziksel anahtarın yerini almaz.
 
-### 8.7 `heartbeat(...)` / `watchdog(...)`
+### 8.7 `defineWatchdog(...)`, `heartbeat(...)`, `checkWatchdogs(...)`
+
+> **KÜTÜPHANEDE UYGULANDI.** Evreler `required_watchdogs=(...)` ile gerekli heartbeat'leri
+> belirtir. Eksik veya gecikmiş heartbeat evreyi/komutu reddeder; `LIVE` komutunda kilitler.
 
 Kamera, kontrol döngüsü ve motor komutu güncellemesinin beklenen sürede gelip gelmediğini
 izler. Süre aşımında son PWM'i korumak yerine sıfıra çeker ve kilitler.
@@ -456,7 +488,10 @@ izler. Süre aşımında son PWM'i korumak yerine sıfıra çeker ve kilitler.
 Watchdog ayrı bir iş parçacığı veya süreç kullanacaksa, onun da donması ve saat kaynağının
 nasıl seçileceği test edilmelidir.
 
-### 8.8 `persistentFaultLatch(...)`
+### 8.8 `configureFaultStore(...)`, `latchFault(...)`, `resetFault(...)`
+
+> **KÜTÜPHANEDE UYGULANDI.** JSON kayıt geçici dosya + atomik değiştirme ile yazılır.
+> Bozuk kayıt güvenli tarafta kalıp kilit kabul edilir.
 
 Ciddi arıza kilidini disk üzerinde saklar. Servis veya güç yeniden geldiğinde araç otomatik
 olarak silahlanmaz. İnsan arızayı okur, nedeni çözer ve kontrollü sıfırlama yapar.
@@ -464,6 +499,8 @@ olarak silahlanmaz. İnsan arızayı okur, nedeni çözer ve kontrollü sıfırl
 SD kart yazma hataları ve ani güç kesintisi düşünülmelidir; kayıt tek güvenlik noktası olamaz.
 
 ### 8.9 `snapshot(...)` — çalıştırılan sürümü tanımlamak
+
+> **ÖNERİ — HENÜZ YOK.**
 
 Şunların özet kimliğini kaydeder:
 
@@ -477,11 +514,16 @@ SD kart yazma hataları ve ani güç kesintisi düşünülmelidir; kayıt tek g�
 
 ### 8.10 `validateMessage(...)` — modüller arası sözleşme
 
+> **ÖNERİ — HENÜZ YOK.**
+
 Görüntü işleme ile durum makinesi arasında taşınan olay sözlüğünü doğrular. Örneğin eski
 kodda `main.py`, `sign_type` beklerken olay üreticisi bu alanı üretmiyordu. Şema kontrolü
 bu tür sessiz kopuklukları yakalar.
 
 ### 8.11 `competitionMode(...)`
+
+> **ÖNERİ — HENÜZ YOK.** Bugünkü isim açılımında “Network Threats” bulunsa da kodda
+> ağ izleme veya yarışma ağı denetimi yoktur.
 
 Yarışma kipinde ağ sunucusu, uzaktan komut, debug arayüzü veya izin verilmeyen ayarların
 yazılım tarafında açık olmadığını kontrol eder.
@@ -490,6 +532,9 @@ Sınırı açıktır: Yazılım fiziksel olarak bağlı bir modülü kesin biçi
 kontrol insana ve teknik kontrole aittir.
 
 ### 8.12 `faultInjection(...)` — hata enjekte etme
+
+> **ÖNERİ — HENÜZ YOK.** Bazı hata senaryoları birim testlerinde tek tek uygulanır;
+> birleşik bir fault-injection aracı yoktur.
 
 Sahte motor sürücüsüyle şu senaryolar otomatik denenir:
 
@@ -505,12 +550,16 @@ Her senaryoda gerçek GPIO yerine kaydedilen komutların sıfıra indiği doğru
 
 ### 8.13 `reviewManifest(...)` — insan inceleme kaydı
 
+> **ÖNERİ — HENÜZ YOK.**
+
 İncelenen commit, dosyalar, inceleyen kişiler, test sonuçları ve izin verilen test türünü
 tek kayıtta toplar. “İnsan baktı” cümlesi yerine hangi sürüme kimin baktığını gösterir.
 
 Bu da beyan sistemidir; kişinin kodu gerçekten anladığını otomatik kanıtlamaz.
 
 ### 8.14 `physicalStopConfirmed(...)` — yazılım ve gözlemi ayırmak
+
+> **ÖNERİ — HENÜZ YOK.**
 
 İki ayrı olayı saklar:
 
@@ -524,14 +573,15 @@ ile “araç fiziksel olarak durdu” ifadelerini karıştırmaz.
 
 ## 9. Test rehberi
 
-### 9.1 Mevcut testin eksiği
+### 9.1 Bugünkü otomatik test
 
-`tawnttest.py` bugün örnek çıktı ve günlük oluşturuyor. Otomatik iddia (`assert`) olmadığı
-için başarısız davranış test sürecini her zaman başarısız yapmaz.
+`tawnttest.py`, `unittest` ile çalışan 34 assertion tabanlı test içerir. Testler v1
+uyumluluğunu, değer yaşam döngüsünü, hareket kapısını, watchdog'u, kalıcı kilidi ve statik
+taramayı kapsar. Testlerin geçmesi gerçek GPIO, kamera veya tekerlek davranışını doğrulamaz.
 
 ### 9.2 Asgari birim testleri
 
-Gelecek test planı en az şunları kapsamalıdır:
+Bugünkü birim testleri en az şunları kapsar:
 
 - sınır içindeki değer kabul edilir,
 - sınır dışındaki değer reddedilir,
@@ -543,10 +593,12 @@ Gelecek test planı en az şunları kapsamalıdır:
 - 1 piksel sapma ve büyük sapma ayrı davranır,
 - kilitten sonra bütün açma girişimleri reddedilir,
 - yeniden başlatma politikası açıkça test edilir,
-- kapatma geri çağrısı hata verse bile diğer geri çağrılar denenir,
-- gerçek sürücü kullanılmadan motor kapısının fail-closed olduğu doğrulanır.
+- program başlarken hareket izninin kapalı olduğu doğrulanır,
+- eksik/gecikmiş heartbeat reddedilir,
+- `LIVE` kilidinin yeniden yüklemede kaldığı doğrulanır,
+- doğrudan ve hardcoded motor erişimi taranır.
 
-### 9.3 Entegrasyon testleri
+### 9.3 Henüz yapılmayan entegrasyon testleri
 
 - Geçerli JSON ile sahte sürücü hazır fakat silahsız kalır.
 - Eksik veya yanlış çözünürlüklü JSON ile başlatma reddedilir.
@@ -607,8 +659,8 @@ Bu yüzden önerilen yön şudur:
 > fiziksel kapıyı uygulasın; `main.py` ve `durum.py` arızaları yönetsin; `kayit.py`
 > ne olduğunu kaydetsin; insanlar da fiziksel sonucu doğrulasın.
 
-Bu yapı tamamlanıp test edilene kadar 3awnt, **deneysel doğrulama prototipi** olarak
-anılmalıdır.
+Araç bağlantısı tamamlanıp kontrollü fiziksel test yapılana kadar 3awnt,
+**test edilmiş deneysel güvenlik kütüphanesi** olarak anılmalıdır.
 
 ---
 
@@ -734,7 +786,7 @@ anlamlı biçimde bozabilecek kritik değerlere uygulanır.
 
 ## 14. Daha açık yöntem adları
 
-> **ÖNERİ — HENÜZ UYGULANMADI.** Bu adlar mevcut `tawnt.py` içinde yoktur.
+> **KÜTÜPHANEDE UYGULANDI.** Eski adlar geriye uyumluluk için tutulmuştur.
 
 | Bugünkü ad | Önerilen ad | Anlamı |
 |---|---|---|
@@ -748,14 +800,15 @@ anlamlı biçimde bozabilecek kritik değerlere uygulanır.
 kimlik veya değer doğrulamaz; evre değişince geçici PWM susturmasını kaldırır, kalıcı
 arıza kilidini kaldırmaz.
 
-Evrenin gereksinimleri ayrıca doğrulanacaksa `enterPhase("SERIT_TAKIP")` sonrasında
-ayrı bir `validatePhase("SERIT_TAKIP")` yöntemi önerilebilir.
+`enterPhase("SERIT_TAKIP")`, geçişe izin vermeden önce `validatePhase(...)` çağırır;
+evrenin zorunlu değerlerini ve watchdog'larını denetler.
 
 ---
 
 ## 15. LLM'nin tehlikeli PWM yazmasına karşı kapı
 
-> **ÖNERİ — HENÜZ UYGULANMADI.** Aşağıdaki motor kapısı mevcut çalışma kodunda yoktur.
+> **KISMEN UYGULANDI.** Komut doğrulama ve statik tarama `tawnt.py` içinde vardır;
+> gerçek `surucu.py` yazma yoluna henüz bağlanmamıştır.
 
 ### 15.1 Neden `isExpectedCurrent()` değil?
 
@@ -768,10 +821,10 @@ Boolean kontrolün sonucu unutulabilir ve kod yine motorlara yazabilir.
 Doğrulama gerçek yazmanın içinde zorunlu olmalıdır:
 
 ```python
-# ÖNERİ — HENÜZ UYGULANMADI
+# ENTEGRASYON ÖRNEĞİ — surucu.py içinde henüz uygulanmadı
 def applyMotorCommand(sol, sag, evre):
-    validateMotorCommand(sol, sag, evre)
-    _writePwm(sol, sag)
+    komut = tawnt.validateMotorCommand(sol, sag, phase=evre)
+    _writePwm(komut.left, komut.right)
 ```
 
 `_writePwm(...)` özel kalır. Başka modül gerçek GPIO/PWM yazamaz.
@@ -789,7 +842,7 @@ def applyMotorCommand(sol, sag, evre):
 | Park | Düşük hız |
 | Hata | Yalnız `(0, 0)`; hareket kilitli |
 
-`validateMotorCommand(...)` şunları kontrol etmelidir:
+`validateMotorCommand(...)` şunları kontrol eder:
 
 - değerler sayı mı, `NaN` veya sonsuz mu,
 - ölçülmüş PWM tavanı içinde mi,
@@ -803,7 +856,7 @@ Geçersiz komutta önce sıfır PWM, sonra kayıt ve uygun kilit uygulanmalıdı
 değer sessizce clamp edilip sürüşe devam etmemelidir.
 
 ```python
-# ÖNERİ — ilk komut geçebilir; diğerleri reddedilir.
+# Entegrasyon örneği — ilk komut geçebilir; diğerleri reddedilir.
 surucu.applyMotorCommand(45, 55, "SERIT_TAKIP")
 surucu.applyMotorCommand(40, 40, "HATA")
 surucu.applyMotorCommand(500, 500, "SERIT_TAKIP")
@@ -812,7 +865,7 @@ surucu.applyMotorCommand(float("nan"), 30, "SERIT_TAKIP")
 
 ### 15.3 Hardcoded değeri daha çalışmadan yakalamak
 
-> **ÖNERİ — HENÜZ UYGULANMADI.** Statik bir test şunları arayabilir:
+> **KÜTÜPHANEDE UYGULANDI.** `scanDirectMotorWrites(...)` Python AST taramasıyla şunları arar:
 
 - `surucu.py` dışında motor GPIO/PWM yazımı,
 - açıklamasız sabit motor sayıları,
@@ -861,10 +914,11 @@ En önemli kural:
 
 ---
 
-## 17. 3awnt v2 davranış sözleşmesi
+## 17. 3awnt v2 davranış sözleşmesi ve uygulama durumu
 
-> **SÖZLEŞME — HENÜZ UYGULANMADI.** Bu bölüm, v2 yazılmadan önce hangi davranışın
-> doğru kabul edileceğini belirler. Mevcut `tawnt.py` bu sözleşmenin tamamını sağlamaz.
+> **KÜTÜPHANEDE UYGULANDI; ARAÇTA ENTEGRE DEĞİL.** Bu bölüm hem beklenen davranışı hem
+> de test edilen çekirdeği açıklar. `surucu.py` bağlantısı ve kontrollü fiziksel test
+> yapılmadan “araç korunuyor” denemez.
 
 Sözleşmenin amacı yöntem adlarını çoğaltmak değil, şu soruya kesin cevap vermektir:
 
@@ -892,7 +946,7 @@ kurallar kod ve test tarafından zorlanmalıdır.
 
 ## 18. Çalışma profilleri
 
-> **SÖZLEŞME — HENÜZ UYGULANMADI.**
+> **KÜTÜPHANEDE UYGULANDI.** Profil, `validateBeforeStart(profile=...)` ile seçilir.
 
 Tek bir doğrulama seviyesi hem Windows klip testi hem gerçek araç için uygun değildir.
 V2 üç açık profil kullanır:
@@ -906,8 +960,7 @@ V2 üç açık profil kullanır:
 Profil kod içinde gizli bir Boolean olmayacaktır:
 
 ```python
-# ÖNERİ — HENÜZ UYGULANMADI
-tawnt.validateBeforeStart(profile="LIVE")
+tawnt.validateBeforeStart(profile=tawnt.LIVE)
 ```
 
 `LIVE` seçmek tek başına motorları açmaz. Yalnız daha sıkı doğrulama kurallarını seçer.
@@ -932,7 +985,7 @@ içinde açıkça belirtilir.
 
 ## 19. Kritik değerin yaşam döngüsü
 
-> **SÖZLEŞME — HENÜZ UYGULANMADI.**
+> **KÜTÜPHANEDE UYGULANDI.** Durum `valueState(ad)` ile sorgulanabilir.
 
 Bir v2 değeri aşağıdaki durumlardan birindedir:
 
@@ -970,7 +1023,7 @@ eskimiş sayılır.
 
 ## 20. Sistem ve hareket durumları
 
-> **SÖZLEŞME — HENÜZ UYGULANMADI.** Bunlar yarışma görev evrelerinden ayrıdır.
+> **KÜTÜPHANEDE UYGULANDI.** Bunlar yarışma görev evrelerinden ayrıdır.
 
 | Durum | Anlamı | Hareket |
 |---|---|---|
@@ -1006,7 +1059,9 @@ Arming program açılışından miras kalmaz. Yeniden başlatmada tekrar insan k
 
 ## 21. Hata seviyeleri
 
-> **SÖZLEŞME — HENÜZ UYGULANMADI.**
+> **KÜTÜPHANEDE UYGULANAN POLİTİKA:** OFFLINE/BENCH motor reddi `MUTED`, `LIVE`
+> motor reddi `LATCHED_FAULT` üretir. Ayrıntılı hata sınıfları araç entegrasyonuyla
+> daraltılabilir; çalışma sırasında LLM bu seviyeyi seçmez.
 
 | Seviye | Davranış | Örnek |
 |---|---|---|
@@ -1032,7 +1087,7 @@ LLM veya çağıran modül karar vermez.
 
 ## 22. Ciddi kilidin kalıcılığı ve sıfırlanması
 
-> **SÖZLEŞME — HENÜZ UYGULANMADI.** Mevcut `_kilit` yalnız süreç belleğindedir.
+> **KÜTÜPHANEDE UYGULANDI.** `LIVE`, önce `configureFaultStore(...)` çağrılmasını ister.
 
 V2 ciddi arızası süreç/servis yeniden başlatmasında kaybolmaz. Kalıcı kayıtta en az:
 
@@ -1040,7 +1095,7 @@ V2 ciddi arızası süreç/servis yeniden başlatmasında kaybolmaz. Kalıcı ka
 - ayrıntı,
 - zaman,
 - profil,
-- Git commit/yapılandırma damgası,
+- Git commit/yapılandırma damgası (gelecekteki `snapshot(...)` entegrasyonu ile),
 - reddedilen son komut
 
 bulunur.
@@ -1063,9 +1118,9 @@ Kilit ancak şu koşullarla temizlenebilir:
 
 ---
 
-## 23. Önerilen v2 API sözleşmesi
+## 23. V2 API sözleşmesi
 
-> **SÖZLEŞME — HENÜZ UYGULANMADI.** Eski adlar geçici uyumluluk takma adı olabilir.
+> **KÜTÜPHANEDE UYGULANDI.** Eski adlar uyumluluk takma adı olarak kalır.
 
 | Yöntem | Başarı sonucu | Başarısızlık |
 |---|---|---|
@@ -1081,6 +1136,9 @@ Kilit ancak şu koşullarla temizlenebilir:
 | `validateMotorCommand(...)` | Doğrulanmış komut nesnesi | Sıfır PWM + belirlenen hata seviyesi |
 | `latchFault(...)` | Kilit kaydı | Kapatma yine denenir |
 | `resetFault(...)` | `VALIDATING` durumuna dönüş | İnsan/anahtar koşulu eksikse ret |
+| `defineWatchdog(...)` | Watchdog adı | Boş ad, tekrar veya geçersiz süre hatası |
+| `heartbeat(...)` | Süreç içi monoton zaman | Bilinmeyen watchdog hatası |
+| `scanDirectMotorWrites(...)` | Şüpheli erişim listesi | Tarama yolu yoksa hata |
 
 Boolean sonuç güvenlik için tek başına kullanılmaz. `validateMotorCommand(...)` ya
 doğrulanmış bir komut döndürür ya da komutun gerçek çıkışa ulaşmasını engeller.
@@ -1089,7 +1147,7 @@ doğrulanmış bir komut döndürür ya da komutun gerçek çıkışa ulaşması
 
 ## 24. Motor komutunun zorunlu doğrulama sırası
 
-> **SÖZLEŞME — HENÜZ UYGULANMADI.**
+> **DOĞRULAMA KÜTÜPHANEDE UYGULANDI; FİZİKSEL YAZMA BAĞLANTISI HENÜZ YOK.**
 
 `surucu.applyMotorCommand(sol, sag, evre)` şu sırayı izler:
 
@@ -1124,7 +1182,7 @@ Bu sözleşme test adı olarak da okunabilmelidir. Asgari test grupları:
 - geçici susturma evre değişince kalkar,
 - ciddi süreç-içi kilit evre değişince kalkmaz.
 
-### Henüz uygulanmadığı için atlanan v2 testleri
+### Uygulanan v2 testleri
 
 - `LIVE`, varsayılan güvenlik-kritik değeri reddeder,
 - başlangıç silahsızdır,
@@ -1136,9 +1194,9 @@ Bu sözleşme test adı olarak da okunabilmelidir. Asgari test grupları:
 - insan doğrulaması olmadan reset reddedilir,
 - doğrudan PWM/GPIO erişimi statik kontrolde bulunur.
 
-Atlanan test “başarılı” değildir. Test çıktısında her biri `skipped` ve uygulanmama
-nedeniyle görünür. V2 uygulaması sırasında ilgili skip kaldırılır; test gerçekten geçmeden
-özellik tamamlandı sayılmaz.
+Bu maddeler artık atlanmıyor. `tawnttest.py` toplam 34 assertion tabanlı test çalıştırır;
+`skipped` test yoktur. Bu sonuç kütüphane davranışının kanıtıdır, fiziksel araç testinin
+yerine geçmez.
 
 ---
 

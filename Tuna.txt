@@ -236,3 +236,9 @@ August 05, 2026: So the job is not "take more photos". It is "take photos throug
 6 Ağustos 2026: tawnttest.py basit gösterimden assertion tabanlı unittest dosyasına dönüştürüldü. Bugünkü v1 davranışını gerçekten çalıştıran 14 test geçti; henüz uygulanmayan v2 korumalarını adları ve nedenleriyle gösteren 9 test skipped kaldı. Skip başarı değildir; ilgili özellik yazılırken kaldırılıp test gerçekten geçmelidir.
 
 6 Ağustos 2026: Testlerin temiz bir Git klonunda da tawnt modülünü bulabilmesi için daha önce izlenmeyen mevcut tawnt.py v1 prototipi içeriği değiştirilmeden Git'e eklendi. Bu işlem v2 özelliklerini uygulamaz; yalnız sözleşmenin test ettiği mevcut başlangıç noktasını tekrar üretilebilir yapar.
+
+6 Ağustos 2026: Onaylanan 3awnt v2 çekirdeği tawnt.py içinde uygulandı. OFFLINE/BENCH/LIVE profilleri, değer yaşam döngüsü, bağımlılık değişince STALE durumu, ölçülmüş kritik değer şartı, mühürleme, fail-closed açılış, evre politikaları, insan kontrollü arming, watchdog heartbeat'i, motor komutu doğrulaması, restarttan sonra kalan JSON ciddi kilidi, insan ve motor-gücü-kapalı beyanı isteyen reset ile şüpheli doğrudan/hardcoded motor erişimi taraması eklendi. Eski introduce/acquire/preacquire adları geriye uyumluluk için korunuyor.
+
+6 Ağustos 2026: 3awnt adı belgede iki kökeniyle açıklandı: “3rd-party Automated Watchdog for Network Threats” açılımı ve koruma anlamıyla ilişkilendirilen защит kökeni. İsmin bugünkü yeteneği aşmaması için ayrıca tawnt.py'nin ağ trafiğini izlemediği veya ağ saldırısı tespit etmediği yazıldı.
+
+6 Ağustos 2026: tawnttest.py artık skipped test bırakmadan 34 assertion tabanlı testi geçiriyor. Buna rağmen 3awnt gerçek surucu.py, GPIO, kamera, SIGINT/SIGTERM veya araç çalışma zincirine bağlanmadı. Bu sonuç kütüphane davranışını kanıtlar; fiziksel aracı koruduğunu kanıtlamaz. Araca dokunmadan önce insan kod incelemesi hâlâ zorunludur.
