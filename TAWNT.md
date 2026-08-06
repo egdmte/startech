@@ -609,3 +609,252 @@ Bu yüzden önerilen yön şudur:
 
 Bu yapı tamamlanıp test edilene kadar 3awnt, **deneysel doğrulama prototipi** olarak
 anılmalıdır.
+
+---
+
+## 12. `introduce → acquire → preacquire` nasıl çalışır?
+
+Bugünkü sıra `introduce → acquire → preacquire → değeri kullan` biçimindedir: kurallarını
+tanımla, değerini ve kaynağını kaydet, başlamadan önce doğrula, sonra kullan.
+
+`preacquire` adı biraz yanıltıcıdır: `acquire` işleminden önce değil, araç başlatılmadan
+önce çalışır.
+
+### 12.1 `introduce(...)`: değerin kurallarını tanımlar
+
+```python
+import tawnt
+
+MAX_PWM = tawnt.introduce(
+    "MAX_PWM",
+    min=0,
+    max=100,
+    preferred=57,
+    aciklama="Motor PWM güvenlik tavanı",
+)
+```
+
+Bu çağrı henüz `MAX_PWM = 57` yapmaz. `_defter["MAX_PWM"]` içine sınırları koyar;
+`deger=None`, `kaynak=None` ve `atandi=False` olarak başlatır. `preferred=57` otomatik
+değer değildir; yalnız önerilen başlangıç bilgisidir.
+`introduce(...)`; tekrar kullanılan adı, `min > max` durumunu ve sınır dışı tercih
+değerini reddeder.
+
+### 12.2 `acquire(...)`: değeri ve hikâyesini kaydeder
+
+```python
+tawnt.acquire(
+    MAX_PWM,
+    57,
+    kaynak=tawnt.OLCULDU,
+    kim="Egemen",
+    tarih="2026-09-12",
+    notu="Motor uçlarında yük altında ölçüldü",
+)
+```
+
+Bu çağrı aynı kayda değer, kaynak, kişi ve tarih ekler; `atandi=True` yapar. Şunları
+kontrol eder:
+
+1. Ad önceden tanıtılmış mı?
+2. Kaynak `OLCULDU`, `DEVRALINDI` veya `VARSAYILDI` mı?
+3. Değer bildirilen sınırlar içinde mi?
+4. Kaynak `OLCULDU` ise tarih var mı?
+
+Örneğin `tawnt.acquire("HIC_TANITILMADI", 80)` reddedilir.
+
+### 12.3 `preacquire(...)` önceki bilgiyi nasıl bulur?
+
+```python
+tawnt.preacquire(MAX_PWM)
+```
+
+Üç yöntem de aynı çalışan `tawnt` modülündeki `_defter` sözlüğünü kullanır.
+`preacquire(...)` istenen adların:
+
+- tanıtılmış olduğunu,
+- değer aldığını,
+- sınırlar içinde kaldığını,
+- `_ikizler` içindeki eşinin atandığını,
+- `_zincirler` içindeki sıralamaların hâlâ doğru olduğunu
+
+denetler.
+
+```python
+KARE = tawnt.introduce("KARE")
+PERSP_SRC = tawnt.introduce("PERSP_SRC")
+
+tawnt.IsTwinOf(PERSP_SRC, KARE)
+tawnt.acquire(PERSP_SRC, dort_kose)
+tawnt.preacquire(PERSP_SRC)  # KARE atanmadığı için başarısız
+```
+
+Bugünkü önemli sınır: `preacquire`, yalnız kaynak türü nedeniyle `VARSAYILDI` değerini
+reddetmez ve ölçümün gerçekten yapıldığını bilemez.
+
+### 12.4 Aynı dosyada olmak zorunda mı?
+
+Hayır. Aynı Python sürecinde aynı `tawnt` modülünü kullanmaları yeterlidir. Örneğin
+`ayar.py`, `MAX_PWM` değerini tanıtıp JSON'dan `acquire(...)` edebilir; `main.py` ise
+`ayar.yukle(...)` sonrasında `tawnt.preacquire(ayar.MAX_PWM)` çağırabilir.
+
+Python aynı süreçte normal olarak aynı modül nesnesini paylaşır. Kayıtlar şu durumlarda
+paylaşılmaz:
+
+- ayrı Python süreçleri,
+- programın yeniden başlaması,
+- dosyanın iki farklı modül adıyla yüklenmesi.
+
+`_defter` yalnız bellektedir; program kapanınca kaybolur. `introduce(...)` tarafından
+döndürülen `MAX_PWM` adını sonraki çağrılarda kullanmak, adı tekrar yazmaktan doğacak
+yazım hatalarını azaltır.
+
+---
+
+## 13. Normal `VAR = DATA` atamasından farkı
+
+Normal `MAX_PWM = 57` atamasında Python yalnız adı 57 değerine bağlar. Sayının neden seçildiğini,
+ölçülüp ölçülmediğini, sınırını, birimini veya hangi donanıma ait olduğunu bilmez.
+
+| Özellik | `VAR = DATA` | 3awnt kaydı |
+|---|---|---|
+| Değeri saklar | Evet | Evet |
+| Minimum/maksimum bilir | Hayır | Bildirilirse evet |
+| Kaynak ve tarih taşır | Hayır | Beyan olarak evet |
+| İkiz/sıralama ilişkisi | Hayır | Evet |
+| Başlatma kapısı | Hayır | `preacquire` ile |
+| Fiziksel doğruluğu kanıtlar | Hayır | Hayır |
+| Doğrudan PWM'i engeller | Hayır | Tek başına hayır |
+
+Normal değişken yasak değildir. Sayaçlar, geçici görüntü sonuçları ve sıradan yerel
+değerler normal kalır. 3awnt yalnız yanlışlığı aracı, güvenliği veya test sonucunu
+anlamlı biçimde bozabilecek kritik değerlere uygulanır.
+
+---
+
+## 14. Daha açık yöntem adları
+
+> **ÖNERİ — HENÜZ UYGULANMADI.** Bu adlar mevcut `tawnt.py` içinde yoktur.
+
+| Bugünkü ad | Önerilen ad | Anlamı |
+|---|---|---|
+| `introduce(...)` | `defineValue(...)` | Değerin kurallarını tanımla |
+| `acquire(...)` | `recordValue(...)` | Değeri ve kaynağını kaydet |
+| `preacquire(...)` | `validateBeforeStart(...)` | Başlatmadan önce doğrula |
+| `evreDegisti(...)` | `enterPhase(...)` | Yeni evreye gir |
+| `pwmSerbestMi()` | `isMotionAllowed()` | Şu anda hareket izni var mı? |
+
+`identityPreacquire()` mevcut `evreDegisti(...)` için uygun değildir. Bugünkü yöntem
+kimlik veya değer doğrulamaz; evre değişince geçici PWM susturmasını kaldırır, kalıcı
+arıza kilidini kaldırmaz.
+
+Evrenin gereksinimleri ayrıca doğrulanacaksa `enterPhase("SERIT_TAKIP")` sonrasında
+ayrı bir `validatePhase("SERIT_TAKIP")` yöntemi önerilebilir.
+
+---
+
+## 15. LLM'nin tehlikeli PWM yazmasına karşı kapı
+
+> **ÖNERİ — HENÜZ UYGULANMADI.** Aşağıdaki motor kapısı mevcut çalışma kodunda yoktur.
+
+### 15.1 Neden `isExpectedCurrent()` değil?
+
+Elektronikte **current** genellikle amper cinsinden elektrik akımıdır. Burada akım sensörü
+ölçümü değil, PWM/motor komutu denetleniyor. Daha açık adlar
+`isExpectedMotorCommand(...)` ve özellikle `validateMotorCommand(...)` olur.
+
+Boolean kontrolün sonucu unutulabilir ve kod yine motorlara yazabilir.
+
+Doğrulama gerçek yazmanın içinde zorunlu olmalıdır:
+
+```python
+# ÖNERİ — HENÜZ UYGULANMADI
+def applyMotorCommand(sol, sag, evre):
+    validateMotorCommand(sol, sag, evre)
+    _writePwm(sol, sag)
+```
+
+`_writePwm(...)` özel kalır. Başka modül gerçek GPIO/PWM yazamaz.
+
+### 15.2 Beklenen komut evreye göre değişir
+
+| Evre | İzin verilen davranış |
+|---|---|
+| Açılış / silahsız | Yalnız `(0, 0)` |
+| Yeşil bekleme | Yalnız `(0, 0)` |
+| Şerit takip | İki taraf ileri; sınırlı fark ve değişim |
+| Yaya/hemzemin duruşu | Yalnız `(0, 0)` |
+| Tümsek | İleri; daha düşük tavan |
+| Çıkmaz yol | Karşı yön yalnız bu manevrada mümkün |
+| Park | Düşük hız |
+| Hata | Yalnız `(0, 0)`; hareket kilitli |
+
+`validateMotorCommand(...)` şunları kontrol etmelidir:
+
+- değerler sayı mı, `NaN` veya sonsuz mu,
+- ölçülmüş PWM tavanı içinde mi,
+- sistem silahlı mı,
+- evre harekete ve yönlere izin veriyor mu,
+- sol/sağ farkı ve önceki komuta göre değişim makul mü,
+- watchdog sağlıklı mı,
+- kilit veya susturma var mı.
+
+Geçersiz komutta önce sıfır PWM, sonra kayıt ve uygun kilit uygulanmalıdır. Tehlikeli
+değer sessizce clamp edilip sürüşe devam etmemelidir.
+
+```python
+# ÖNERİ — ilk komut geçebilir; diğerleri reddedilir.
+surucu.applyMotorCommand(45, 55, "SERIT_TAKIP")
+surucu.applyMotorCommand(40, 40, "HATA")
+surucu.applyMotorCommand(500, 500, "SERIT_TAKIP")
+surucu.applyMotorCommand(float("nan"), 30, "SERIT_TAKIP")
+```
+
+### 15.3 Hardcoded değeri daha çalışmadan yakalamak
+
+> **ÖNERİ — HENÜZ UYGULANMADI.** Statik bir test şunları arayabilir:
+
+- `surucu.py` dışında motor GPIO/PWM yazımı,
+- açıklamasız sabit motor sayıları,
+- `motor.value` gibi doğrudan erişim,
+- test dışından özel `_writePwm(...)` çağrısı,
+- doğrulanmış yapılandırmayı atlayan PWM tavanı.
+
+Statik test “bu kod şüpheli” der; çalışma anı kapısı “bu komut uygulanamaz” der. İkisi
+birlikte kullanılır.
+
+---
+
+## 16. Bu yapıda hangi dosya ne yapar?
+
+> **ÖNERİ — HENÜZ UYGULANMADI.**
+
+| Dosya | Sorumluluğu |
+|---|---|
+| `tawnt.py` | Kritik değer, kaynak, ilişki ve genel hareket izni |
+| `ayar.py` | Değerleri tanıtmak ve JSON'dan kaydetmek |
+| `main.py` | Başlatma doğrulamasını çağırmak |
+| `durum.py` | Güncel evre ve geçiş izinleri |
+| `surucu.py` | Her komutu doğrulamak ve tek gerçek PWM çıkışı olmak |
+| `kayit.py` | İstenen, reddedilen ve uygulanan komutları kaydetmek |
+| Statik test | Hardcoded değer ve doğrudan motor erişimini bulmak |
+
+```text
+ayar.py yükler
+      ↓
+3awnt sınır ve kaynağı doğrular
+      ↓
+main.py başlangıç kapısını çalıştırır
+      ↓
+durum.py evre iznini verir
+      ↓
+surucu.py HER motor komutunu yeniden doğrular
+      ↓
+yalnız güvenli komut gerçek PWM'e ulaşır
+      ↓
+kayit.py istek, ret ve sonucu yazar
+```
+
+En önemli kural:
+
+> 3awnt doğru yapılandırılmış olsa bile `surucu.py` atlanabiliyorsa araç korunmuyor.
