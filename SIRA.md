@@ -1,253 +1,403 @@
-# SIRA — ne önce, ne sonra
+# SIRA — zaman çizelgesi ve yapılacaklar
 
-`PLAN_New.md` neyi yapacağımızı söylüyor. Bu dosya **hangi sırayla** yapacağımızı söylüyor.
-
-**Araç yapıldı ve hareket ediyor.** Şasi, motorlar, kamera, güç — hepsi duruyor. Bu yıl
-yapılacak iş donanım değil: **yazılım ve kalibrasyon.**
-
-Her adımın yanında **neyi açtığı** yazıyor. Bir adımı atlamak istiyorsan, neyi kilitli
-bırakacağını görerek atla.
-
-**İKİ KİŞİ** işareti olanlar tek başına yapılamaz veya yapılmamalıdır.
+> **Amaç:** Bu dosya, projenin hangi sırayla ilerleyeceğini öğrenci diliyle anlatır.
+> Ayrıntılı teknik gerekçeler `Markdown/PLAN_New.md` içindedir.
+>
+> **Son güncelleme:** 6 Ağustos 2026
+>
+> **Kural:** Bir kutunun işaretli olması için yalnızca “yaptık” denmesi yetmez. İlgili
+> çıkış kanıtı bulunmalıdır. Burada doğrulanmamış hiçbir iş tamamlandı gösterilmez.
 
 ---
 
-# A. ŞİMDİ — ağustos, araç okulda
+## 1. İşaretler nasıl okunur?
 
-Hiçbiri araç gerektirmez. Toplam yarım gün.
+| İşaret | Anlamı |
+|---|---|
+| `[ ]` | Yapılmadı veya yapıldığı doğrulanmadı |
+| `[~]` | Başlandı fakat çıkış şartı tamamlanmadı |
+| `[x]` | Kanıtıyla tamamlandı |
+| `[?]` | Gerçek araç veya insan cevabı olmadan doğrulanamaz |
+| `İKİ KİŞİ` | Fiziksel risk veya hatayı fark etme ihtiyacı nedeniyle yalnız yapılmaz |
+| `EGEMEN SON ONAYI` | Tehlikeli fiziksel adımdan hemen önce Egemen tekrar onay verir |
+| `KAPI` | Bu tamamlanmadan sonraki aşama başlamaz |
 
-**A1. `StarTechConfig` bir depoya girsin · 15 dk**
-Önce `.gitignore`'a .NET satırları (`bin/`, `obj/`, `.vs/`, `*.user`, `sunucu.json`),
-sonra commit, sonra push.
-→ *Açtığı:* her şey. İki günlük iş şu anda tek diskte.
+Bir görev için üç ayrı şey vardır:
 
-**A2. Satır sonları · 5 dk**
-```
-git config core.autocrlf false
-printf '* text=auto eol=lf\n*.pdf binary\n' > .gitattributes
-git add --renormalize .
-git commit -m "Satır sonlarını normalleştir"
-```
-→ *Açtığı:* Eylül. Şu an `LEGACY/` içindeki her diff 293 satır gürültü.
+1. **İş:** Ne yapacağız?
+2. **Neden:** Bunu neden şimdi yapıyoruz?
+3. **Çıkış kanıtı:** Bittiğini ne gösterecek?
 
-**A3. Kancayı kur · 1 dk** — `git config core.hooksPath .githooks`
-
-**A4. Kalibrasyon aracını derle, bir dosya üret · 1–2 saat**
-Derle, OLUŞTUR'a bas, çıkan `kalibrasyon.json`'u aç ve oku. Sonra aynı dosyayı iki kez
-gönder: **201, sonra 409.**
-→ *Açtığı:* araç zinciri gerçek olur. Şu ana kadar hepsi tasarım.
-
-**A5. SUBIRU'ya görevleri gir · 30 dk**
-`tasks.json` hâlâ `[]`, `owners.py` hâlâ baş harfler.
-
-**A6. Ajan readme'sini bitir**
-
-**A7. Renk maskesi önizlemesi · ~1 saat** *(isteğe bağlı ama en değerlisi)*
-Şu an yalnızca beyaz için çalışıyor. Altı renk önizlemesiz — ve turuncu/sarı, gözle
-doğrulanamayan tek ayar olduğu hâlde 100 puanlık olan.
+Kodun var olması, özelliğin çalıştığını kanıtlamaz. Bir kere çalışması da tekrar edilebilir
+olduğunu kanıtlamaz.
 
 ---
 
-# B. ARAÇLA İLK OTURUM — eylül, ilk gün
+## 2. Değişmeyen güvenlik sırası
 
-**Hiçbir kod yazma. Sadece ölç.** Yanlış bir sayı üzerine kurulan bir aylık iş,
-Mayıs'ta kaybedilen şeydi.
+Fiziksel araçla her oturumdan önce:
 
-**B1. Pilleri say · 2 dk** — motor tarafında 2 hücre mi 3 mü?
-3S → motorlara ~10 V → 6 V motorun %175'i → `max_pwm` ≈ %57.
-2S → ~6–7 V → doğru → `max_pwm` ≈ %100.
-→ *Açtığı:* B2 ve bütün kontrol ayarları.
+- [ ] Kullanılacak commit ve kirli/temiz Git durumu kaydedildi.
+- [ ] AI tarafından yazılan veya değiştirilen kod insanlar tarafından okundu.
+- [ ] Testin amacı, beklenen sonucu ve durdurma yöntemi yüksek sesle açıklandı.
+- [ ] Motor anahtarı ve Raspberry Pi anahtarı bulundu; ulaşılabilir durumda.
+- [ ] CTRL+C'nin yalnızca yazılım isteği olduğu, fiziksel anahtarın yerine geçmediği biliniyor.
+- [ ] Aracı güvenli biçimde alttan tutabilecek ikinci kişi hazır. `İKİ KİŞİ`
+- [ ] İlk deneme mümkün olan en düşük enerji düzeyinde seçildi.
+- [ ] Egemen canlı donanım testine izin verdi.
+- [ ] Tehlikeli komuttan hemen önce Egemen son onayı verdi. `EGEMEN SON ONAYI`
 
-**B2. Multimetreyle ölç · 5 dk** — tam PWM'de motor uçlarında gerçek gerilim. Ve motorun
-üzerindeki etiket: gerçekten 6 V mu?
+Durdurma sırası:
 
-**B3. İki kablo izle · 10 dk · İKİ KİŞİ** — hangi L298N hangi motorlara gidiyor,
-**sol/sağ mı ön/arka mı?** Şematik çapraz çiziyor, geri kalan her şey sol/sağ diyor.
-Ön/arka çıkarsa §6'daki kontrol yasası hiç çalışmaz.
-→ *Blokerdir.*
-
-**B4. Motorlar OUT'ta mı, IN'de mi · 2 dk** — belgede iki kez IN yazıyor. IN mantık
-girişidir, motor akımı taşımaz.
-
-**B5. `dtoverlay=pwm-2chan` var mı · 5 dk** — yoksa GPIO 12/13 yazılım PWM'i kullanır,
-yük altında titrer, suç bir hafta kazançlara atılır.
-
-**B6. Diskalifiye kontrolleri · 10 dk · İKİ KİŞİ**
-20 × 30 cm kutuya sığıyor mu, 25 cm altında mı, teker ≤ 10 cm mi · kamera dışında sensör
-var mı (bağlı olmayanlar dâhil) · başlatma butonu var mı (50 puan).
-
-**B7. Kamerayı doğrula · 5 dk** — CSI mi USB mi, ve `picamera2` ile **kare geliyor mu** —
-takılı olması değil.
-
-**B8. Bul, yaz, işaretle** — yedi cevabı `PLAN_New.md` §15'e yaz ve `[UNVERIFIED]`
-etiketlerini kaldır. Ölçüp yazmamak, ölçmemekle aynı şey.
+1. Bilgisayardan kontrol ediliyorsa ve sistem cevap veriyorsa CTRL+C.
+2. Motorların durması gerekiyorsa araç alttan güvenli biçimde tutulup kaldırılır.
+3. Üçlü pil yatağının yanındaki motor anahtarı `O` konumuna alınır.
+4. Raspberry Pi için ikili pil yatağının anahtarı kullanılır.
+5. Raspberry Pi gücünü aniden kesmenin SD kartı bozabileceği unutulmaz.
+6. Fiziksel tehlike varsa önce motorlar durdurulur; SD kart ikinci önceliktir.
 
 ---
 
-# C. UCUZ DENEY — eylül, ilk hafta
+# A. AĞUSTOS 2026 — araç olmadan temel hazırlık
 
-**Yeniden yazmadan önce.** §20.7. Bir öğleden sonra, ve cevabı çok değerli.
+Bu aşamada fiziksel araç kullanılmaz.
 
-**C1. §3.3'teki iki trim hatasını ÖNCE düzelt**
-Trimler 1.0 olduğu sürece görünmezler; ölçülen değer girildiği an etkinleşirler. Önce
-düzeltmezsen doğru bir ölçüm aracı **daha kötü** hale getirir.
-- `controller.py`: trim, PWM'in işaretine göre değil **tekerlek kimliğine** göre seçilmeli
-- Trim iki kez uygulanıyor (`controller.py` + `motor.py`) — biri kalkmalı
+## A1. Depo gerçeğini kaydet
 
-**C2. `motor_balance_test.py`'yi düzelt** — `LEFT_TRIM`/`RIGHT_TRIM` yazdırıyor, config
-dört ad okuyor. Muhtemelen trimlerin 1.0 kalma sebebi bu.
+- [x] Ana Git deposu ve uzak depolar bulundu.
+- [x] `.githooks` yolu yapılandırılmış durumda.
+- [ ] Mevcut kullanıcı değişiklikleri insan tarafından gözden geçirilecek.
+- [ ] İzlenmeyen 3awnt dosyalarının projeye alınıp alınmayacağı Egemen tarafından kararlaştırılacak.
+- [ ] `CLAUDE.md`, gerçek Git durumuyla karşılaştırılıp ayrı planla güncellenecek.
 
-**C3. `PERSP_SRC`'yi düzelt · TEK değişken · İKİ KİŞİ**
-`calibrate.py` çalıştır, 800×680 için köşeleri al. **Sadece bunu değiştir.**
-`yol_takip.py` ile sür, `logger.py` raporunu oku, sayıyı tarihiyle yaz.
+**Neden:** Eski belgelerde “uzak depo yok” veya “kanca yok” gibi artık doğru olmayan
+ifadeler bulunuyor. Belgeye değil, doğrulanmış depo durumuna göre hareket etmeliyiz.
 
-**C4. Trimleri ölç · İKİNCİ değişken · İKİ KİŞİ** — sonra tekrar sür, tekrar oku, tekrar yaz.
+**Çıkış kanıtı:** `git status`, uzak depo listesi ve `core.hooksPath` sonucu takımca görüldü.
 
-**C5. Teşhis boyunca `KI = 0`** — integral, sabit sapmayı düzlükte gizler ve viraja
-boşaltır. Kapalıyken sapma temiz bir sabit hata olarak görünür.
+## A2. Ana ajan sözleşmesi
 
-> **Sonuç ne olursa olsun kazanç.** Araç düzelirse, kod bir ölçüm uzaktaymış — ve
-> yeniden yazma bir kurtarma değil, kontrollü bir öğrenme olur. Düzelmezse, en olası
-> iki sebebi bir öğleden sonraya elemişsin.
+- [~] `AGENTS_READ_ME.txt` hazırlanıyor.
+- [ ] Egemen ve T metni okuyup kabul edecek.
+- [ ] Yeni bir ajanla küçük, risksiz bir deneme yapılarak kuralların anlaşıldığı gözlenecek.
 
----
+**Çıkış kanıtı:** Ajan; yetki sırasını, plan zorunluluğunu ve araç öncesi insan kapısını
+doğru biçimde açıklayabiliyor.
 
-# D. FAZ 1 — araç yumuşak dönebiliyor mu · eylül–ekim
+## A3. 3awnt karar noktası
 
-Bundan öncesi ölçüm, bundan sonrası inşa.
+- [x] Mevcut prototipin ne yaptığı incelendi.
+- [x] Mevcut sınırlar belirlendi.
+- [x] Hibrit mimari belgelendi.
+- [ ] 3awnt'ın yeni `arac/` yapısına girip girmeyeceği Egemen tarafından onaylanacak.
+- [ ] Onaylanırsa entegrasyon için ayrı kod planı yazılacak.
 
-1. `ayar.py` — iki JSON'u okur, doğrular, **çözünürlük uyuşmazlığında başlatmayı reddeder**
-2. `surucu.py` — sahte (mock) ve gerçek arka uçlar, **varsayılan motorlar kapalı**
-3. `bildir.py` — LED/buzzer durum çıkışı
-4. **İKİ KİŞİ** — tekerlekler yerden kesikken elle çeşitli PWM oranları sür
-5. **İKİ KİŞİ** — sonra yerde: kavis mi çiziyor, kendi etrafında mı dönüyor
+**KAPI:** Bu aşamada 3awnt “araç güvenliği tamamlandı” diye sunulamaz.
 
-**Çıkış testi:** (60, 80) komutu, iki yönde de, üç kez üst üste tekrarlanabilir bir kavis
-çiziyor — ve asimetri trimi yazılmış durumda.
+## A4. Belgeleri ve gerçek kodu eşleştir
 
----
+- [ ] `kontrol.py` içindeki mevcut belge kontrol hatası ele alınacak.
+- [ ] `motor_balance.py` / `motor_balance_test.py` isim uyuşmazlığı ayrı planla çözülecek.
+- [ ] `CLAUDE.md` içindeki güncelliğini kaybetmiş Git iddiaları ayrı planla düzeltilecek.
+- [ ] SUBIRU'nun boş `tasks.json` dosyası başlangıç görevleriyle doldurulacak.
+- [ ] `owners.py` içindeki yalnız baş harf kullanımı takım kararına göre açıklanacak.
 
-# E. FAZ 2 — şeridi görmek · ekim–kasım
+**Neden:** Yanlış belge, yanlış kod kadar tehlikelidir; bir sonraki öğrenci yanlış şeyi
+doğru sanarak zaman kaybedebilir.
 
-Büyük ölçüde **araçsız** yapılabilir. Kötü haftaların fazı budur.
+## A5. Kalibrasyon aracını masaüstünde doğrula
 
-1. **İKİ KİŞİ** — pisti bantla (§18.2): düz, iki yöne viraj, bir kesikli bölüm
-2. **İKİ KİŞİ** — görüntü çek. **Aracın kendi kamerasıyla, aracın kendi yüksekliğinden.**
-   Telefonla ayakta çekilen görüntünün perspektifi tutmaz ve ROI ayarları taşınmaz
-3. `goz.py` — USB, picamera2 ve video-dosyası arka uçları
-4. `goruntu.py` — şerit tespiti, Windows'ta kayıtlı videoya karşı geliştirilir
-5. Kalibrasyon aracını gerçek kareyle bitir (A7 buraya bağlanır)
+- [ ] `StarTechConfig` için gerçek depo/yedek durumu doğrulanacak.
+- [ ] Araç derlenecek.
+- [ ] Geçerli bir `kalibrasyon.json` üretilecek ve insanlar tarafından okunacak.
+- [ ] Aynı dosyanın iki kez gönderilmesinde beklenen 201/409 davranışı doğrulanacak.
+- [ ] Altı renk maskesinin önizlemesi kontrol edilecek.
 
-**Çıkış testi:** ayrılmış bir klipte karelerin **%95'inde** makul bir şerit merkezi —
-kesikli bölümler dâhil, kimse ortada ayar değiştirmeden. Sabit klip seti, ölçülmüş sayı,
-yazılmış.
-
----
-
-# F. FAZ 3 — döngüyü kapat · kasım–ocak
-
-**Yılın en kritik fazı. Kilometre taşı burada.**
-
-1. `durum.py` — durum makinesi, görev sırası **sabit değil** (§2.4)
-2. Kontrol yasası (§6) — PD, ölü bölge, slew limiti, `max_pwm` B2'den
-3. `kayit.py` — kara kutu. **Kare numarası ile anlık görüntü adı aynı olmalı**
-4. `arac.service` + buton + LED — ekransız, telsizsiz açılış (§5)
-5. **İKİ KİŞİ** — pistte kazanç ayarı
-
-**Çıkış testi:** üç ardışık tur, **sıfır şerit ihlali**, elle müdahale yok, yalnızca
-butonla başlatılmış, dizüstü bağlı değil. Tur sürelerini yaz — zaman bonusunun taban
-çizgisi bu.
-
-> **KİLOMETRE TAŞI — yarıyıl tatili:** araç düz bir pisti kendi başına dönebiliyor mu?
-> **Evet** → altı görev için yer var. **Hayır** → görev kesmeye başla: önce sollama,
-> sonra çıkmaz yol, sonra tümsek. **Şerit takibinden asla feragat etme.**
+**Çıkış kanıtı:** Üretilmiş JSON, ekran görüntüsü veya kayıt ve tekrarlanabilir sunucu testi.
 
 ---
 
-# G. OCAK — yeni kılavuz
+# B. EYLÜL İLK GÜN — yalnızca ölç, kod yazma
 
-Yayınlandığında dur ve `PLAN_New.md` §2 ile satır satır karşılaştır. Kurallar değişir;
-komite değiştirme hakkını açıkça saklı tutuyor. Puanlar, ölçüler, görev tanımları.
+> **Bu oturumun kuralı:** Araç başında yeni özellik yazılmaz. Önce bilinmeyenler ölçülür.
+
+## B1. Güç sistemi
+
+- [?] Motor tarafındaki pil sayısı: 2S mi 3S mi?
+- [?] Tam PWM'de motor uçlarındaki gerçek gerilim ölçüldü mü?
+- [?] Motor etiketindeki nominal gerilim gerçekten 6 V mu?
+
+**Neden:** 3S yaklaşık 10–12 V seviyesine çıkabilir. 6 V motor için PWM tavanı gerekebilir.
+2S ise aynı tavan gereksiz yere performansı düşürebilir. Sayı tahmin edilmeyecek.
+
+**Çıkış kanıtı:** Multimetre değeri, pil durumu, tarih, ölçen kişi ve kullanılan yöntem.
+
+## B2. Motor kablolaması — `İKİ KİŞİ`
+
+- [?] Her L298N kanalının hangi fiziksel motora gittiği kablo takip edilerek çizildi.
+- [?] Düzenin sol/sağ mı, ön/arka mı olduğu kesinleştirildi.
+- [?] Motorların L298N `OUT` uçlarında olduğu doğrulandı; `IN` yalnız mantık girişidir.
+
+**KAPI:** Bu cevaplar gelmeden direksiyon karışım işareti seçilmez ve fiziksel kontrol testi
+yapılmaz.
+
+## B3. Raspberry Pi ve kamera
+
+- [?] `dtoverlay=pwm-2chan` gerçekten etkin mi?
+- [?] Kamera CSI mı USB mi?
+- [?] `picamera2` veya seçilen arka uç gerçek kare üretiyor mu?
+- [?] Gerçek çözünürlük ve FPS nedir?
+
+**Çıkış kanıtı:** Sistem yapılandırması, küçük kamera testi ve zaman damgalı örnek kare.
+
+## B4. Yarışma uygunluk ölçümleri — `İKİ KİŞİ`
+
+- [?] Araç 20×30 cm taban sınırına uyuyor mu?
+- [?] Yükseklik 25 cm altında mı?
+- [?] Teker çapları 10 cm veya altında mı?
+- [?] Kamera dışında sensör veya bağlı/bağsız yasak donanım var mı?
+- [?] Fiziksel başlatma butonu var ve çalışıyor mu?
+
+**Not:** Bunlar 2026 kılavuzuna ait tarihli başlangıç değerleridir. Yeni kılavuz çıkınca
+yeniden kontrol edilir.
+
+## B5. Ölçümleri kaydet
+
+- [ ] Her cevap tarih, kişi ve yöntemle kaydedildi.
+- [ ] `[UNVERIFIED]` etiketi yalnızca gerçek kanıt varsa kaldırıldı.
+- [ ] Çelişen belge veya kablo şeması ayrıca not edildi.
+
+Ölçüp yazmamak, sonraki ekip açısından ölçmemekle aynıdır.
 
 ---
 
-# H. FAZ 4 — görevler, teker teker · ocak–mart
+# C. EYLÜL İLK HAFTA — yeniden yazmadan önce ucuz deney
 
-Her biri tam çalışır ve kaydedilmiş olmadan bir sonrakine geçme. Puan/zorluk sırası:
+Bu deney, eski aracın iki güçlü arıza adayını düşük maliyetle sınar. Kalıcı özellik
+geliştirme değildir. `LEGACY/` değişikliği yapılacaksa ayrıca onaylanmış plan gerekir.
 
-1. **Trafik ışığı başlangıcı** (50 + 50) — en yüksek değer, en düşük zorluk, ve zaten
-   her zamanlı koşunun ön koşulu
-2. **Yaya geçidi + hemzemin** (50 + 50) — aynı dedektör, aynı davranış, iki puan
-3. **Hız tümseği** (50) — çoğunlukla hız düşürme. Dikkat: §19, `SPEED_BUMP_SPEED` ölü
-   bölgenin altında kalamaz
-4. **Park** (100) — iyi yalıtılmış, turun sonunda, prova edilebilir
-5. **Çıkmaz yol** (100) — levha tespiti + ayrılmış pivot. `sign_type` bağlantısı burada
-   (§20.3c, ~20 satır)
-6. **Sollama** (100) — en son. Kasten şerit değiştiren tek görev, tuzak nesnesi olan tek
-   görev, ve hata yapmanın atlamaktan kötü olduğu tek görev
+## C1. Trim hatalarını önce düzelt
 
-**Her görev için çıkış testi:** on deneme, en az sekizi puan alıyor, onunun da kaydı
-okunmuş.
+- [ ] Trim seçimi PWM işaretine göre değil teker kimliğine göre yapılacak.
+- [ ] Trimin hem `controller.py` hem `motor.py` içinde iki kez uygulanması engellenecek.
+- [ ] `motor_balance_test.py` ile gerçek yapılandırma anahtarları eşleştirilecek.
+
+**Neden:** Trimler 1.0 iken bu hatalar görünmez. Gerçek ölçüm girildiği anda doğru ölçüm
+yanlış uygulanabilir.
+
+## C2. Perspektifi tek değişken olarak sına — `İKİ KİŞİ`
+
+- [ ] Aracın gerçek kamerası ve gerçek yüksekliği kullanıldı.
+- [ ] 800×680 veya ölçülen gerçek çözünürlük için köşeler yeniden seçildi.
+- [ ] Başka kontrol değeri değiştirilmeden sürüş yapıldı.
+- [ ] Kayıt ve rapor okundu.
+
+## C3. Motor trimini ikinci değişken olarak sına — `İKİ KİŞİ`
+
+- [ ] Fiziksel asimetri ölçüldü.
+- [ ] Yalnız trim değerleri değiştirildi.
+- [ ] Aynı parkur ve benzer pil koşulunda tekrar test edildi.
+- [ ] Önce/sonra sonucu sayıyla karşılaştırıldı.
+
+## C4. Teşhis sırasında integral
+
+- [ ] `KI = 0` tutuldu.
+
+**Neden:** İntegral sabit sapmayı bir süre gizleyip virajda boşaltabilir. İlk teşhiste
+perspektif ve mekanik asimetriyi ayrı görmek istiyoruz.
+
+**Çıkış kararı:**
+
+- Araç belirgin düzelirse yeniden yazma yine yapılabilir; fakat eski bilgiyi taşıyan kontrollü
+  bir mimari çalışması olur.
+- Düzelmezse iki güçlü aday elenmiş olur; rastgele kazanç ayarına geçilmez.
+
+---
+
+# D. FAZ 1 — güvenli motor temeli, Eylül–Ekim
+
+> **Amaç:** Araç şeridi görmeden önce, verilen sol/sağ komutun öngörülebilir ve güvenli
+> fiziksel davranış ürettiğini kanıtlamak.
+
+- [ ] `arac/ayar.py`: ayar ve kalibrasyon dosyalarını yükler, şema ve çözünürlük kontrolü yapar.
+- [ ] `arac/surucu.py`: sahte ve gerçek sürücü arka uçları; başlangıçta motorlar kapalı.
+- [ ] `arac/bildir.py`: LED/buzzer ile açık durum bildirimi.
+- [ ] 3awnt kullanılacaksa ayrı planla yalnızca bu mimariye bağlanır.
+- [ ] Bütün motor komutlarının `surucu.py` üzerinden geçtiği otomatik denetlenir.
+- [ ] NaN, sonsuz, sınır dışı ve kilitli komut testleri yazılır.
+- [ ] Sahte sürücüyle hata enjeksiyonu yapılır.
+- [ ] İnsan kod incelemesi tamamlanır.
+- [ ] Tekerlekler yerden kesikken düşük PWM testi yapılır. `İKİ KİŞİ` `EGEMEN SON ONAYI`
+- [ ] Zeminde düşük hızlı kavis testi yapılır. `İKİ KİŞİ` `EGEMEN SON ONAYI`
+
+**Çıkış kanıtı / KAPI:** `(60, 80)` ve ayna komutu, güvenli sınırlar içinde üçer kez
+tekrarlanabilir kavis üretir; durdurma denemesi motorları gözle görünür biçimde durdurur;
+ölçülen trim ve bağlantı yönü kaydedilir.
+
+---
+
+# E. FAZ 2 — şeridi görmek, Ekim–Kasım
+
+Bu fazın büyük kısmı kayıtlı video ile, araç hareket etmeden yapılabilir.
+
+- [ ] Bantla düz, iki yönlü viraj ve kesikli şerit bölümü kurulur.
+- [ ] Kayıtlar aracın kendi kamerası ve gerçek kamera yüksekliğinden alınır. `İKİ KİŞİ`
+- [ ] `arac/goz.py`: USB, Picamera2 ve video dosyası arka uçları.
+- [ ] `arac/goruntu.py`: şerit tespiti ve güven değeri.
+- [ ] Perspektif kalibrasyonu kamera profiline bağlanır.
+- [ ] Renk maskeleri gerçek kare üzerinde insan gözüyle önizlenir.
+- [ ] Sabit bir test klibi seti ayrılır; ayar sırasında değiştirilmez.
+
+**Çıkış kanıtı / KAPI:** Ayrılmış test klibinde, kesikli bölümler dâhil karelerin en az
+%95'inde makul şerit merkezi. Sonuç sayı ve klip kimliğiyle kaydedilir.
+
+---
+
+# F. FAZ 3 — döngüyü kapatmak, Kasım–Ocak
+
+> **Yılın ana kilometre taşı:** Araç görev yapmasa bile şeridi kendi başına güvenilir
+> biçimde takip edebilmeli.
+
+- [ ] `arac/durum.py`: görev sırası sabit olmayan durum makinesi.
+- [ ] PD kontrolü; işaret yönü fiziksel ölçüm sonrası karara bağlanır.
+- [ ] Ölü bölge, hız tavanı ve hedef hız birlikte tutarlı hâle getirilir.
+- [ ] Slew/rampa sınırı ile ani PWM değişimi azaltılır.
+- [ ] `arac/kayit.py`: kare, görüntü, durum, hata ve motor komutunu aynı zaman çizgisinde tutar.
+- [ ] Kamera ve kontrol döngüsü watchdog'u tasarlanıp ayrı planla uygulanır.
+- [ ] `arac.service`, buton ve LED ile ekransız/telsizsiz başlatma kurulur.
+- [ ] Kayıp kamera ve yakalanmamış hata testlerinde son PWM korunmaz.
+- [ ] Pistte kazanç ayarı yapılır. `İKİ KİŞİ` `EGEMEN SON ONAYI`
+
+**Çıkış kanıtı / KAPI:** Dizüstü bağlı değilken, yalnız fiziksel butonla başlayan üç
+ardışık tur; sıfır şerit ihlali ve insan müdahalesi yok. Tur süreleri ve kayıt kimlikleri
+yazılır.
+
+**Yarıyıl kararı:**
+
+- Başarılıysa görev geliştirmeye geç.
+- Başarısızsa kapsamı küçült: önce sollama, sonra çıkmaz yol, sonra tümsek ertelenebilir.
+- Şerit takibi ertelenmez; bütün görevlerin temelidir.
+
+---
+
+# G. YENİ MEB KILAVUZU ÇIKINCA
+
+- [ ] Resmî PDF ve yayın tarihi kaydedilir.
+- [ ] Puanlar eski kılavuzla karşılaştırılır.
+- [ ] Boyut, teker, sensör, haberleşme ve başlangıç kuralları karşılaştırılır.
+- [ ] Görev tanımları ve görev sırası kuralları karşılaştırılır.
+- [ ] Başvuru tarihi ve gerekli belgeler kaydedilir.
+- [ ] Çelişki varsa geliştirme durdurulup US'a bildirilir.
+- [ ] `PLAN_New.md` yalnızca açık belge güncelleme onayıyla değiştirilir.
+
+---
+
+# H. FAZ 4 — görevler, Ocak–Mart
+
+Her görev için aynı döngü kullanılır:
+
+1. Kayıtlı görüntüde algıla.
+2. Sahte sürücüyle davranışı doğrula.
+3. İnsan kod incelemesi yap.
+4. İzole fiziksel parkurda düşük hızla dene.
+5. On deneme kaydet.
+6. En az sekizi puan davranışı üretiyorsa sonraki göreve geç.
+
+Önerilen sıra:
+
+- [ ] Trafik ışığıyla başlatma — düşük zorluk, yüksek değer ve her turun ön koşulu.
+- [ ] Yaya geçidi ve hemzemin geçit — benzer durma davranışları birlikte geliştirilebilir.
+- [ ] Hız tümseği — hız azaltma; seçilen hız ölü bölgenin altında olmamalı.
+- [ ] Park — turun sonunda ve izole test edilebilir.
+- [ ] Çıkmaz yol — levha türü ile durum makinesi arasındaki `sign_type` sözleşmesi gerekir.
+- [ ] Sollama — bilinçli şerit değiştirdiği ve tuzak nesne içerdiği için en son.
+
+**KAPI:** Bir görev, kayıtları okunmadan ve başarısız denemeleri açıklanmadan tamamlandı
+sayılmaz.
 
 ---
 
 # I. MART — başvuru
 
-2026'da son tarih **20 Mart 18:00**'di, uzatma 14 Mart'ta duyuruldu. Yarışma 6–8 Mayıs.
+2026 referansı: son tarih 20 Mart 18.00, yarışma 6–8 Mayıs; uzatma duyurusu daha sonra
+gelmişti. Yeni yılın tarihleri ayrıca doğrulanacaktır.
 
-- **Aracın çalışmasına bağlı değil.** Başvurular açılır açılmaz başvur.
-- Belgelerin **tamamı** yüklenmeli; form tek başına yetmiyor. Ayrıca **kura kaydı** adımı var.
-- **Sahibi: danışman öğretmen, yedeği Egemen.** Tek sahipli geri dönülmez tarih olmaz.
+- [ ] Başvurular açılır açılmaz takvime birincil ve yedek sorumlu girilir.
+- [ ] Ana sorumlu danışman öğretmen, yedek Egemen olarak doğrulanır veya güncellenir.
+- [ ] Form, bütün belgeler ve kura kaydı ayrı ayrı tamamlanır.
+- [ ] Son güne bırakılmaz; aracın o gün çalışmasına bağlanmaz.
+- [ ] Yüklenen dosyaların indirilebilir kopyası saklanır.
+
+**Çıkış kanıtı:** Resmî sistemde tamamlanmış durum ve okulun erişebildiği yükleme kaydı.
 
 ---
 
-# J. FAZ 5 — tam turlar · mart–nisan
+# J. FAZ 5 — tam turlar, Mart–Nisan
 
-1. Uçtan uca turlar, **farklı ışıklarda**
-2. **Görevlerin sırasını turlar arasında değiştir** — §7'nin gizlice bir sıraya
-   bağlı olmadığını kanıtla
-3. Her koşudan sonra kara kutuyu oku. İstisnasız
-4. Yedekleri tak, çıkar, tekrar tak — denenmemiş yedek yedek değildir
+- [ ] Farklı ışık koşullarında uçtan uca turlar.
+- [ ] Görev sırası turlar arasında değiştirilir.
+- [ ] Her koşudan sonra kara kutu okunur.
+- [ ] Piller farklı doluluklarda denenir.
+- [ ] Yedek parçalar takılıp çıkarılarak gerçekten sınanır.
+- [ ] Kalibrasyon dosyasının yanlış kamera/çözünürlükle başlamayı reddettiği doğrulanır.
 
-**Çıkış testi:** beş ardışık tam tur, her biri 240 sn altında, her biri Faz 4'ten
-belirlenen hedefin üstünde.
+**Çıkış kanıtı / KAPI:** Beş ardışık tam tur; her biri yeni kılavuzdaki süre sınırına
+uyar ve takımın önceden belirlediği puan hedefini aşar.
 
 ---
 
 # K. NİSAN — yarışma hazırlığı
 
-- Yedekleri **şubatta** sipariş et, nisanda değil (§16.3)
-- Kontrol listesini bas (§17.5) — kalibrasyon özetiyle aynı kâğıdın iki yüzü
-- Sürücü ve gözcü rollerini belirle (§17.2) — sahada aynı anda en fazla iki öğrenci
-- Piller dolu, yedekleri de dolu. Pistte şarj süresi verilmiyor
-- Ethernet kablosu çantada
+- [ ] Yedekler Şubat ayına kadar sipariş edilmiş ve denenmiş olacak.
+- [ ] Pil ve şarj planı hazırlanacak.
+- [ ] Ethernet kablosu, SD kart kopyası ve gerekli araçlar paketlenecek.
+- [ ] Kalibrasyon özeti ile yarışma öncesi kontrol listesi basılacak.
+- [ ] Sahada bulunacak iki öğrenci ve yedek roller belirlenecek.
+- [ ] Yasak uzaktan kontrol/haberleşme donanımı insan tarafından fiziksel kontrol edilecek.
+- [ ] Kullanılacak Git commit etiketlenecek; kirli çalışma ağacıyla yarışmaya gidilmeyecek.
 
 ---
 
 # L. MAYIS — yarışma
 
-- **Deneme turu tek kalibrasyon penceresi.** Sıra: turuncu↔sarı → beyaz şerit → kırmızı
-  park → yeşil ışık → mavi işaretler (§17.3)
-- Koşudan önce piste bak, **görevlerin bu turdaki sırasını not et**
-- Her turdan önce 14 maddelik listeyi işaretle. İlk dördü diskalifiye sebebi
-- Turlar arasında kayıtları SD karttan kopyala
+- [ ] Teknik kontrolden önce boyut, teker, sensör ve buton yeniden kontrol edilir.
+- [ ] Deneme turu tek resmî kalibrasyon penceresi kabul edilir.
+- [ ] Renk/şerit/işaret önceliği yeni kılavuza göre uygulanır.
+- [ ] Görevlerin o turdaki sırası gözlenip not edilir.
+- [ ] Her turdan önce basılı kontrol listesi iki kişiyle işaretlenir.
+- [ ] Turlar arasında kayıtlar ve yapılandırma kopyalanır.
+- [ ] Kanıtsız, son dakika ve kapsam dışı kod değişikliği yapılmaz.
 
 ---
 
 # M. MAYIS SONRASI
 
-§25. Yeni araç artık legacy'dir. `LEGACY/` ancak yeni araç onu pistte yendiğinde ve bu
-bir kayıtta göründüğünde arşivlenir.
-
-Ve alan adı, Vercel, R2, VPS, GitHub — hepsi tek bir kişinin hesabında. Son dönem
-bitmeden karara bağlanmalı.
+- [ ] Yeni aracın kayıtları ve başarısızlıkları HATA DEFTERİ'ne dürüstçe işlenir.
+- [ ] `LEGACY/`, yalnızca yeni sistem onu ölçülebilir testte geçtiğinde arşivlenir.
+- [ ] Alan adı, VPS, GitHub, Vercel/R2 ve diğer hesapların sahipliği tek kişiye bağlı
+  kalmayacak biçimde karara bağlanır.
+- [ ] Mezuniyet öncesi erişim devri ve kurtarma yöntemleri sınanır.
+- [ ] Bir sonraki ekip için çalışan sistem, kaynaklar ve kanıtlı başlangıç noktası bırakılır.
 
 ---
 
-## Tek cümlelik özet
+## 3. Bugünkü kısa TODO
 
-**Şimdi:** yedekle, derle, bir dosya üret.
-**Eylül ilk gün:** hiçbir şey yazma, yedi şey ölç.
-**Eylül ilk hafta:** quad'ı düzelt, sür, oku — yeniden yazmadan önce.
-**Yarıyıla kadar:** araç düz pisti kendi başına dönsün.
-**Sonra:** görevler, teker teker, en ucuzundan başlayarak.
+Sıradaki işler, araç olmadan yapılabilecek sırayla:
+
+1. [ ] Bu belge paketini Egemen ve T insan gözüyle inceleyecek.
+2. [ ] 3awnt prototipinin Git'e alınıp alınmayacağı kararlaştırılacak.
+3. [ ] Yeni `arac/` yapısına 3awnt entegrasyonu için ayrı plan hazırlanacak veya ertelenecek.
+4. [ ] `kontrol.py` temel hatasının ayrı planı hazırlanacak.
+5. [ ] SUBIRU başlangıç görevleri girilecek.
+6. [ ] Kalibrasyon aracı masaüstünde gerçek JSON üretecek şekilde kanıtlanacak.
+7. [ ] Eylül ölçüm formu hazırlanacak; ancak ölçüm sonuçları araç görülmeden doldurulmayacak.
+8. [ ] Direksiyon işareti ve motor trim dosyası çelişkileri US tarafından karara bağlanacak.
+
+---
+
+## 4. Tek cümlelik yol haritası
+
+**Önce gerçeği ölç; sonra motoru güvenli ve tekrarlanabilir sür; sonra kayıtlı videoda
+şeridi gör; sonra ikisini kapalı döngüde birleştir; en son görevleri tek tek ekle ve her
+iddianı kayıtla kanıtla.**
