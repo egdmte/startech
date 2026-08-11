@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Startech Kalibrasyon Raporu V2 — Tasarım Prototipi</title>
+  <style>
+    :root {
+      --ink: #16202b;
+      --muted: #657182;
+      --line: #d7dee8;
+      --surface: #ffffff;
+      --soft: #f4f7fb;
+      --navy: #101923;
+      --blue: #1463ff;
+      --blue-soft: #eaf1ff;
+      --green: #087a55;
+      --green-soft: #e7f7f0;
+      --amber: #9a5a00;
+      --amber-soft: #fff4d7;
+      --red: #b4232c;
+      --red-soft: #fff0f1;
+      --violet: #6548c9;
+      --shadow: 0 18px 46px rgb(16 25 35 / 15%);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: #dce2ea; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.35;
+      font-variant-numeric: tabular-nums;
+    }
+
+    button, input { font: inherit; }
+
+    .prototype-bar {
+      position: sticky;
+      z-index: 20;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      min-height: 58px;
+      padding: 9px 20px;
+      color: #fff;
+      background: rgb(16 25 35 / 96%);
+      box-shadow: 0 5px 18px rgb(0 0 0 / 22%);
+    }
+
+    .prototype-bar strong { display: block; font-size: 13px; }
+    .prototype-bar small { color: #bac5d2; }
+    .prototype-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+
+    .prototype-actions button {
+      min-height: 34px;
+      padding: 7px 12px;
+      color: #dce5ef;
+      border: 1px solid #405063;
+      border-radius: 7px;
+      background: #1c2937;
+      cursor: pointer;
+    }
+
+    .prototype-actions button:hover,
+    .prototype-actions button.active {
+      color: #fff;
+      border-color: #7ca6ff;
+      background: #244982;
+    }
+
+    .prototype-actions .print-button {
+      color: #0d1722;
+      border-color: #fff;
+      background: #fff;
+    }
+
+    .document {
+      display: grid;
+      gap: 24px;
+      justify-content: center;
+      padding: 26px;
+    }
+
+    .sheet {
+      position: relative;
+      width: 297mm;
+      height: 210mm;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .watermark {
+      position: absolute;
+      z-index: 0;
+      right: 22mm;
+      bottom: 22mm;
+      color: rgb(20 99 255 / 4%);
+      font-size: 46px;
+      font-weight: 900;
+      letter-spacing: .14em;
+      transform: rotate(-15deg);
+      pointer-events: none;
+    }
+
+    .report-header {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 28mm;
+      padding: 7mm 10mm 6mm;
+      color: #fff;
+      background: var(--navy);
+    }
+
+    .brand-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 3px;
+      color: #b8c4d2;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 24px;
+      height: 24px;
+      place-items: center;
+      color: #fff;
+      border: 1px solid #6a7b90;
+      border-radius: 7px;
+      background: linear-gradient(145deg, #27384d, #101923);
+      font-size: 11px;
+      letter-spacing: 0;
+    }
+
+    .report-header h1 {
+      margin: 0;
+      font-size: 25px;
+      line-height: 1.05;
+      letter-spacing: -.025em;
+    }
+
+    .report-header h1 span {
+      color: #9ebcff;
+      font-weight: 500;
+    }
+
+    .header-meta {
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 5px 16px;
+      min-width: 290px;
+      color: #d5dde7;
+      font-size: 10px;
+    }
+
+    .header-meta dt { color: #8391a2; }
+    .header-meta dd { margin: 0; text-align: right; font-weight: 700; }
+    .mono { font-family: "Cascadia Mono", Consolas, monospace; }
+
+    .page-body {
+      position: relative;
+      z-index: 1;
+      height: calc(210mm - 28mm - 9mm);
+      padding: 6mm 10mm 3mm;
+    }
+
+    .validity-panel {
+      display: grid;
+      grid-template-columns: 34mm 1fr 72mm;
+      align-items: stretch;
+      min-height: 28mm;
+      margin-bottom: 4mm;
+      overflow: hidden;
+      border: 1px solid #eed59d;
+      border-radius: 9px;
+      background: var(--amber-soft);
+    }
+
+    .status-seal {
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      padding: 9px;
+      color: var(--amber);
+      border-right: 1px solid #eed59d;
+      background: rgb(255 255 255 / 35%);
+      text-align: center;
+    }
+
+    .status-seal .icon {
+      display: grid;
+      width: 31px;
+      height: 31px;
+      margin-bottom: 4px;
+      place-items: center;
+      border: 2px solid currentColor;
+      border-radius: 50%;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .status-seal strong { font-size: 11px; letter-spacing: .06em; }
+
+    .status-copy {
+      display: grid;
+      align-content: center;
+      gap: 3px;
+      padding: 9px 14px;
+    }
+
+    .status-copy .eyebrow {
+      color: var(--amber);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .status-copy h2 { margin: 0; font-size: 17px; }
+    .status-copy p { margin: 0; color: #715522; font-size: 10px; }
+
+    .validity-control {
+      display: grid;
+      align-content: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-left: 1px solid #eed59d;
+      background: rgb(255 255 255 / 42%);
+    }
+
+    .checkbox-line { display: flex; align-items: flex-start; gap: 7px; font-size: 10px; font-weight: 700; }
+    .checkbox-line input { margin-top: 1px; accent-color: var(--red); }
+
+    .signature-line {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 8px;
+      text-transform: uppercase;
+    }
+
+    .signature-line span {
+      min-height: 16px;
+      padding-top: 5px;
+      border-bottom: 1px solid #8d98a6;
+    }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: 1.16fr .84fr;
+      gap: 4mm;
+    }
+
+    .stack { display: grid; gap: 3mm; }
+
+    .panel {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .panel-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 28px;
+      padding: 5px 9px;
+      border-bottom: 1px solid var(--line);
+      background: var(--soft);
+    }
+
+    .panel-heading h3 { margin: 0; font-size: 11px; letter-spacing: .015em; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 18px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge.measured { color: var(--green); background: var(--green-soft); }
+    .badge.selected { color: #31558d; background: var(--blue-soft); }
+    .badge.review { color: var(--amber); background: var(--amber-soft); }
+    .badge.missing { color: var(--red); background: var(--red-soft); }
+
+    .camera-perspective {
+      display: grid;
+      grid-template-columns: .88fr 1.12fr;
+      min-height: 59mm;
+    }
+
+    .key-values { padding: 8px 10px; border-right: 1px solid var(--line); }
+    .key-values dl { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; margin: 0; }
+    .key-values dt { color: var(--muted); }
+    .key-values dd { margin: 0; font-weight: 700; text-align: right; }
+
+    .perspective-figure {
+      display: grid;
+      grid-template-columns: 1fr 105px;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      background: linear-gradient(135deg, #fbfcfe, #f1f5fb);
+    }
+
+    .perspective-figure svg { width: 100%; height: 104px; }
+    .perspective-notes { display: grid; gap: 5px; font-size: 9px; }
+    .coordinate { padding: 5px 6px; border: 1px solid var(--line); border-radius: 5px; background: #fff; }
+    .coordinate b { display: block; margin-bottom: 2px; color: var(--muted); font-size: 7px; text-transform: uppercase; }
+
+    .lane-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+    }
+
+    .metric {
+      min-height: 43px;
+      padding: 7px 9px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .metric:nth-child(4n) { border-right: 0; }
+    .metric:nth-last-child(-n+4) { border-bottom: 0; }
+    .metric .label { color: var(--muted); font-size: 8px; }
+    .metric .value { margin-top: 3px; font-size: 13px; font-weight: 750; }
+    .metric .unit { color: var(--muted); font-size: 8px; font-weight: 500; }
+
+    .review-list { display: grid; gap: 0; }
+    .review-item {
+      display: grid;
+      grid-template-columns: 18px 1fr auto;
+      align-items: center;
+      gap: 7px;
+      min-height: 31px;
+      padding: 5px 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    .review-item:last-child { border-bottom: 0; }
+    .review-icon {
+      display: grid;
+      width: 17px;
+      height: 17px;
+      place-items: center;
+      color: var(--green);
+      border-radius: 50%;
+      background: var(--green-soft);
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .review-icon.wait { color: var(--amber); background: var(--amber-soft); }
+    .review-item strong { display: block; font-size: 9px; }
+    .review-item small { color: var(--muted); font-size: 8px; }
+
+    .colour-list { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 8px; }
+    .colour-card {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      align-items: center;
+      gap: 7px;
+      min-height: 34px;
+      padding: 5px 6px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+    .swatch { width: 22px; height: 22px; border: 1px solid rgb(0 0 0 / 12%); border-radius: 5px; }
+    .swatch.orange { background: #f18416; }
+    .swatch.yellow { background: #f2c94c; }
+    .swatch.red { background: #d5323c; }
+    .swatch.green { background: #27ae60; }
+    .swatch.blue { background: #2f80ed; }
+    .colour-card strong { display: block; font-size: 9px; }
+    .colour-card small { color: var(--muted); font-size: 7px; }
+
+    .note-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 7px 9px;
+      color: #31558d;
+      border: 1px solid #cbdcff;
+      border-radius: 7px;
+      background: var(--blue-soft);
+      font-size: 9px;
+    }
+    .note-box strong { white-space: nowrap; }
+
+    .page-footer {
+      position: absolute;
+      right: 10mm;
+      bottom: 3mm;
+      left: 10mm;
+      display: flex;
+      justify-content: space-between;
+      color: #7b8795;
+      font-size: 8px;
+    }
+
+    /* Teknik ek */
+    .compact-header { min-height: 22mm; padding-top: 5mm; padding-bottom: 5mm; }
+    .compact-header h1 { font-size: 20px; }
+    .compact-body { height: calc(210mm - 22mm - 9mm); padding-top: 5mm; }
+
+    .appendix-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4mm;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      padding: 5px 7px;
+      color: #5d6877;
+      border-bottom: 1px solid var(--line);
+      background: var(--soft);
+      font-size: 8px;
+      letter-spacing: .045em;
+      text-align: left;
+      text-transform: uppercase;
+    }
+    td { padding: 5px 7px; border-bottom: 1px solid #e7ebf1; font-size: 9px; vertical-align: top; }
+    tbody tr:last-child td { border-bottom: 0; }
+    td.value-cell { font-family: "Cascadia Mono", Consolas, monospace; font-weight: 700; text-align: right; white-space: nowrap; }
+    td.source-cell { color: var(--muted); white-space: nowrap; }
+
+    .object-name { display: flex; align-items: center; gap: 6px; }
+    .mini-swatch { width: 10px; height: 10px; border-radius: 3px; }
+    .hsv-code { font-family: "Cascadia Mono", Consolas, monospace; font-size: 8px; white-space: nowrap; }
+
+    .change-list { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+    .change {
+      min-height: 49px;
+      padding: 7px 9px;
+      border-right: 1px solid var(--line);
+    }
+    .change:last-child { border-right: 0; }
+    .change small { color: var(--muted); font-size: 8px; }
+    .change strong { display: block; margin: 4px 0 2px; font-size: 10px; }
+    .old-value { color: #8a95a3; text-decoration: line-through; }
+    .arrow { padding: 0 5px; color: var(--blue); }
+
+    .approval-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      padding: 10px;
+    }
+    .approval-field { min-height: 34px; padding-top: 18px; color: var(--muted); border-bottom: 1px solid #7d8997; font-size: 8px; text-transform: uppercase; }
+
+    .validity-panel.valid {
+      border-color: #acd9c8;
+      background: var(--green-soft);
+    }
+    .validity-panel.valid .status-seal,
+    .validity-panel.valid .validity-control { border-color: #acd9c8; }
+    .validity-panel.valid .status-seal,
+    .validity-panel.valid .status-copy .eyebrow { color: var(--green); }
+    .validity-panel.valid .status-copy p { color: #356c5a; }
+
+    .validity-panel.invalid {
+      border-color: #edb8bd;
+      background: var(--red-soft);
+    }
+    .validity-panel.invalid .status-seal,
+    .validity-panel.invalid .validity-control { border-color: #edb8bd; }
+    .validity-panel.invalid .status-seal,
+    .validity-panel.invalid .status-copy .eyebrow { color: var(--red); }
+    .validity-panel.invalid .status-copy p { color: #873a41; }
+
+    @media (max-width: 1150px) {
+      .document { justify-content: start; overflow-x: auto; }
+      .sheet { transform-origin: top left; }
+    }
+
+    @media print {
+      @page { size: A4 landscape; margin: 0; }
+      html, body { background: #fff; }
+      .prototype-bar { display: none; }
+      .document { display: block; padding: 0; }
+      .sheet { margin: 0; box-shadow: none; page-break-after: always; }
+      .sheet:last-child { page-break-after: auto; }
+      .watermark { color: rgb(20 99 255 / 5%); }
+    }
+  </style>
+</head>
+<body>
+  <aside class="prototype-bar" aria-label="Prototip kontrolleri">
+    <div>
+      <strong>Tasarım prototipi — üretim raporu değildir</strong>
+      <small>Durumları deneyin, sonra yazdırma önizlemesini kontrol edin.</small>
+    </div>
+    <div class="prototype-actions">
+      <button type="button" data-state="valid">Geçerli görünümü</button>
+      <button type="button" class="active" data-state="review">Kontrol bekliyor</button>
+      <button type="button" data-state="invalid">Geçersiz görünümü</button>
+      <button type="button" class="print-button" onclick="window.print()">Yazdır / PDF önizle</button>
+    </div>
+  </aside>
+
+  <main class="document">
+    <article class="sheet" aria-label="Kalibrasyon raporu özet sayfası">
+      <div class="watermark">ÖRNEK TASARIM</div>
+      <header class="report-header">
+        <div>
+          <div class="brand-line"><span class="brand-mark">ST</span> Startech · MEB Robot</div>
+          <h1>Kalibrasyon raporu <span>/ hızlı özet</span></h1>
+        </div>
+        <dl class="header-meta">
+          <dt>Kalibrasyon özeti</dt><dd class="mono">5ad845</dd>
+          <dt>Oluşturulma</dt><dd>11 Ağustos 2026 · 23:19</dd>
+          <dt>Araç sürümü</dt><dd class="mono">kalibrasyon-arac 0.1</dd>
+          <dt>Sayfa</dt><dd>1 / 2</dd>
+        </dl>
+      </header>
+
+      <div class="page-body">
+        <section class="validity-panel" id="validityPanel">
+          <div class="status-seal">
+            <span class="icon" id="statusIcon">!</span>
+            <strong id="statusShort">KONTROL</strong>
+          </div>
+          <div class="status-copy">
+            <span class="eyebrow" id="statusEyebrow">İnsan incelemesi gerekiyor</span>
+            <h2 id="statusTitle">Kalibrasyon henüz kullanıma alınmadı</h2>
+            <p id="statusDescription">Teknik değerler oluşturuldu; kontrol eden kişi ve imza alanları tamamlanmadı.</p>
+          </div>
+          <div class="validity-control">
+            <label class="checkbox-line">
+              <input id="newerVersion" type="checkbox">
+              <span>Daha yeni sürüm var — bu kalibrasyon geçersiz</span>
+            </label>
+            <div class="signature-line">
+              <span>Kontrol eden</span>
+              <span>İmza</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="overview-grid">
+          <div class="stack">
+            <section class="panel">
+              <div class="panel-heading">
+                <h3>01 · Kamera ve perspektif</h3>
+                <span class="badge measured">Ölçüldü</span>
+              </div>
+              <div class="camera-perspective">
+                <div class="key-values">
+                  <dl>
+                    <dt>Görüntü çözünürlüğü</dt><dd>800 × 680 px</dd>
+                    <dt>BGR çıkışı</dt><dd>Hayır</dd>
+                    <dt>180° döndürme</dt><dd>Hayır</dd>
+                    <dt>Ölçüm çözünürlüğü</dt><dd>800 × 680 px</dd>
+                    <dt>ROI üst oranı</dt><dd>0.55</dd>
+                  </dl>
+                  <div class="note-box" style="margin-top:9px">
+                    <strong>Bilgi</strong>
+                    <span>Perspektif noktalarının sırası çizimde ve koordinatlarda birlikte gösterilir.</span>
+                  </div>
+                </div>
+                <figure class="perspective-figure" aria-label="Perspektif köşeleri">
+                  <svg viewBox="0 0 250 150" role="img" aria-label="Kamera çerçevesi içindeki perspektif yamuğu">
+                    <defs>
+                      <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#dfe7f3"/>
+                        <stop offset="1" stop-color="#b9c8dc"/>
+                      </linearGradient>
+                    </defs>
+                    <rect x="2" y="2" width="246" height="146" rx="7" fill="#fff" stroke="#aeb9c7"/>
+                    <rect x="3" y="3" width="244" height="74" rx="6" fill="#edf2f8"/>
+                    <polygon points="74,65 175,65 224,132 27,132" fill="url(#road)" stroke="#1463ff" stroke-width="2.5"/>
+                    <line x1="124" y1="65" x2="124" y2="132" stroke="#fff" stroke-width="3" stroke-dasharray="10 8"/>
+                    <g fill="#1463ff" stroke="#fff" stroke-width="2">
+                      <circle cx="74" cy="65" r="5"/><circle cx="175" cy="65" r="5"/>
+                      <circle cx="27" cy="132" r="5"/><circle cx="224" cy="132" r="5"/>
+                    </g>
+                    <g fill="#536174" font-size="8" font-family="Segoe UI, Arial">
+                      <text x="61" y="55">sol üst</text><text x="164" y="55">sağ üst</text>
+                      <text x="10" y="145">sol alt</text><text x="209" y="145">sağ alt</text>
+                    </g>
+                  </svg>
+                  <figcaption class="perspective-notes">
+                    <div class="coordinate"><b>Sol üst</b><span class="mono">160, 300</span></div>
+                    <div class="coordinate"><b>Sağ üst</b><span class="mono">480, 300</span></div>
+                    <div class="coordinate"><b>Sol alt</b><span class="mono">0, 480</span></div>
+                    <div class="coordinate"><b>Sağ alt</b><span class="mono">640, 480</span></div>
+                  </figcaption>
+                </figure>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h3>02 · Şerit — beyaz çizgi</h3>
+                <span class="badge selected">Seçildi</span>
+              </div>
+              <div class="lane-grid">
+                <div class="metric"><div class="label">HSV alt</div><div class="value mono">0 · 0 · 140</div></div>
+                <div class="metric"><div class="label">HSV üst</div><div class="value mono">180 · 80 · 255</div></div>
+                <div class="metric"><div class="label">Minimum sinyal</div><div class="value">200 <span class="unit">px</span></div></div>
+                <div class="metric"><div class="label">Şerit genişliği</div><div class="value">300 <span class="unit">px</span></div></div>
+                <div class="metric"><div class="label">Süreklilik oranı</div><div class="value">0.15</div></div>
+                <div class="metric"><div class="label">CLAHE sınırı</div><div class="value">2.5</div></div>
+                <div class="metric"><div class="label">Kaynak</div><div class="value"><span class="badge selected">Kalibrasyon</span></div></div>
+                <div class="metric"><div class="label">Durum</div><div class="value"><span class="badge review">Pistte doğrula</span></div></div>
+              </div>
+            </section>
+          </div>
+
+          <div class="stack">
+            <section class="panel">
+              <div class="panel-heading">
+                <h3>Kullanıma alma kontrolü</h3>
+                <span class="badge review">2 açık alan</span>
+              </div>
+              <div class="review-list">
+                <div class="review-item"><span class="review-icon">✓</span><div><strong>Şema doğrulaması</strong><small>Alanlar ve veri türleri geçerli</small></div><span class="badge measured">Tamam</span></div>
+                <div class="review-item"><span class="review-icon">✓</span><div><strong>Çözünürlük eşleşmesi</strong><small>Kamera ve ölçüm: 800 × 680</small></div><span class="badge measured">Tamam</span></div>
+                <div class="review-item"><span class="review-icon wait">!</span><div><strong>Gerçek pist ışığı</strong><small>HSV değerleri sahada görülmeli</small></div><span class="badge review">Bekliyor</span></div>
+                <div class="review-item"><span class="review-icon wait">!</span><div><strong>İnsan incelemesi</strong><small>Kontrol eden ve imza boş</small></div><span class="badge review">Bekliyor</span></div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h3>03 · Renkler ve nesneler</h3>
+                <span class="badge selected">6 tanım</span>
+              </div>
+              <div class="colour-list">
+                <div class="colour-card"><span class="swatch orange"></span><div><strong>Turuncu araç</strong><small>H 5–20 · alan ≥ 1500</small></div></div>
+                <div class="colour-card"><span class="swatch yellow"></span><div><strong>Sarı araç</strong><small>H 22–38 · alan ≥ 1500</small></div></div>
+                <div class="colour-card"><span class="swatch red"></span><div><strong>Kırmızı ışık</strong><small>İki HSV bandı · alan ≥ 300</small></div></div>
+                <div class="colour-card"><span class="swatch green"></span><div><strong>Yeşil ışık</strong><small>H 40–90 · alan ≥ 300</small></div></div>
+                <div class="colour-card"><span class="swatch blue"></span><div><strong>Mavi levha</strong><small>H 100–130 · alan ≥ 200</small></div></div>
+                <div class="colour-card"><span class="swatch red"></span><div><strong>Kırmızı park</strong><small>Hedef 300 · tetik 6000</small></div></div>
+              </div>
+            </section>
+
+            <div class="note-box">
+              <strong>Renk uyarısı</strong>
+              <span>Bu örnek kutular yalnız okumayı kolaylaştırır. Ekrandaki veya baskıdaki renk, kameranın göreceği HSV sonucunun kanıtı değildir.</span>
+            </div>
+          </div>
+        </div>
+
+        <footer class="page-footer">
+          <span>Örnek tasarım · Üretim kalibrasyonu olarak kullanmayın</span>
+          <span class="mono">5ad845 · kalibrasyon-arac 0.1</span>
+        </footer>
+      </div>
+    </article>
+
+    <article class="sheet" aria-label="Kalibrasyon raporu teknik ek sayfası">
+      <div class="watermark">ÖRNEK TASARIM</div>
+      <header class="report-header compact-header">
+        <div>
+          <div class="brand-line"><span class="brand-mark">ST</span> Startech · MEB Robot</div>
+          <h1>Kalibrasyon raporu <span>/ teknik ek</span></h1>
+        </div>
+        <dl class="header-meta">
+          <dt>Kalibrasyon özeti</dt><dd class="mono">5ad845</dd>
+          <dt>Sayfa</dt><dd>2 / 2</dd>
+        </dl>
+      </header>
+
+      <div class="page-body compact-body">
+        <div class="appendix-grid">
+          <div class="stack">
+            <section class="panel">
+              <div class="panel-heading"><h3>Kamera ve perspektif değerleri</h3><span class="badge measured">Teknik tablo</span></div>
+              <table>
+                <thead><tr><th>Ayar</th><th style="text-align:right">Değer</th><th>Kaynak</th><th>Durum</th></tr></thead>
+                <tbody>
+                  <tr><td>Kamera çözünürlüğü</td><td class="value-cell">800 × 680 px</td><td class="source-cell">Kalibrasyon</td><td><span class="badge measured">Ölçüldü</span></td></tr>
+                  <tr><td>BGR çıkışı</td><td class="value-cell">Hayır</td><td class="source-cell">Seçim</td><td><span class="badge selected">Seçildi</span></td></tr>
+                  <tr><td>180 derece döndürme</td><td class="value-cell">Hayır</td><td class="source-cell">Seçim</td><td><span class="badge selected">Seçildi</span></td></tr>
+                  <tr><td>Perspektif köşeleri</td><td class="value-cell">(160,300) (480,300)<br>(0,480) (640,480)</td><td class="source-cell">Kalibrasyon</td><td><span class="badge review">Görsel doğrula</span></td></tr>
+                  <tr><td>Ölçüm çözünürlüğü</td><td class="value-cell">800 × 680 px</td><td class="source-cell">Kalibrasyon</td><td><span class="badge measured">Eşleşiyor</span></td></tr>
+                  <tr><td>ROI üst oranı</td><td class="value-cell">0.55</td><td class="source-cell">Seçim</td><td><span class="badge selected">Seçildi</span></td></tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading"><h3>Şerit değerleri</h3><span class="badge review">Sahada doğrula</span></div>
+              <table>
+                <thead><tr><th>Ayar</th><th style="text-align:right">Değer</th><th>Birim</th><th>Kaynak</th></tr></thead>
+                <tbody>
+                  <tr><td>Beyaz HSV alt sınırı</td><td class="value-cell">0 · 0 · 140</td><td>H · S · V</td><td class="source-cell">Kalibrasyon</td></tr>
+                  <tr><td>Beyaz HSV üst sınırı</td><td class="value-cell">180 · 80 · 255</td><td>H · S · V</td><td class="source-cell">Kalibrasyon</td></tr>
+                  <tr><td>Minimum şerit sinyali</td><td class="value-cell">200</td><td>px</td><td class="source-cell">Seçim</td></tr>
+                  <tr><td>Varsayılan şerit genişliği</td><td class="value-cell">300</td><td>px</td><td class="source-cell">Seçim</td></tr>
+                  <tr><td>Süreklilik oranı</td><td class="value-cell">0.15</td><td>oran</td><td class="source-cell">Seçim</td></tr>
+                  <tr><td>CLAHE sınırı</td><td class="value-cell">2.5</td><td>oran</td><td class="source-cell">Seçim</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading"><h3>Önceki sürümle farklar</h3><span class="badge missing">Örnek alan</span></div>
+              <div class="change-list">
+                <div class="change"><small>Kamera çözünürlüğü</small><strong><span class="old-value">640 × 480</span><span class="arrow">→</span>800 × 680</strong><small>Örnek karşılaştırma</small></div>
+                <div class="change"><small>ROI üst oranı</small><strong><span class="old-value">0.50</span><span class="arrow">→</span>0.55</strong><small>Örnek karşılaştırma</small></div>
+                <div class="change"><small>Yeşil alan sınırı</small><strong><span class="old-value">250</span><span class="arrow">→</span>300</strong><small>Örnek karşılaştırma</small></div>
+              </div>
+            </section>
+          </div>
+
+          <div class="stack">
+            <section class="panel">
+              <div class="panel-heading"><h3>Renk ve nesne eşikleri</h3><span class="badge selected">HSV</span></div>
+              <table>
+                <thead><tr><th>Nesne</th><th>Alt HSV</th><th>Üst HSV</th><th style="text-align:right">Alan</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="object-name"><i class="mini-swatch swatch orange"></i>Turuncu araç</span></td><td class="hsv-code">5 140 80</td><td class="hsv-code">20 255 255</td><td class="value-cell">≥ 1500</td></tr>
+                  <tr><td><span class="object-name"><i class="mini-swatch swatch yellow"></i>Sarı araç</span></td><td class="hsv-code">22 100 80</td><td class="hsv-code">38 255 255</td><td class="value-cell">≥ 1500</td></tr>
+                  <tr><td><span class="object-name"><i class="mini-swatch swatch red"></i>Kırmızı ışık</span></td><td class="hsv-code">0 120 80<br>160 120 80</td><td class="hsv-code">10 255 255<br>180 255 255</td><td class="value-cell">≥ 300</td></tr>
+                  <tr><td><span class="object-name"><i class="mini-swatch swatch green"></i>Yeşil ışık</span></td><td class="hsv-code">40 80 60</td><td class="hsv-code">90 255 255</td><td class="value-cell">≥ 300</td></tr>
+                  <tr><td><span class="object-name"><i class="mini-swatch swatch blue"></i>Mavi levha</span></td><td class="hsv-code">100 120 80</td><td class="hsv-code">130 255 255</td><td class="value-cell">≥ 200</td></tr>
+                  <tr><td><span class="object-name"><i class="mini-swatch swatch red"></i>Kırmızı park</span></td><td class="hsv-code">0 120 80<br>160 120 80</td><td class="hsv-code">10 255 255<br>180 255 255</td><td class="value-cell">hedef 300<br>tetik 6000</td></tr>
+                </tbody>
+              </table>
+              <div class="note-box" style="margin:8px">
+                <strong>Ayrım</strong>
+                <span>Turuncu üst H 20 ile sarı alt H 22 arasında iki birimlik boşluk bulunuyor.</span>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading"><h3>Kaynak ve izlenebilirlik</h3><span class="badge measured">Kimlik</span></div>
+              <table>
+                <tbody>
+                  <tr><td>Oluşturan</td><td class="value-cell">kalibrasyon-arac 0.1</td></tr>
+                  <tr><td>Oluşturulma zamanı</td><td class="value-cell">2026-08-11T23:19:20+03:00</td></tr>
+                  <tr><td>Kısa özet</td><td class="value-cell">5ad845</td></tr>
+                  <tr><td>Kaynak dosya</td><td class="value-cell">kalibrasyon.json</td></tr>
+                  <tr><td>Rapor türü</td><td class="value-cell">Tasarım prototipi</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading"><h3>İnsan incelemesi</h3><span class="badge review">Zorunlu</span></div>
+              <div class="approval-grid">
+                <div class="approval-field">Kontrol eden</div>
+                <div class="approval-field">Tarih</div>
+                <div class="approval-field">İmza</div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <footer class="page-footer">
+          <span>Renk örnekleri açıklayıcıdır; fiziksel kamera doğrulamasının yerine geçmez.</span>
+          <span class="mono">5ad845 · teknik ek</span>
+        </footer>
+      </div>
+    </article>
+  </main>
+
+  <script>
+    const panel = document.getElementById('validityPanel');
+    const newerVersion = document.getElementById('newerVersion');
+    const stateButtons = document.querySelectorAll('[data-state]');
+
+    const states = {
+      valid: {
+        icon: '✓', short: 'GEÇERLİ', eyebrow: 'İnsan incelemesi tamamlandı',
+        title: 'Kalibrasyon kullanıma hazır',
+        description: 'Şema, fiziksel kontroller ve imza tamamlandı.'
+      },
+      review: {
+        icon: '!', short: 'KONTROL', eyebrow: 'İnsan incelemesi gerekiyor',
+        title: 'Kalibrasyon henüz kullanıma alınmadı',
+        description: 'Teknik değerler oluşturuldu; kontrol eden kişi ve imza alanları tamamlanmadı.'
+      },
+      invalid: {
+        icon: '×', short: 'GEÇERSİZ', eyebrow: 'Daha yeni sürüm bulunuyor',
+        title: 'Bu kalibrasyonu araçta kullanmayın',
+        description: 'Yeni kalibrasyonun özeti ve imzası doğrulanmadan bu sürüm araca aktarılmamalı.'
+      }
+    };
+
+    function setState(name, syncCheckbox = true) {
+      const state = states[name];
+      panel.className = `validity-panel ${name}`;
+      document.getElementById('statusIcon').textContent = state.icon;
+      document.getElementById('statusShort').textContent = state.short;
+      document.getElementById('statusEyebrow').textContent = state.eyebrow;
+      document.getElementById('statusTitle').textContent = state.title;
+      document.getElementById('statusDescription').textContent = state.description;
+      stateButtons.forEach(button => button.classList.toggle('active', button.dataset.state === name));
+      if (syncCheckbox) newerVersion.checked = name === 'invalid';
+    }
+
+    stateButtons.forEach(button => {
+      button.addEventListener('click', () => setState(button.dataset.state));
+    });
+
+    newerVersion.addEventListener('change', () => {
+      setState(newerVersion.checked ? 'invalid' : 'review', false);
+    });
+  </script>
+</body>
+</html>

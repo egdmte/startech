@@ -129,6 +129,14 @@ Do you approve? If you have questions, ask now.
 Approval covers only the stated scope. New features, newly discovered design decisions,
 or connected functional bugs require a separate plan and approval.
 
+Standalone prototype and example artifacts requested by US are an exception. HTML, PDF,
+DOCX, and similar files made only for design review may be created or revised without a
+plan or separate approval when no operational application reads, serves, imports, or
+depends on them. Keep them clearly identified as prototypes or examples. If an artifact
+replaces a production document, is included in an application's normal output or workflow,
+changes configuration or calibration, or otherwise directly affects the working environment,
+the normal plan and approval requirement still applies.
+
 ## 6. Scope discipline
 
 Do not add features without US knowing about them. A feature that seems necessary must
