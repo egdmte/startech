@@ -183,7 +183,7 @@
       display: grid;
       grid-template-columns: 34mm 1fr 84mm;
       align-items: stretch;
-      min-height: 34mm;
+      min-height: 30mm;
       margin-bottom: 4mm;
       overflow: hidden;
       border: 1px solid #eed59d;
@@ -282,7 +282,7 @@
       gap: 4mm;
     }
 
-    .stack { display: grid; gap: 3mm; }
+    .stack { display: grid; gap: 2mm; }
 
     .panel {
       overflow: hidden;
@@ -295,7 +295,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      min-height: 28px;
+      min-height: 26px;
       padding: 5px 9px;
       border-bottom: 1px solid var(--line);
       background: var(--soft);
@@ -324,7 +324,7 @@
     .camera-perspective {
       display: grid;
       grid-template-columns: .88fr 1.12fr;
-      min-height: 59mm;
+      min-height: 50mm;
     }
 
     .key-values { padding: 8px 10px; border-right: 1px solid var(--line); }
@@ -353,7 +353,7 @@
     }
 
     .metric {
-      min-height: 43px;
+      min-height: 38px;
       padding: 7px 9px;
       border-right: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
@@ -397,7 +397,7 @@
       grid-template-columns: 22px 1fr;
       align-items: center;
       gap: 7px;
-      min-height: 34px;
+      min-height: 31px;
       padding: 5px 6px;
       border: 1px solid var(--line);
       border-radius: 6px;
@@ -511,6 +511,95 @@
       border: 1px solid #7d8997;
       border-radius: 5px;
     }
+
+    .race-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4mm;
+    }
+
+    .check-list { display: grid; }
+
+    .check-row {
+      display: grid;
+      grid-template-columns: 15px 1fr;
+      align-items: center;
+      gap: 7px;
+      min-height: 27px;
+      padding: 4px 8px;
+      border-bottom: 1px solid #e7ebf1;
+      font-size: 9px;
+    }
+
+    .check-row:last-child { border-bottom: 0; }
+
+    .paper-checkbox {
+      width: 13px;
+      height: 13px;
+      border: 1px solid #687587;
+      background: #fff;
+    }
+
+    .tour-fields {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 9px;
+      padding: 8px 10px 10px;
+    }
+
+    .write-field {
+      min-height: 31px;
+      padding-top: 2px;
+      color: var(--muted);
+      border-bottom: 1px solid #7d8997;
+      font-size: 8px;
+      text-transform: uppercase;
+    }
+
+    .stop-box {
+      padding: 9px 11px;
+      color: #69252c;
+      border: 1px solid #efb7bc;
+      border-left: 5px solid var(--red);
+      border-radius: 8px;
+      background: var(--red-soft);
+    }
+
+    .stop-box h3 { margin: 0 0 6px; color: var(--red); font-size: 11px; }
+    .stop-box ol { display: grid; gap: 3px; margin: 0; padding-left: 17px; font-size: 8px; }
+
+    .identity-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--amber-soft);
+    }
+
+    .identity-strip small { display: block; color: var(--muted); font-size: 7px; text-transform: uppercase; }
+    .identity-strip strong { display: block; margin-top: 3px; font-size: 9px; }
+
+    .decision-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 8px 10px 2px;
+    }
+
+    .decision-option {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 29px;
+      padding: 6px 8px;
+      border: 1px solid #b9c4d1;
+      border-radius: 6px;
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .decision-option.go { color: var(--green); border-color: #a8d7c6; background: var(--green-soft); }
+    .decision-option.stop { color: var(--red); border-color: #edb8bd; background: var(--red-soft); }
 
     .validity-panel.valid {
       border-color: #acd9c8;
@@ -675,6 +764,19 @@
                 <div class="metric"><div class="label">Durum</div><div class="value"><span class="badge review">Pistte doğrula</span></div></div>
               </div>
             </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h3>04 · Motor ölçümleri</h3>
+                <span class="badge missing">Ölçülmedi</span>
+              </div>
+              <div class="lane-grid">
+                <div class="metric"><div class="label">Kamera tarafı trim</div><div class="value mono">1.0 / 1.0</div></div>
+                <div class="metric"><div class="label">Pil tarafı trim</div><div class="value mono">1.0 / 1.0</div></div>
+                <div class="metric"><div class="label">Ölü bölge altı</div><div class="value">30 <span class="unit">% PWM</span></div></div>
+                <div class="metric"><div class="label">Ölçüm kaydı</div><div class="value"><span class="badge missing">Yok</span></div></div>
+              </div>
+            </section>
           </div>
 
           <div class="stack">
@@ -697,19 +799,28 @@
                 <span class="badge selected">6 tanım</span>
               </div>
               <div class="colour-list">
-                <div class="colour-card"><span class="swatch orange"></span><div><strong>Turuncu araç</strong><small>H 5–20 · alan ≥ 1500</small></div></div>
-                <div class="colour-card"><span class="swatch yellow"></span><div><strong>Sarı araç</strong><small>H 22–38 · alan ≥ 1500</small></div></div>
-                <div class="colour-card"><span class="swatch red"></span><div><strong>Kırmızı ışık</strong><small>İki HSV bandı · alan ≥ 300</small></div></div>
-                <div class="colour-card"><span class="swatch green"></span><div><strong>Yeşil ışık</strong><small>H 40–90 · alan ≥ 300</small></div></div>
-                <div class="colour-card"><span class="swatch blue"></span><div><strong>Mavi levha</strong><small>H 100–130 · alan ≥ 200</small></div></div>
-                <div class="colour-card"><span class="swatch red"></span><div><strong>Kırmızı park</strong><small>Hedef 300 · tetik 6000</small></div></div>
+                <div class="colour-card"><span class="swatch orange"></span><div><strong>Turuncu araç</strong><small>5 140 80 → 20 255 255 · ≥1500</small></div></div>
+                <div class="colour-card"><span class="swatch yellow"></span><div><strong>Sarı araç</strong><small>22 100 80 → 38 255 255 · ≥1500</small></div></div>
+                <div class="colour-card"><span class="swatch red"></span><div><strong>Kırmızı ışık</strong><small>İki HSV bandı · ≥300</small></div></div>
+                <div class="colour-card"><span class="swatch green"></span><div><strong>Yeşil ışık</strong><small>40 80 60 → 90 255 255 · ≥300</small></div></div>
+                <div class="colour-card"><span class="swatch blue"></span><div><strong>Mavi levha</strong><small>100 120 80 → 130 255 255 · ≥200</small></div></div>
+                <div class="colour-card"><span class="swatch red"></span><div><strong>Kırmızı park</strong><small>İki HSV bandı · hedef 300 / tetik 6000</small></div></div>
               </div>
             </section>
 
-            <div class="note-box">
-              <strong>Renk uyarısı</strong>
-              <span>Bu örnek kutular yalnız okumayı kolaylaştırır. Ekrandaki veya baskıdaki renk, kameranın göreceği HSV sonucunun kanıtı değildir.</span>
-            </div>
+            <section class="panel">
+              <div class="panel-heading">
+                <h3>05 · Seçilen sürüş ayarları</h3>
+                <span class="badge selected">ayarlar.json</span>
+              </div>
+              <div class="lane-grid">
+                <div class="metric"><div class="label">KP / KI / KD</div><div class="value mono">0.58 / 0.2 / 0.6</div></div>
+                <div class="metric"><div class="label">İntegral / türev sınırı</div><div class="value mono">50 / 150</div></div>
+                <div class="metric"><div class="label">Hız min / hedef / max</div><div class="value mono">25 / 50 / 57</div></div>
+                <div class="metric"><div class="label">Viraj / yakın ROI</div><div class="value mono">0.45 / 0.75</div></div>
+              </div>
+            </section>
+
           </div>
         </div>
 
@@ -725,7 +836,7 @@
       <header class="report-header compact-header">
         <div>
           <div class="brand-line"><span class="brand-mark">ST</span> Startech · MEB Robot</div>
-          <h1>Kalibrasyon raporu <span>/ teknik ek</span></h1>
+          <h1>Yarış öncesi <span>/ çalışma kâğıdı</span></h1>
         </div>
         <dl class="header-meta">
           <dt>Kalibrasyon özeti</dt><dd class="mono">5ad845</dd>
@@ -734,96 +845,101 @@
       </header>
 
       <div class="page-body compact-body">
-        <div class="appendix-grid">
+        <div class="race-grid">
           <div class="stack">
             <section class="panel">
-              <div class="panel-heading"><h3>Kamera ve perspektif değerleri</h3><span class="badge measured">Teknik tablo</span></div>
-              <table>
-                <thead><tr><th>Ayar</th><th style="text-align:right">Değer</th><th>Kaynak</th><th>Durum</th></tr></thead>
-                <tbody>
-                  <tr><td>Kamera çözünürlüğü</td><td class="value-cell">800 × 680 px</td><td class="source-cell">Kalibrasyon</td><td><span class="badge measured">Ölçüldü</span></td></tr>
-                  <tr><td>BGR çıkışı</td><td class="value-cell">Hayır</td><td class="source-cell">Seçim</td><td><span class="badge selected">Seçildi</span></td></tr>
-                  <tr><td>180 derece döndürme</td><td class="value-cell">Hayır</td><td class="source-cell">Seçim</td><td><span class="badge selected">Seçildi</span></td></tr>
-                  <tr><td>Perspektif köşeleri</td><td class="value-cell">(160,300) (480,300)<br>(0,480) (640,480)</td><td class="source-cell">Kalibrasyon</td><td><span class="badge review">Görsel doğrula</span></td></tr>
-                  <tr><td>Ölçüm çözünürlüğü</td><td class="value-cell">800 × 680 px</td><td class="source-cell">Kalibrasyon</td><td><span class="badge measured">Eşleşiyor</span></td></tr>
-                  <tr><td>ROI üst oranı</td><td class="value-cell">0.55</td><td class="source-cell">Seçim</td><td><span class="badge selected">Seçildi</span></td></tr>
-                </tbody>
-              </table>
+              <div class="panel-heading"><h3>A · Yarışma kuralları</h3><span class="badge review">İnsan kontrolü</span></div>
+              <div class="check-list">
+                <div class="check-row"><span class="paper-checkbox"></span><span>Ölçüler ve tekerler kurala uygun.</span></div>
+                <div class="check-row"><span class="paper-checkbox"></span><span>Kamera dışında yasak sensör veya modül yok.</span></div>
+                <div class="check-row"><span class="paper-checkbox"></span><span>Radyo ve haberleşme kapalı.</span></div>
+                <div class="check-row"><span class="paper-checkbox"></span><span>QR kod sabit ve sağlam.</span></div>
+              </div>
             </section>
 
             <section class="panel">
-              <div class="panel-heading"><h3>Şerit değerleri</h3><span class="badge review">Sahada doğrula</span></div>
-              <table>
-                <thead><tr><th>Ayar</th><th style="text-align:right">Değer</th><th>Birim</th><th>Kaynak</th></tr></thead>
-                <tbody>
-                  <tr><td>Beyaz HSV alt sınırı</td><td class="value-cell">0 · 0 · 140</td><td>H · S · V</td><td class="source-cell">Kalibrasyon</td></tr>
-                  <tr><td>Beyaz HSV üst sınırı</td><td class="value-cell">180 · 80 · 255</td><td>H · S · V</td><td class="source-cell">Kalibrasyon</td></tr>
-                  <tr><td>Minimum şerit sinyali</td><td class="value-cell">200</td><td>px</td><td class="source-cell">Seçim</td></tr>
-                  <tr><td>Varsayılan şerit genişliği</td><td class="value-cell">300</td><td>px</td><td class="source-cell">Seçim</td></tr>
-                  <tr><td>Süreklilik oranı</td><td class="value-cell">0.15</td><td>oran</td><td class="source-cell">Seçim</td></tr>
-                  <tr><td>CLAHE sınırı</td><td class="value-cell">2.5</td><td>oran</td><td class="source-cell">Seçim</td></tr>
-                </tbody>
-              </table>
+              <div class="panel-heading"><h3>B · Fiziksel araç ve güç</h3><span class="badge review">İnsan kontrolü</span></div>
+              <div class="check-list">
+                <div class="check-row"><span class="paper-checkbox"></span><span>Gövde gevşek değil.</span></div>
+                <div class="check-row"><span class="paper-checkbox"></span><span>Kamera montajı ve açısı sabit.</span></div>
+                <div class="check-row"><span class="paper-checkbox"></span><span>Motor ve Raspberry Pi pilleri dolu.</span></div>
+                <div class="check-row"><span class="paper-checkbox"></span><span>Güç anahtarları ulaşılabilir.</span></div>
+              </div>
             </section>
 
             <section class="panel">
-              <div class="panel-heading"><h3>Önceki sürümle farklar</h3><span class="badge missing">Örnek alan</span></div>
-              <div class="change-list">
-                <div class="change"><small>Kamera çözünürlüğü</small><strong><span class="old-value">640 × 480</span><span class="arrow">→</span>800 × 680</strong><small>Örnek karşılaştırma</small></div>
-                <div class="change"><small>ROI üst oranı</small><strong><span class="old-value">0.50</span><span class="arrow">→</span>0.55</strong><small>Örnek karşılaştırma</small></div>
-                <div class="change"><small>Yeşil alan sınırı</small><strong><span class="old-value">250</span><span class="arrow">→</span>300</strong><small>Örnek karşılaştırma</small></div>
+              <div class="panel-heading"><h3>C · Yazılım ve kalibrasyon</h3><span class="badge review">İnsan kontrolü</span></div>
+              <div class="check-list">
+                <div class="check-row"><span class="paper-checkbox"></span><span>Doğru Git commit’i ve aynı damgaya ait iki JSON kullanılıyor.</span></div>
+                <div class="check-row"><span class="paper-checkbox"></span><span>Kamera gerçek görüntü karesi üretiyor.</span></div>
+                <div class="check-row"><span class="paper-checkbox"></span><span>Kalibrasyon çözünürlüğü gerçek kamerayla aynı.</span></div>
+                <div class="check-row"><span class="paper-checkbox"></span><span>Motorlar hazır durumunda kapalı.</span></div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading"><h3>D · İnsan görevi</h3><span class="badge review">İki öğrenci</span></div>
+              <div class="check-list">
+                <div class="check-row"><span class="paper-checkbox"></span><span>Durum LED’i ve buzzer doğru anlamı veriyor.</span></div>
+                <div class="check-row"><span class="paper-checkbox"></span><span>İki öğrenci görevini ve fiziksel durdurmayı biliyor.</span></div>
               </div>
             </section>
           </div>
 
           <div class="stack">
             <section class="panel">
-              <div class="panel-heading"><h3>Renk ve nesne eşikleri</h3><span class="badge selected">HSV</span></div>
-              <table>
-                <thead><tr><th>Nesne</th><th>Alt HSV</th><th>Üst HSV</th><th style="text-align:right">Alan</th></tr></thead>
-                <tbody>
-                  <tr><td><span class="object-name"><i class="mini-swatch swatch orange"></i>Turuncu araç</span></td><td class="hsv-code">5 140 80</td><td class="hsv-code">20 255 255</td><td class="value-cell">≥ 1500</td></tr>
-                  <tr><td><span class="object-name"><i class="mini-swatch swatch yellow"></i>Sarı araç</span></td><td class="hsv-code">22 100 80</td><td class="hsv-code">38 255 255</td><td class="value-cell">≥ 1500</td></tr>
-                  <tr><td><span class="object-name"><i class="mini-swatch swatch red"></i>Kırmızı ışık</span></td><td class="hsv-code">0 120 80<br>160 120 80</td><td class="hsv-code">10 255 255<br>180 255 255</td><td class="value-cell">≥ 300</td></tr>
-                  <tr><td><span class="object-name"><i class="mini-swatch swatch green"></i>Yeşil ışık</span></td><td class="hsv-code">40 80 60</td><td class="hsv-code">90 255 255</td><td class="value-cell">≥ 300</td></tr>
-                  <tr><td><span class="object-name"><i class="mini-swatch swatch blue"></i>Mavi levha</span></td><td class="hsv-code">100 120 80</td><td class="hsv-code">130 255 255</td><td class="value-cell">≥ 200</td></tr>
-                  <tr><td><span class="object-name"><i class="mini-swatch swatch red"></i>Kırmızı park</span></td><td class="hsv-code">0 120 80<br>160 120 80</td><td class="hsv-code">10 255 255<br>180 255 255</td><td class="value-cell">hedef 300<br>tetik 6000</td></tr>
-                </tbody>
-              </table>
-              <div class="note-box" style="margin:8px">
-                <strong>Ayrım</strong>
-                <span>Turuncu üst H 20 ile sarı alt H 22 arasında iki birimlik boşluk bulunuyor.</span>
+              <div class="panel-heading"><h3>Tur / deneme bilgileri</h3><span class="badge review">El ile doldurulur</span></div>
+              <div class="tour-fields">
+                <div class="write-field">Tur / deneme</div>
+                <div class="write-field">Tarih · saat</div>
+                <div class="write-field">Sürücü</div>
+                <div class="write-field">Gözlemci</div>
               </div>
             </section>
 
+            <aside class="stop-box">
+              <h3>Fiziksel durdurma — araç hareketliyse</h3>
+              <ol>
+                <li>Yazılım tepki veriyorsa önce CTRL+C kullan.</li>
+                <li>Motorlar durmuyorsa aracı güvenli biçimde alttan tutup kaldır.</li>
+                <li>Üçlü pil yatağının yanındaki motor anahtarını O konumuna getir.</li>
+                <li>Raspberry Pi için ikili pil yatağının anahtarını kullan.</li>
+                <li>Ani Pi güç kesmesi SD kartı bozabilir; fiziksel tehlikede motoru durdurmak önce gelir.</li>
+              </ol>
+            </aside>
+
             <section class="panel">
-              <div class="panel-heading"><h3>Kaynak ve izlenebilirlik</h3><span class="badge measured">Kimlik</span></div>
-              <table>
-                <tbody>
-                  <tr><td>Oluşturan</td><td class="value-cell">kalibrasyon-arac 0.1</td></tr>
-                  <tr><td>Oluşturulma zamanı</td><td class="value-cell">2026-08-11T23:19:20+03:00</td></tr>
-                  <tr><td>Kısa özet</td><td class="value-cell">5ad845</td></tr>
-                  <tr><td>Kaynak dosya</td><td class="value-cell">kalibrasyon.json</td></tr>
-                  <tr><td>Rapor türü</td><td class="value-cell">Tasarım prototipi</td></tr>
-                </tbody>
-              </table>
+              <div class="panel-heading"><h3>Bu turda kullanılan kalibrasyon</h3><span class="badge measured">Kimlik</span></div>
+              <div class="identity-strip">
+                <div><small>Zaman</small><strong>2026-08-11 23:19</strong></div>
+                <div><small>Kısa özet</small><strong class="mono">5ad845</strong></div>
+                <div><small>Oluşturan</small><strong>kalibrasyon-arac 0.1</strong></div>
+              </div>
+              <div class="note-box" style="margin:8px"><strong>Not</strong><span>Bu kimlik, dosyanın araçta yüklü olduğunu tek başına kanıtlamaz.</span></div>
             </section>
 
             <section class="panel">
-              <div class="panel-heading"><h3>İnsan incelemesi</h3><span class="badge review">Zorunlu</span></div>
-              <p class="approval-note">Bu bölüm PDF çıktısı alındıktan sonra kalemle doldurulur.</p>
+              <div class="panel-heading"><h3>Son insan kararı</h3><span class="badge review">Zorunlu</span></div>
+              <div class="decision-options">
+                <div class="decision-option go"><span class="paper-checkbox"></span>Tura çıkabilir</div>
+                <div class="decision-option stop"><span class="paper-checkbox"></span>Dur — eksik var</div>
+              </div>
+              <p class="approval-note">Kutulardan yalnız biri işaretlenir. Eksik varsa araç hareket ettirilmez.</p>
               <div class="approval-grid">
-                <div class="approval-field"><span>Kontrol eden · el yazısı</span><div class="approval-write-area" aria-hidden="true"></div></div>
-                <div class="approval-field"><span>Tarih · el yazısı</span><div class="approval-write-area" aria-hidden="true"></div></div>
-                <div class="approval-field"><span>Islak imza</span><div class="approval-write-area signature" aria-hidden="true"></div></div>
+                <div class="approval-field"><span>1. kontrol eden</span><div class="approval-write-area" aria-hidden="true"></div></div>
+                <div class="approval-field"><span>Tarih</span><div class="approval-write-area" aria-hidden="true"></div></div>
+                <div class="approval-field"><span>1. ıslak imza</span><div class="approval-write-area signature" aria-hidden="true"></div></div>
+                <div class="approval-field"><span>2. kontrol eden</span><div class="approval-write-area" aria-hidden="true"></div></div>
+                <div class="approval-field"><span>Tarih</span><div class="approval-write-area" aria-hidden="true"></div></div>
+                <div class="approval-field"><span>2. ıslak imza</span><div class="approval-write-area signature" aria-hidden="true"></div></div>
               </div>
             </section>
           </div>
         </div>
 
         <footer class="page-footer">
-          <span>Renk örnekleri açıklayıcıdır; fiziksel kamera doğrulamasının yerine geçmez.</span>
-          <span class="mono">5ad845 · teknik ek</span>
+          <span>Kutular ve imzalar insanlar tarafından doldurulur.</span>
+          <span class="mono">5ad845 · yarış öncesi çalışma kâğıdı</span>
         </footer>
       </div>
     </article>
