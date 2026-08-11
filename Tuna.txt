@@ -250,3 +250,5 @@ August 05, 2026: So the job is not "take more photos". It is "take photos throug
 August 11, 2026: Added an isolated Arduino Uno RGB LED and passive-buzzer demo for comparing possible car-state notifications. It has a Serial Monitor menu, a non-blocking automatic tour, direct colour tests and a hardware self-test. It does not control motors, connect to the Raspberry Pi, define the final notification plan or remember an old mode after restart.
 
 August 11, 2026: Added a standalone two-page HTML prototype for a clearer calibration report. It separates the quick validity summary from the technical appendix and is marked as example-only; the production PDF generator and calibration data were not changed. AGENTS_READ_ME.txt now allows requested standalone HTML/PDF/DOCX design prototypes without a separate plan when the operational application does not use them.
+
+August 11, 2026: Corrected the report prototype's review area for paper use. The reviewer name and date are now explicitly handwritten fields, and the wet-signature areas are larger empty boxes instead of narrow lines. The production PDF generator remains unchanged.

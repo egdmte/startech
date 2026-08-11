@@ -181,9 +181,9 @@
 
     .validity-panel {
       display: grid;
-      grid-template-columns: 34mm 1fr 72mm;
+      grid-template-columns: 34mm 1fr 84mm;
       align-items: stretch;
-      min-height: 28mm;
+      min-height: 34mm;
       margin-bottom: 4mm;
       overflow: hidden;
       border: 1px solid #eed59d;
@@ -236,7 +236,8 @@
 
     .validity-control {
       display: grid;
-      align-content: center;
+      grid-template-rows: auto 1fr;
+      align-content: stretch;
       gap: 6px;
       padding: 8px 12px;
       border-left: 1px solid #eed59d;
@@ -246,19 +247,33 @@
     .checkbox-line { display: flex; align-items: flex-start; gap: 7px; font-size: 10px; font-weight: 700; }
     .checkbox-line input { margin-top: 1px; accent-color: var(--red); }
 
-    .signature-line {
+    .signature-hand {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: .9fr 1.1fr;
       gap: 8px;
       color: var(--muted);
       font-size: 8px;
       text-transform: uppercase;
     }
 
-    .signature-line span {
-      min-height: 16px;
-      padding-top: 5px;
+    .signature-slot {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 4px;
+    }
+
+    .signature-slot > span { white-space: nowrap; }
+
+    .handwriting-line {
+      min-height: 25px;
       border-bottom: 1px solid #8d98a6;
+    }
+
+    .hand-signature-box {
+      min-height: 31px;
+      border: 1px solid #8d98a6;
+      border-radius: 4px;
+      background: rgb(255 255 255 / 42%);
     }
 
     .overview-grid {
@@ -465,11 +480,37 @@
 
     .approval-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr .55fr 1.45fr;
       gap: 10px;
-      padding: 10px;
+      padding: 7px 10px 10px;
     }
-    .approval-field { min-height: 34px; padding-top: 18px; color: var(--muted); border-bottom: 1px solid #7d8997; font-size: 8px; text-transform: uppercase; }
+
+    .approval-note {
+      margin: 7px 10px 0;
+      color: var(--muted);
+      font-size: 8px;
+    }
+
+    .approval-field {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 4px;
+      min-height: 45px;
+      color: var(--muted);
+      font-size: 8px;
+      text-transform: uppercase;
+    }
+
+    .approval-write-area {
+      min-height: 30px;
+      border-bottom: 1px solid #7d8997;
+    }
+
+    .approval-write-area.signature {
+      min-height: 42px;
+      border: 1px solid #7d8997;
+      border-radius: 5px;
+    }
 
     .validity-panel.valid {
       border-color: #acd9c8;
@@ -553,9 +594,15 @@
               <input id="newerVersion" type="checkbox">
               <span>Daha yeni sürüm var — bu kalibrasyon geçersiz</span>
             </label>
-            <div class="signature-line">
-              <span>Kontrol eden</span>
-              <span>İmza</span>
+            <div class="signature-hand">
+              <div class="signature-slot">
+                <span>Kontrol eden · el yazısı</span>
+                <div class="handwriting-line" aria-hidden="true"></div>
+              </div>
+              <div class="signature-slot">
+                <span>Islak imza</span>
+                <div class="hand-signature-box" aria-hidden="true"></div>
+              </div>
             </div>
           </div>
         </section>
@@ -764,10 +811,11 @@
 
             <section class="panel">
               <div class="panel-heading"><h3>İnsan incelemesi</h3><span class="badge review">Zorunlu</span></div>
+              <p class="approval-note">Bu bölüm PDF çıktısı alındıktan sonra kalemle doldurulur.</p>
               <div class="approval-grid">
-                <div class="approval-field">Kontrol eden</div>
-                <div class="approval-field">Tarih</div>
-                <div class="approval-field">İmza</div>
+                <div class="approval-field"><span>Kontrol eden · el yazısı</span><div class="approval-write-area" aria-hidden="true"></div></div>
+                <div class="approval-field"><span>Tarih · el yazısı</span><div class="approval-write-area" aria-hidden="true"></div></div>
+                <div class="approval-field"><span>Islak imza</span><div class="approval-write-area signature" aria-hidden="true"></div></div>
               </div>
             </section>
           </div>
