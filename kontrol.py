@@ -9,7 +9,7 @@ Kullanım:
 import os
 import sys
 
-from proje_kontrol import CheckContext, check_names, run_checks
+from startech.project_control import CheckContext, check_names, run_checks
 
 
 # DEĞİŞTİRME YASAĞI BAŞLANGICI

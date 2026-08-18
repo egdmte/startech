@@ -12,7 +12,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 SCHEMA_DIR = PROJECT_ROOT / "config" / "schema"
 
 

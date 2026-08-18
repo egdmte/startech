@@ -6,9 +6,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from proje_kontrol.claims import check_file_names, check_section_references
-from proje_kontrol.measurements import check_measurements
-from proje_kontrol.repository import missing_documents
+from startech.project_control.claims import check_file_names, check_section_references
+from startech.project_control.measurements import check_measurements
+from startech.project_control.repository import missing_documents
 
 
 class ProjectControlTest(unittest.TestCase):

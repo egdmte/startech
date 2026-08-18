@@ -9,7 +9,7 @@ from typing import Any, Callable
 
 from jsonschema import Draft202012Validator
 
-from yapilandirma import (
+from startech.configuration import (
     AYARLAR_SEMASI,
     KALIBRASYON_SEMASI,
     ayarlar_uyarilari,

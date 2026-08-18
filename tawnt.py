@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """3awnt public API.
 
-The implementation is separated by responsibility under ``tawnt_core``. This
+The implementation is separated by responsibility under ``startech.tawnt``. This
 facade keeps the existing ``import tawnt`` contract stable. 3awnt validates
 software declarations and motor commands; it neither writes GPIO/PWM nor proves
 that a physical motor stopped.
 """
 
-from tawnt_core.faults import (
+from startech.tawnt.faults import (
     configureFaultStore,
     declareUnexpectedSigint,
     flushPWM,
@@ -16,7 +16,7 @@ from tawnt_core.faults import (
     onShutdown,
     resetFault,
 )
-from tawnt_core.model import (
+from startech.tawnt.model import (
     ARMED,
     BENCH,
     BOOT,
@@ -39,7 +39,7 @@ from tawnt_core.model import (
     TawntHatasi,
     ValidatedMotorCommand,
 )
-from tawnt_core.motion import (
+from startech.tawnt.motion import (
     arm,
     checkWatchdogs,
     definePhase,
@@ -54,9 +54,9 @@ from tawnt_core.motion import (
     validateMotorCommand,
     validatePhase,
 )
-from tawnt_core.runtime import sifirla
-from tawnt_core.scanner import scanDirectMotorWrites
-from tawnt_core.values import (
+from startech.tawnt.runtime import sifirla
+from startech.tawnt.scanner import scanDirectMotorWrites
+from startech.tawnt.values import (
     IsTwinOf,
     acquire,
     defineValue,

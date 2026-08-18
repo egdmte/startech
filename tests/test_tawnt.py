@@ -11,7 +11,7 @@ import tempfile
 import unittest
 
 import tawnt
-from tawnt_core.runtime import runtime
+from startech.tawnt.runtime import runtime
 
 
 class TawntTestCase(unittest.TestCase):

@@ -1,4 +1,4 @@
-# 3awnt (`tawnt.py` API'si ve `tawnt_core/`) — öğrenci ve geliştirici kılavuzu
+# 3awnt (`tawnt.py` API'si ve `startech/tawnt/`) — öğrenci ve geliştirici kılavuzu
 
 > **Durum (6 Ağustos 2026):** V2 güvenlik çekirdeği kodlandı ve otomatik testleri
 > geçiyor. Henüz aracın gerçek motor/PWM çalışma zincirine bağlı değildir.
@@ -21,7 +21,7 @@ olduğunu söyler; gerçek araç entegrasyonu veya fiziksel güvenlik kanıtı d
 ---
 
 > **Dosya düzeni (18 Ağustos 2026):** `tawnt.py`, eski `import tawnt` kullanımını
-> koruyan küçük ve açık API kapısıdır. Asıl uygulama `tawnt_core/` altında değerler,
+> koruyan küçük ve açık API kapısıdır. Asıl uygulama `startech/tawnt/` altında değerler,
 > hareket, arıza, ortak durum ve statik tarama sorumluluklarına ayrılmıştır. Bu yalnız
 > kod düzenidir; 3awnt hâlâ gerçek `arac/surucu.py` zincirine bağlı değildir.
 
@@ -541,7 +541,7 @@ bu raporu tek başına `KANIT` kabul etmemelidir.
 
 6 Ağustos 2026 itibarıyla:
 
-- `tawnt.py`, `tawnt_core/`, `tests/test_tawnt.py` ve bu kılavuz Git tarafından izlenmektedir.
+- `tawnt.py`, `startech/tawnt/`, `tests/test_tawnt.py` ve bu kılavuz Git tarafından izlenmektedir.
 - V2 çekirdeği ve sahte öğretici ana program toplam 39 otomatik `unittest` davranış
   testiyle doğrulanmaktadır: 34 çekirdek testi + 5 `fake_main.py` testi.
 - Değer yaşam döngüsü, OFFLINE/BENCH/LIVE profilleri, fail-closed arming, evre politikası,
@@ -603,7 +603,7 @@ açan tek yer odur. Defter dolabı fiziksel olarak kilitlemez.
 | Parça | Sorumluluğu | Yapmaması gereken |
 |---|---|---|
 | `tawnt.py` | Kararlı dış API ve geriye uyumlu adlar | Kendi içinde güvenlik durumunu çoğaltmak |
-| `tawnt_core/` | Kritik değer, hareket, arıza, ortak durum ve tarama kuralları | GPIO sürmek veya fiziksel duruş iddia etmek |
+| `startech/tawnt/` | Kritik değer, hareket, arıza, ortak durum ve tarama kuralları | GPIO sürmek veya fiziksel duruş iddia etmek |
 | `ayar.py` | JSON dosyalarını yüklemek, şemayı doğrulamak, 3awnt'a değer vermek | PWM üretmek |
 | `surucu.py` | Motor komutunun tek fiziksel çıkışı, fail-closed kapı | Kontrolü atlayarak doğrudan GPIO vermek |
 | `durum.py` | Aracın durumunu ve izin verilen geçişleri yönetmek | Motor pinlerine doğrudan yazmak |
@@ -1144,7 +1144,7 @@ birlikte kullanılır.
 
 | Dosya | Sorumluluğu |
 |---|---|
-| `tawnt.py` + `tawnt_core/` | Kritik değer, kaynak, ilişki ve genel hareket izni |
+| `tawnt.py` + `startech/tawnt/` | Kritik değer, kaynak, ilişki ve genel hareket izni |
 | `ayar.py` | Değerleri tanıtmak ve JSON'dan kaydetmek |
 | `main.py` | Başlatma doğrulamasını çağırmak |
 | `durum.py` | Güncel evre ve geçiş izinleri |
