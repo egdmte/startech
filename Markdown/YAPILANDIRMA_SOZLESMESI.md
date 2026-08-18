@@ -236,7 +236,7 @@ bir plan, göç yöntemi, araç güncellemesi ve test gerekir.
 Geliştirme bağımlılığı kurulduktan sonra depo kökünde:
 
 ```powershell
-python -m unittest -v config_schema_test.py
+python -m unittest -v tests.test_configuration
 ```
 
 Testler gerçek motorları çalıştırmaz. Geçerli örnekleri yükler, kasıtlı bozuk kopyalar
