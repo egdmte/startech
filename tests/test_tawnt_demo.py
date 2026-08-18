@@ -15,11 +15,12 @@ import unittest
 
 import fake_main
 import tawnt
+from examples import tawnt_demo
 
 
 class FakeMainTest(unittest.TestCase):
     def setUp(self) -> None:
-        importlib.reload(tawnt)
+        tawnt.sifirla()
         importlib.reload(fake_main)
 
     def test_import_hicbir_dosya_ve_hareket_uretmez(self):
@@ -39,23 +40,24 @@ class FakeMainTest(unittest.TestCase):
         self.assertFalse(tawnt.isMotionAllowed())
 
     def test_dosya_donanim_kutuphanesi_ithal_etmez_ve_tum_acik_apiyi_gosterir(self):
-        source_path = Path(fake_main.__file__)
-        tree = ast.parse(source_path.read_text(encoding="utf-8-sig"))
-
         imported_roots = set()
         tawnt_members = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                imported_roots.update(alias.name.split(".")[0] for alias in node.names)
-            elif isinstance(node, ast.ImportFrom) and node.module:
-                imported_roots.add(node.module.split(".")[0])
-            elif (
-                isinstance(node, ast.Attribute)
-                and isinstance(node.value, ast.Name)
-                and node.value.id == "tawnt"
-            ):
-                # Normal çağrıların yanında @tawnt.onShutdown dekoratörünü de sayar.
-                tawnt_members.add(node.attr)
+        source_dir = Path(tawnt_demo.__file__).parent
+        for source_path in source_dir.glob("*.py"):
+            tree = ast.parse(source_path.read_text(encoding="utf-8-sig"))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    imported_roots.update(
+                        alias.name.split(".")[0] for alias in node.names
+                    )
+                elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                    imported_roots.add(node.module.split(".")[0])
+                elif (
+                    isinstance(node, ast.Attribute)
+                    and isinstance(node.value, ast.Name)
+                    and node.value.id == "tawnt"
+                ):
+                    tawnt_members.add(node.attr)
 
         allowed_imports = {
             "__future__", "dataclasses", "json", "pathlib", "tempfile", "tawnt"

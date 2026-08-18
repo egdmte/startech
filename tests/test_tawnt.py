@@ -2,22 +2,25 @@
 
 from __future__ import annotations
 
-import importlib
 import json
 import math
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 
 import tawnt
+from tawnt_core.runtime import runtime
 
 
 class TawntTestCase(unittest.TestCase):
     def setUp(self):
-        self.tawnt = importlib.reload(tawnt)
+        self.tawnt = tawnt
+        self.tawnt.sifirla()
         self.gecici = tempfile.TemporaryDirectory()
         self.temp_path = Path(self.gecici.name)
-        self.tawnt._gunluk_yolu = str(self.temp_path / "guvenlik.log")
+        runtime.gunluk_yolu = str(self.temp_path / "guvenlik.log")
 
     def tearDown(self):
         self.gecici.cleanup()
@@ -123,7 +126,8 @@ class TestV1Uyumlulugu(TawntTestCase):
         with self.assertRaises(t.TawntHatasi):
             t.preacquire(perspektif)
 
-        t = importlib.reload(tawnt)
+        t.sifirla()
+        runtime.gunluk_yolu = str(self.temp_path / "guvenlik.log")
         olu = t.introduce("OLU_BOLGE", min=0, max=100)
         hiz = t.introduce("MIN_HIZ", min=0, max=100)
         t.acquire(olu, 30)
@@ -284,7 +288,7 @@ class TestSistemVeMotorKapisi(TawntTestCase):
             t.ValidatedMotorCommand,
         )
 
-        t._watchdogs[kamera]["last_monotonic"] -= 2.0
+        runtime.watchdogs[kamera]["last_monotonic"] -= 2.0
         with self.assertRaises(t.TawntHatasi):
             t.validateMotorCommand(30, 30, phase="SERIT_TAKIP")
         self.assertEqual(t.LATCHED_FAULT, t.systemState())
@@ -427,13 +431,22 @@ class TestKaliciKilit(TawntTestCase):
         self.tawnt.latchFault("watchdog", "kamera gecikti")
         self.assertTrue(path.exists())
 
-        yeniden = importlib.reload(tawnt)
-        yeniden._gunluk_yolu = str(self.temp_path / "reload.log")
-        yeniden.configureFaultStore(path)
+        script = (
+            "import sys, tawnt; "
+            "tawnt.configureFaultStore(sys.argv[1]); "
+            "print(tawnt.systemState()); "
+            "print(tawnt.isMotionAllowed()); "
+            "print(tawnt.kilitDurumu()['sebep'])"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", script, str(path)],
+            cwd=Path(__file__).resolve().parent.parent,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
-        self.assertEqual(yeniden.LATCHED_FAULT, yeniden.systemState())
-        self.assertFalse(yeniden.isMotionAllowed())
-        self.assertEqual("watchdog", yeniden.kilitDurumu()["sebep"])
+        self.assertEqual(["LATCHED_FAULT", "False", "watchdog"], result.stdout.splitlines())
 
     def test_bozuk_fault_store_fail_closed(self):
         path = self.temp_path / "fault.json"
