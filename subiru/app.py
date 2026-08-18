@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 
 from flask import Flask, redirect, render_template, request, url_for, flash
 
-from owners import OWNERS
-from storage import (
+from .owners import OWNERS
+from .storage import (
     STATUSES,
     create_task,
     load_tasks,
@@ -12,7 +12,7 @@ from storage import (
     update_task,
     find_task,
 )
-import tuna_log
+from . import tuna_log
 
 app = Flask(__name__)
 app.secret_key = "subiru-dev-secret"
@@ -112,7 +112,3 @@ def edit_task(task_id):
 
     other_tasks = [t for t in tasks if t.id != task_id]
     return render_template("task_form.html", task=task, owners=OWNERS, other_tasks=other_tasks)
-
-
-if __name__ == "__main__":
-    app.run(debug=True, port=5057)
