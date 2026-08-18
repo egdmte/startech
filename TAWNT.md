@@ -1,4 +1,4 @@
-# 3awnt (`tawnt.py`) — öğrenci ve geliştirici kılavuzu
+# 3awnt (`tawnt.py` API'si ve `tawnt_core/`) — öğrenci ve geliştirici kılavuzu
 
 > **Durum (6 Ağustos 2026):** V2 güvenlik çekirdeği kodlandı ve otomatik testleri
 > geçiyor. Henüz aracın gerçek motor/PWM çalışma zincirine bağlı değildir.
@@ -14,9 +14,16 @@ Bu belge dört şeyi birbirinden ayırır:
 3. yeni araçta önerilen hibrit kullanım biçimi,
 4. gelecekte eklenebilecek yöntemler.
 
-Bir başlığın altında **ÖNERİ — HENÜZ YOK** yazıyorsa o özellik `tawnt.py` içinde varmış
+Bir başlığın altında **ÖNERİ — HENÜZ YOK** yazıyorsa o özellik 3awnt API'sinde varmış
 gibi davranılamaz. **KÜTÜPHANEDE UYGULANDI** ifadesi ise kodun ve birim testinin var
 olduğunu söyler; gerçek araç entegrasyonu veya fiziksel güvenlik kanıtı değildir.
+
+---
+
+> **Dosya düzeni (18 Ağustos 2026):** `tawnt.py`, eski `import tawnt` kullanımını
+> koruyan küçük ve açık API kapısıdır. Asıl uygulama `tawnt_core/` altında değerler,
+> hareket, arıza, ortak durum ve statik tarama sorumluluklarına ayrılmıştır. Bu yalnız
+> kod düzenidir; 3awnt hâlâ gerçek `arac/surucu.py` zincirine bağlı değildir.
 
 ---
 
@@ -298,14 +305,14 @@ biçimde saklayabilir. Bu yüzden insan incelemesinin yerine geçmez.
 
 ## 2. İsim nereden geliyor?
 
-Sistemin adı `3awnt` olarak anılıyor; Python dosyası `tawnt.py` olmak zorunda, çünkü
+Sistemin adı `3awnt` olarak anılıyor; dış API dosyası `tawnt.py` olmak zorunda, çünkü
 Python modül adı rakamla başlayamaz.
 
 Takımın açılımı **3rd-party Automated Watchdog for Network Threats** biçimindedir.
 Ayrıca ad, “korumak” anlamıyla ilişkilendirilen `защит` yazısının bir yapay zekâ
 tokenleştirme hatasından doğmuştur.
 
-Bu açılım hedeflenen kimliği anlatır; bugünkü `tawnt.py` **ağ trafiğini izlemez**, paket
+Bu açılım hedeflenen kimliği anlatır; bugünkü 3awnt API'si **ağ trafiğini izlemez**, paket
 incelemez ve ağ saldırısı tespit etmez. Şu an kritik değerleri, sistem durumunu, heartbeat'i
 ve motor komutu politikasını denetleyen yerel bir Python güvenlik katmanıdır. İsim bir
 güvenlik sertifikası değildir.
@@ -314,7 +321,7 @@ güvenlik sertifikası değildir.
 
 ## 3. V1 uyumluluk yöntemleri
 
-Bu bölüm, mevcut `tawnt.py` dosyasının davranışını açıklar.
+Bu bölüm, mevcut `tawnt` API'sinin doğrulanmış davranışını açıklar.
 
 ### 3.1 `introduce(...)`: değeri önceden tanıtmak
 
@@ -534,7 +541,7 @@ bu raporu tek başına `KANIT` kabul etmemelidir.
 
 6 Ağustos 2026 itibarıyla:
 
-- `tawnt.py`, `tawnttest.py` ve bu kılavuz Git tarafından izlenmektedir.
+- `tawnt.py`, `tawnt_core/`, `tests/test_tawnt.py` ve bu kılavuz Git tarafından izlenmektedir.
 - V2 çekirdeği ve sahte öğretici ana program toplam 39 otomatik `unittest` davranış
   testiyle doğrulanmaktadır: 34 çekirdek testi + 5 `fake_main.py` testi.
 - Değer yaşam döngüsü, OFFLINE/BENCH/LIVE profilleri, fail-closed arming, evre politikası,
@@ -595,7 +602,8 @@ açan tek yer odur. Defter dolabı fiziksel olarak kilitlemez.
 
 | Parça | Sorumluluğu | Yapmaması gereken |
 |---|---|---|
-| `tawnt.py` | Kritik değer kuralları, kaynaklar, ilişkiler ve yazılım kilidi | GPIO sürmek veya fiziksel duruş iddia etmek |
+| `tawnt.py` | Kararlı dış API ve geriye uyumlu adlar | Kendi içinde güvenlik durumunu çoğaltmak |
+| `tawnt_core/` | Kritik değer, hareket, arıza, ortak durum ve tarama kuralları | GPIO sürmek veya fiziksel duruş iddia etmek |
 | `ayar.py` | JSON dosyalarını yüklemek, şemayı doğrulamak, 3awnt'a değer vermek | PWM üretmek |
 | `surucu.py` | Motor komutunun tek fiziksel çıkışı, fail-closed kapı | Kontrolü atlayarak doğrudan GPIO vermek |
 | `durum.py` | Aracın durumunu ve izin verilen geçişleri yönetmek | Motor pinlerine doğrudan yazmak |
@@ -826,8 +834,8 @@ ile “araç fiziksel olarak durdu” ifadelerini karıştırmaz.
 
 ### 9.1 Bugünkü otomatik test
 
-`tawnttest.py`, `unittest` ile çalışan 34 assertion tabanlı çekirdek testi içerir.
-`fake_main_test.py` ayrıca donanım bağımsızlığını ve öğretici akışı denetleyen 5 test içerir;
+`tests/test_tawnt.py`, `unittest` ile çalışan 34 assertion tabanlı çekirdek testi içerir.
+`tests/test_tawnt_demo.py` ayrıca donanım bağımsızlığını ve öğretici akışı denetleyen 5 test içerir;
 toplam 39 test çalışır. Testlerin geçmesi gerçek GPIO, kamera veya tekerlek davranışını
 doğrulamaz.
 
@@ -1059,7 +1067,7 @@ evrenin zorunlu değerlerini ve watchdog'larını denetler.
 
 ## 15. LLM'nin tehlikeli PWM yazmasına karşı kapı
 
-> **KISMEN UYGULANDI.** Komut doğrulama ve statik tarama `tawnt.py` içinde vardır;
+> **KISMEN UYGULANDI.** Komut doğrulama ve statik tarama 3awnt API'sinde vardır;
 > gerçek `surucu.py` yazma yoluna henüz bağlanmamıştır.
 
 ### 15.1 Neden `isExpectedCurrent()` değil?
@@ -1136,7 +1144,7 @@ birlikte kullanılır.
 
 | Dosya | Sorumluluğu |
 |---|---|
-| `tawnt.py` | Kritik değer, kaynak, ilişki ve genel hareket izni |
+| `tawnt.py` + `tawnt_core/` | Kritik değer, kaynak, ilişki ve genel hareket izni |
 | `ayar.py` | Değerleri tanıtmak ve JSON'dan kaydetmek |
 | `main.py` | Başlatma doğrulamasını çağırmak |
 | `durum.py` | Güncel evre ve geçiş izinleri |
@@ -1453,7 +1461,7 @@ Bu sözleşme test adı olarak da okunabilmelidir. Asgari test grupları:
 - insan doğrulaması olmadan reset reddedilir,
 - doğrudan PWM/GPIO erişimi statik kontrolde bulunur.
 
-Bu maddeler artık atlanmıyor. `tawnttest.py` 34, `fake_main_test.py` 5 assertion tabanlı
+Bu maddeler artık atlanmıyor. `tests/test_tawnt.py` 34, `tests/test_tawnt_demo.py` 5 assertion tabanlı
 test çalıştırır; toplam 39 testte `skipped` yoktur. Bu sonuç kütüphane ve sahte eğitim
 akışı davranışının kanıtıdır, fiziksel araç testinin yerine geçmez.
 
@@ -1659,7 +1667,7 @@ Hayır. `sifirla()` test/demo için süreç içi sözlükleri ve durumları temi
 JSON fault dosyasını silmez.
 
 Gerçek araç kodunun bu yöntemi çağırması yasak kabul edilmelidir. Testler birbirinden bağımsız
-olsun diye `tawnttest.py` ve `fake_main.py` kullanır.
+olsun diye `tests/test_tawnt.py` ve `fake_main.py` kullanır.
 
 ### “3awnt ağ tehditlerini izliyor mu?”
 
