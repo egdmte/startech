@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import unittest
+from unittest.mock import patch
 
 from arac import durum, goruntu, goz, kayit, main, surucu
 
@@ -40,14 +41,16 @@ class ArdaCliTest(unittest.TestCase):
         self.assertIn("STARTUP STATE", output)
         self.assertIn("[SIMULATED]", output)
         self.assertIn("[BLOCKED", output)
-        self.assertIn("Camera and driving loops are not implemented", output)
+        self.assertIn("Bounded self-check passed", output)
+        self.assertIn("No continuous driving loop was started", output)
 
     def test_turkish_is_the_default_language(self):
         exit_code, output = self.run_cli(["--no-color"])
 
         self.assertEqual(main.EXIT_OK, exit_code)
         self.assertIn("BAŞLANGIÇ DURUMU", output)
-        self.assertIn("ARDA simülasyon iskelesi hazır", output)
+        self.assertIn("Sınırlı öz denetim geçti", output)
+        self.assertIn("ARDA simülasyon sözleşmeleri hazır", output)
 
     def test_auto_skips_prompt_but_does_not_claim_arming(self):
         def unexpected_input(_prompt):
@@ -83,6 +86,39 @@ class ArdaCliTest(unittest.TestCase):
         self.assertIn("NOT CONNECTED", output)
         self.assertIn("Vehicle mode refused", output)
         self.assertIn("No physical motor command", output)
+
+    def test_vehicle_mode_never_runs_the_simulation_probe(self):
+        with patch(
+            "arac.main.run_simulation_probe",
+            side_effect=AssertionError("vehicle mode must refuse before probing"),
+        ):
+            exit_code, _output = self.run_cli(
+                ["--mode", "vehicle", "--auto", "--no-color"]
+            )
+
+        self.assertEqual(main.EXIT_NOT_READY, exit_code)
+
+    def test_bounded_probe_exercises_only_simulated_boundaries(self):
+        result = main.run_simulation_probe()
+
+        self.assertEqual(durum.VehicleState.READY, result.final_state)
+        self.assertTrue(result.observation_valid)
+        self.assertEqual(3, result.record_count)
+        self.assertEqual("BLOCKED", result.motor_state)
+        self.assertGreaterEqual(result.stop_request_count, 1)
+
+    def test_probe_failure_is_reported_and_fails_closed(self):
+        with patch(
+            "arac.main.run_simulation_probe",
+            side_effect=RuntimeError("deliberate test failure"),
+        ):
+            exit_code, output = self.run_cli(
+                ["--auto", "--language", "en", "--no-color"]
+            )
+
+        self.assertEqual(main.EXIT_NOT_READY, exit_code)
+        self.assertIn("Simulation self-check failed closed", output)
+        self.assertIn("deliberate test failure", output)
 
     def test_keyboard_interrupt_exits_without_starting(self):
         def interrupt(_prompt):

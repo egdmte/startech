@@ -16,6 +16,12 @@ import os
 import sys
 from typing import Callable, Sequence, TextIO
 
+from .durum import EventType, StateEvent, StateMachine, VehicleState
+from .goruntu import SimulatedVisionAnalyzer
+from .goz import FramePacket, SequenceCamera
+from .kayit import MemoryBlackBox, RecordKind
+from .surucu import BlockedMotorDriver
+
 
 APP_VERSION = "0.1.0-scaffold"
 EXIT_OK = 0
@@ -50,8 +56,17 @@ TEXT = {
         "cli_label": "ARDA command interface",
         "cli_detail": "Arguments parsed; no driving loop has started.",
         "camera_label": "KASIM/CAMILA camera source",
-        "camera_simulated": "A simulator can be connected in a later slice.",
+        "camera_simulated": "A deterministic in-memory frame source is available.",
         "camera_missing": "No physical camera provider is connected.",
+        "vision_label": "KEREM/CORA vision analyzer",
+        "vision_simulated": "Explicit simulation payloads are validated conservatively.",
+        "vision_missing": "No physical vision analyzer is connected.",
+        "state_label": "DORA/SARA state machine",
+        "state_simulated": "Deterministic transitions are available without hardware.",
+        "state_missing": "Vehicle-state integration has not been reviewed on the car.",
+        "log_label": "KADER/BLAIR black box",
+        "log_simulated": "The startup probe records evidence in memory only.",
+        "log_missing": "A reviewed on-car log location has not been configured.",
         "motor_label": "OSMAN/MATT motor output",
         "motor_detail": "No physical motor command can leave this scaffold.",
         "tawnt_label": "Tawnt (3awnt) safety layer",
@@ -59,8 +74,12 @@ TEXT = {
         "tawnt_standby": "Tawnt is watching the paperwork, not the car.",
         "prompt": "Press Enter to open the simulation scaffold, or Ctrl+C to exit.",
         "auto": "Prompt skipped. Automatic vehicle arming remains impossible.",
+        "self_check_ok": (
+            "Bounded self-check passed: DORA={state}, records={records}, motor={motor}."
+        ),
+        "self_check_failed": "Simulation self-check failed closed: {error}",
         "simulation_ready": (
-            "ARDA simulation scaffold is ready. Camera and driving loops are not implemented."
+            "ARDA simulation contracts are ready. No continuous driving loop was started."
         ),
         "vehicle_refused": (
             "Vehicle mode refused: reviewed camera, configuration and motor adapters do not exist yet."
@@ -87,8 +106,17 @@ TEXT = {
         "cli_label": "ARDA komut arayüzü",
         "cli_detail": "Argümanlar okundu; sürüş döngüsü başlatılmadı.",
         "camera_label": "KASIM/CAMILA kamera kaynağı",
-        "camera_simulated": "Daha sonraki bir adımda simülatör bağlanabilir.",
+        "camera_simulated": "Belirlenmiş bellek içi kare kaynağı kullanılabilir.",
         "camera_missing": "Fiziksel kamera sağlayıcısı bağlı değil.",
+        "vision_label": "KEREM/CORA görüntü çözümleyicisi",
+        "vision_simulated": "Açık simülasyon verileri ihtiyatlı biçimde doğrulanır.",
+        "vision_missing": "Fiziksel görüntü çözümleyicisi bağlı değil.",
+        "state_label": "DORA/SARA durum makinesi",
+        "state_simulated": "Belirlenmiş geçişler donanım olmadan kullanılabilir.",
+        "state_missing": "Araç durum entegrasyonu araç üzerinde incelenmedi.",
+        "log_label": "KADER/BLAIR karakutusu",
+        "log_simulated": "Başlangıç denetimi kanıtları yalnızca belleğe yazar.",
+        "log_missing": "İncelenmiş araç içi kayıt konumu ayarlanmadı.",
         "motor_label": "OSMAN/MATT motor çıkışı",
         "motor_detail": "Bu iskeletten fiziksel motor komutu çıkamaz.",
         "tawnt_label": "Tawnt (3awnt) güvenlik katmanı",
@@ -96,8 +124,12 @@ TEXT = {
         "tawnt_standby": "Tawnt arabayı değil, şimdilik evrakları izliyor.",
         "prompt": "Simülasyon iskelesini açmak için Enter'a basın; çıkmak için Ctrl+C.",
         "auto": "Onay beklemesi atlandı. Otomatik araç arm işlemi hâlâ imkânsız.",
+        "self_check_ok": (
+            "Sınırlı öz denetim geçti: DORA={state}, kayıt={records}, motor={motor}."
+        ),
+        "self_check_failed": "Simülasyon öz denetimi güvenli biçimde durdu: {error}",
         "simulation_ready": (
-            "ARDA simülasyon iskelesi hazır. Kamera ve sürüş döngüleri uygulanmadı."
+            "ARDA simülasyon sözleşmeleri hazır. Sürekli sürüş döngüsü başlatılmadı."
         ),
         "vehicle_refused": (
             "Araç modu reddedildi: incelenmiş kamera, ayar ve motor bağdaştırıcıları henüz yok."
@@ -125,6 +157,17 @@ class StartupCheck:
     state: str
     label: str
     detail: str
+
+
+@dataclass(frozen=True)
+class SimulationProbeResult:
+    """Truthful outcome of one finite, hardware-free startup exercise."""
+
+    final_state: VehicleState
+    observation_valid: bool
+    record_count: int
+    motor_state: str
+    stop_request_count: int
 
 
 class Console:
@@ -231,10 +274,11 @@ def _text(language: str, key: str) -> str:
 
 def _build_checks(options: StartupOptions) -> tuple[StartupCheck, ...]:
     language = options.language
-    camera_state = "simulated" if options.mode == SIMULATION else "blocked"
-    camera_detail = (
-        "camera_simulated" if options.mode == SIMULATION else "camera_missing"
-    )
+    simulated_or_blocked = "simulated" if options.mode == SIMULATION else "blocked"
+
+    def mode_detail(simulation_key: str, vehicle_key: str) -> str:
+        return simulation_key if options.mode == SIMULATION else vehicle_key
+
     return (
         StartupCheck(
             _text(language, "ready"),
@@ -242,9 +286,24 @@ def _build_checks(options: StartupOptions) -> tuple[StartupCheck, ...]:
             _text(language, "cli_detail"),
         ),
         StartupCheck(
-            _text(language, camera_state),
+            _text(language, simulated_or_blocked),
             _text(language, "camera_label"),
-            _text(language, camera_detail),
+            _text(language, mode_detail("camera_simulated", "camera_missing")),
+        ),
+        StartupCheck(
+            _text(language, simulated_or_blocked),
+            _text(language, "vision_label"),
+            _text(language, mode_detail("vision_simulated", "vision_missing")),
+        ),
+        StartupCheck(
+            _text(language, simulated_or_blocked),
+            _text(language, "state_label"),
+            _text(language, mode_detail("state_simulated", "state_missing")),
+        ),
+        StartupCheck(
+            _text(language, simulated_or_blocked),
+            _text(language, "log_label"),
+            _text(language, mode_detail("log_simulated", "log_missing")),
         ),
         StartupCheck(
             _text(language, "blocked"),
@@ -256,6 +315,80 @@ def _build_checks(options: StartupOptions) -> tuple[StartupCheck, ...]:
             _text(language, "tawnt_label"),
             _text(language, "tawnt_detail"),
         ),
+    )
+
+
+def run_simulation_probe() -> SimulationProbeResult:
+    """Exercise every simulated boundary once without starting a control loop.
+
+    The probe never validates, arms, or applies a motor command. Its driver is the
+    fail-closed physical placeholder, and all black-box evidence remains in memory.
+    """
+
+    camera = SequenceCamera(
+        [
+            FramePacket(
+                frame_id=0,
+                captured_at=0.0,
+                source="ARDA-startup-simulation",
+                payload={
+                    "valid": True,
+                    "lane_error": 0.0,
+                    "obstacle": False,
+                    "confidence": 1.0,
+                },
+            )
+        ]
+    )
+    camera.open()
+    try:
+        frame = camera.read_frame()
+    finally:
+        camera.close()
+
+    observation = SimulatedVisionAnalyzer().analyze(frame)
+    states = StateMachine()
+    states.apply(StateEvent(EventType.BEGIN_SELF_TEST, occurred_at=1.0))
+    snapshot = states.apply(StateEvent(EventType.SELF_TEST_PASSED, occurred_at=2.0))
+
+    black_box = MemoryBlackBox("arda-startup-probe")
+    black_box.append(
+        RecordKind.FRAME,
+        "KASIM",
+        {"source": frame.source},
+        frame_id=frame.frame_id,
+        recorded_at=0.0,
+    )
+    black_box.append(
+        RecordKind.OBSERVATION,
+        "KEREM",
+        {
+            "valid": observation.valid,
+            "lane_error": observation.lane_error,
+            "obstacle": observation.obstacle,
+            "confidence": observation.confidence,
+        },
+        frame_id=observation.frame_id,
+        recorded_at=1.0,
+    )
+    black_box.append(
+        RecordKind.STATE,
+        "DORA",
+        {"state": snapshot.state.value, "revision": snapshot.revision},
+        frame_id=frame.frame_id,
+        recorded_at=2.0,
+    )
+
+    motor = BlockedMotorDriver()
+    motor.stop("ARDA bounded startup probe")
+    motor.close()
+
+    return SimulationProbeResult(
+        final_state=snapshot.state,
+        observation_valid=observation.valid,
+        record_count=len(black_box.records),
+        motor_state="BLOCKED",
+        stop_request_count=len(motor.stop_requests),
     )
 
 
@@ -331,7 +464,39 @@ def run(
             console.write(_text(options.language, "no_input"), style=Console.RED)
             return EXIT_NOT_READY
 
+    try:
+        probe = run_simulation_probe()
+    except Exception as exc:
+        console.write()
+        console.write(
+            _text(options.language, "self_check_failed").format(error=str(exc)),
+            style=Console.RED,
+        )
+        return EXIT_NOT_READY
+
+    if (
+        probe.final_state is not VehicleState.READY
+        or not probe.observation_valid
+        or probe.motor_state != "BLOCKED"
+    ):
+        console.write()
+        console.write(
+            _text(options.language, "self_check_failed").format(
+                error="incomplete probe result"
+            ),
+            style=Console.RED,
+        )
+        return EXIT_NOT_READY
+
     console.write()
+    console.write(
+        _text(options.language, "self_check_ok").format(
+            state=probe.final_state.value,
+            records=probe.record_count,
+            motor=probe.motor_state,
+        ),
+        style=Console.GREEN,
+    )
     console.write(_text(options.language, "simulation_ready"), style=Console.GREEN)
     return EXIT_OK
 
