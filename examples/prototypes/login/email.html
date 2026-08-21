@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="STARTECH calibration email confirmation prototype">
+  <title>Add your email address — STARTECH</title>
+  <link rel="stylesheet" href="email.css">
+  <script src="email.js" defer></script>
+</head>
+<body>
+  <main class="email-shell">
+    <aside class="identity-panel" aria-label="Current session">
+      <header class="welcome-copy">
+        <span>Welcome</span>
+        <strong>Egemen Yusuf Kayra</strong>
+      </header>
+
+      <footer class="session-footer">
+        <img class="school-logo" src="assets/school-logo.png" alt="STARTECH school mark" width="29" height="28">
+        <div class="session-status" aria-live="polite">
+          <span class="session-label">Your session will expire in</span>
+          <div class="timer" aria-label="Session expires in 15 minutes">
+            <span class="timer-part" id="timer-minutes">15</span>
+            <span class="timer-part" id="timer-seconds">00</span>
+          </div>
+        </div>
+      </footer>
+    </aside>
+
+    <section class="email-panel" aria-labelledby="email-title">
+      <div class="email-content">
+        <img class="email-icon" src="assets/email.png" alt="" width="39" height="39">
+        <h1 id="email-title">You do not have an e-mail address.</h1>
+        <p class="email-explanation">
+          Please enter an e-mail address you commonly use, since it will be used for confirmation each time you sign in.
+        </p>
+
+        <form class="email-form" novalidate>
+          <div class="email-entry">
+            <label class="visually-hidden" for="email-address">E-mail address</label>
+            <input
+              id="email-address"
+              name="email"
+              type="email"
+              inputmode="email"
+              autocomplete="email"
+              aria-describedby="email-error email-status"
+              required
+            >
+            <button class="send-action" type="submit" aria-label="Send confirmation email">
+              <img src="assets/send.png" alt="" width="24" height="24">
+            </button>
+          </div>
+          <p class="field-error" id="email-error" hidden>Enter a valid e-mail address.</p>
+          <p class="form-status" id="email-status" role="status" aria-live="polite"></p>
+        </form>
+
+        <button class="offline-action" type="button">
+          Continue without access to the car <span aria-hidden="true">→</span>
+        </button>
+      </div>
+
+      <p class="reassurance">You can always change your mind.</p>
+    </section>
+  </main>
+
+  <noscript>This prototype needs JavaScript for validation and the session timer.</noscript>
+</body>
+</html>
