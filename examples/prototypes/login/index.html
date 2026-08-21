@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="STARTECH online calibration login prototype">
+  <title>Calibrate your STARTECH instance</title>
+  <link rel="stylesheet" href="login.css">
+  <script src="login.js" defer></script>
+</head>
+<body>
+  <main class="login-shell">
+    <section class="intro-panel" aria-labelledby="intro-title">
+      <div class="intro-copy">
+        <img class="car-icon" src="assets/car.svg" alt="" width="39" height="39">
+        <h1 id="intro-title" data-copy="introTitle">Calibrate your STARTECH<br> instance</h1>
+        <p data-copy="introDescription">
+          Any car with compatible code can receive a new calibration without manually transferring a file.
+        </p>
+        <button class="text-action learn-action" type="button" data-action="learn">
+          <span data-copy="learn">Learn how to update your code</span>
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="auth-panel" aria-label="Login">
+      <form class="auth-form" novalidate>
+        <div class="field-group">
+          <label for="full-name" data-copy="nameLabel">Your full legal name</label>
+          <input
+            id="full-name"
+            name="fullName"
+            type="text"
+            autocomplete="name"
+            aria-describedby="name-error"
+            required
+          >
+          <p class="field-error" id="name-error" data-copy="nameError" hidden>Enter your name.</p>
+        </div>
+
+        <div class="field-group">
+          <label for="password" data-copy="passwordLabel">Password provided</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            aria-describedby="password-error"
+            required
+          >
+          <p class="field-error" id="password-error" data-copy="passwordError" hidden>Enter the access password.</p>
+        </div>
+
+        <button class="login-action" type="submit" data-copy="login">Log in</button>
+        <p class="form-status" role="status" aria-live="polite"></p>
+      </form>
+
+      <div class="auth-footer">
+        <div class="language-switcher" role="group" aria-label="Language">
+          <button class="language-option" type="button" data-language="tr" aria-label="Türkçe">
+            <img src="assets/tr.svg" alt="" width="35" height="26">
+          </button>
+          <button class="language-option is-active" type="button" data-language="en" aria-label="English" aria-pressed="true">
+            <img src="assets/en.svg" alt="" width="35" height="26">
+          </button>
+        </div>
+
+        <button class="text-action offline-action" type="button" data-action="offline">
+          <span data-copy="offline">Continue without access to the car</span>
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <noscript>This prototype needs JavaScript for validation and language switching.</noscript>
+</body>
+</html>
