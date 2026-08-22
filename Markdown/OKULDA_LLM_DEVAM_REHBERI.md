@@ -6,11 +6,18 @@
 >
 > **Durum tarihi:** 2026-08-22
 >
-> **Simülasyon sözleşmesi commit'i:** `2384a0a`
+> **Temel simülasyon sözleşmesi commit'i:** `2384a0a`
 >
-> **Bu tarihteki doğrulama:** 107 test geçti; `arac` TAWNT doğrudan motor yazımı taraması 0 bulgu
+> **Kamera zinciri commit'i:** `70f6840`
 >
-> **Kapsam:** Evde hazırlanmış, donanımsız simülasyon sözleşmelerini okulda gerçek araca bağlama hazırlığı
+> **Bu tarihteki doğrulama:** 126 test geçti; `arac` TAWNT doğrudan motor yazımı taraması 0 bulgu;
+> Webots başsız koşusu `STARTECH_WEBOTS_OK` üretti
+>
+> **Bilinen depo kontrolü:** `kontrol.py`, ekip tarafından ayrıca düzenlenmiş
+> `HATA_DEFTERI.md:256` içindeki henüz bulunmayan `motor_balance.py` atfı nedeniyle düşüyor
+>
+> **Kapsam:** Uygulanmış kamera tanılamasını ve donanımsız simülasyon sözleşmelerini okulda
+> ölçülü biçimde gerçek araca bağlama hazırlığı
 >
 > **Bu belge fiziksel araç kullanma izni değildir.**
 
@@ -49,8 +56,8 @@ Ajan bütün açıklamalarında aşağıdaki ayrımları korumalıdır:
 |---|---|---|
 | `IMPLEMENTED` | Kod depoda var ve yazılım testi var | `SequenceCamera` kare sırasını reddedebiliyor |
 | `SIMULATED` | Bellek içi veya kayıtlı veri ile çalışıyor | `FakeMotorDriver` komutu yalnızca geçmişe ekliyor |
-| `PROPOSED` | Tasarım düşünülmüş ama kodlanmamış | Raspberry Pi kamera bağdaştırıcısı |
-| `PHYSICALLY_UNVERIFIED` | Kod olabilir ama araçta ölçülmemiş | PWM yön eşlemesi veya gerçek durma süresi |
+| `PROPOSED` | Tasarım düşünülmüş ama kodlanmamış | Raspberry Pi üzerinde yarış sürüş döngüsü |
+| `PHYSICALLY_UNVERIFIED` | Kod olabilir ama araçta ölçülmemiş | Pi kamera açılması, PWM yön eşlemesi veya gerçek durma süresi |
 | `PHYSICALLY_VERIFIED` | İnsan gözetiminde ölçülmüş ve kayıt altına alınmış | Belirli tarihli, belirli düzenekte ölçülen durma testi |
 
 `READY`, `PASSED`, `SAFE` ve benzeri kelimeler bağlamsız kullanılmamalıdır. Örneğin
@@ -113,7 +120,13 @@ yalnızca gözlem üretir. KADER kayıt tutar; fiziksel sonuç kanıtlamaz.
 
 ### 6.1 KASIM / CAMILA — `arac/goz.py`
 
-Mevcut durum: `SIMULATED`, gerçek kamera `PROPOSED`.
+Mevcut durum:
+
+- Bellek içi kamera sözleşmesi: `IMPLEMENTED` ve `SIMULATED`.
+- USB/OpenCV ve Raspberry Pi/Picamera2 bağdaştırıcıları: `IMPLEMENTED`.
+- Dizüstü bilgisayardaki `usb:0`: 22 Ağustos 2026 tarihinde üç kare, `640x480`
+  çözünürlük ile yalnızca edinim düzeyinde `PHYSICALLY_VERIFIED`.
+- Araçtaki Raspberry Pi kamerası: `PHYSICALLY_UNVERIFIED`.
 
 Temel nesneler:
 
@@ -122,6 +135,12 @@ Temel nesneler:
 - `CameraSource` protokolü
 - `SequenceCamera`
 - `UnavailableCamera`
+- `OpenCvUsbCamera`
+- `PiCamera2Source`
+- `PreferredCamera`
+- `CameraProbeResult`
+- `build_preferred_camera()`
+- `probe_camera()`
 
 Korunan kurallar:
 
@@ -134,8 +153,17 @@ Korunan kurallar:
 - Sonlu kaynak bittiğinde eski kare tekrar verilmez; `CameraExhausted` oluşur.
 - Fiziksel sağlayıcı yoksa `UnavailableCamera` açıkça hata verir.
 - `close()` tekrar çağrılabilir.
+- Otomatik seçim önce istenen USB kamera indeksini, yalnızca açılamazsa Picamera2'yi dener.
+- İki kaynak da açılamazsa iki sebebi içeren `CameraUnavailable` oluşur.
+- Bir kaynak açıldıktan sonraki okuma hatasında diğer kameraya sessizce geçilmez;
+  `CameraReadFailure` oluşur. Böylece karelerin kökeni bir çalışmanın ortasında değişmez.
+- Tanılama sonlu sayıda kare okur; kaynak, kare sayısı, çözünürlük ve geçen süreyi raporlar.
+- Aynı tanılama içindeki kaynak ve çözünürlük değişirse hata verir.
+- Tanılama kare görüntüsünü diske kaydetmez.
 
-Gerçek kamera bağdaştırıcısı bu sözleşmeyi uygulamalı, mevcut sınıfları silmemelidir.
+USB bağımlılığı `requirements-camera-usb.txt` ile kurulur. Picamera2, Raspberry Pi OS'nin
+sağladığı sistem paketi olarak beklenir; normal bilgisayardaki pip gereksinimlerine zorla
+eklenmemelidir.
 
 ### 6.2 KEREM / CORA — `arac/goruntu.py`
 
@@ -268,6 +296,9 @@ Komut arayüzü:
 --auto
 --no-color
 --version
+--check-camera
+--usb-index INDEX
+--camera-frames 1..30
 ```
 
 Davranış:
@@ -275,6 +306,8 @@ Davranış:
 - Varsayılan mod simülasyondur.
 - `vehicle` modu fiziksel bağdaştırıcılar incelenene kadar hata kodu `2` ile reddedilir.
 - `--auto` yalnızca Enter beklemesini atlar; aracı arm etmez.
+- Gerçek kamera ancak açıkça `--check-camera` verildiğinde açılır.
+- Kamera tanılaması motor sürücüsü seçmez, TAWNT'yi arm etmez ve sürekli döngü başlatmaz.
 - Simülasyon öz denetimi tam olarak bir kare işler.
 - Bir geçerli gözlem üretir.
 - DORA'yı `BOOT -> SELF_TEST -> READY` yönünde iki olayla ilerletir.
@@ -286,16 +319,39 @@ Davranış:
 
 Bu öz denetimi yarış sürüş döngüsüne çevirmek okulda yapılacak ayrı, onaylı bir iştir.
 
+### 6.7 Görsel motor simülasyonu — `arac/simulasyon.py` ve `sim/`
+
+Mevcut durum: `IMPLEMENTED` ve `SIMULATED`; fiziksel araç modeli değildir.
+
+- `VisualSimulationBridge`, yalnızca `ValidatedDriveRequest` kabul eder.
+- Kabul edilen istek önce `FakeMotorDriver` geçmişine yazılır.
+- Normalize sol/sağ değerler, Webots'taki dört sanal tekerlek motoruna açısal hız olarak
+  eşlenir.
+- Basit diferansiyel sürüş hesabı, birim testler için belirlenmiş `x`, `y` ve yön üretir.
+- Webots kendi fizik motorunu kullandığı için hesaplanan yol ile ekrandaki yolun tamamen
+  aynı olması beklenmez.
+- `sim/controllers/arda_visual/arda_visual.py` sonlu beş hareket parçası çalıştırır,
+  sonunda dört sanal motoru sıfırlar ve çıkar.
+- Denetleyici TAWNT'nin `OFFLINE` profilini kullanır; GPIO, PWM veya fiziksel sürücü
+  içe aktarmaz.
+- Windows'ta proje yerel `runtime.ini`, bozuk Microsoft Store `python` takma adı yerine
+  `py`; Linux/macOS'ta `python3` seçer.
+
+Görsel çalıştırma ve başsız smoke testi için `sim/README.md` esas alınmalıdır. Başarılı
+başsız denetim `STARTECH_WEBOTS_OK` satırı üretir. Bu satır yalnızca simülasyonun bittiğini
+kanıtlar; gerçek tekerlek yönü, hız, fren, tutunma veya durma mesafesi hakkında kanıt değildir.
+
 ## 7. Mevcut test haritası
 
 | Test dosyası | Koruduğu ana sınır |
 |---|---|
-| `tests/test_arac_main.py` | ARDA CLI, reddedilen araç modu ve sınırlı öz denetim |
-| `tests/test_goz.py` | Kare doğrulama, kamera yaşam döngüsü ve kaynak tükenmesi |
+| `tests/test_arac_main.py` | ARDA CLI, açık kamera tanılaması, reddedilen araç modu ve sınırlı öz denetim |
+| `tests/test_goz.py` | Kare doğrulama, USB→Pi açma sırası, okuma hatası, tanılama ve kaynak yaşam döngüsü |
 | `tests/test_goruntu.py` | Geçersiz verinin “yol açık” sayılmaması ve eski kare reddi |
 | `tests/test_durum.py` | Geçişler, hata, durma, devam, sıfırlama ve eski olay reddi |
 | `tests/test_kayit.py` | JSON güvenliği, sıra, geri yükleme ve bozuk dosya reddi |
 | `tests/test_surucu.py` | TAWNT kapısı, sahte sürücü ve bloke fiziksel sınır |
+| `tests/test_simulasyon.py` | Ham istek reddi, sanal tekerlek eşlemesi, hareket, dönüş, stop ve kapanış |
 
 Windows'ta `python` komutu Microsoft Store takma adına gidiyorsa çalışan Python
 başlatıcısını kullan:
@@ -307,13 +363,19 @@ py -3.13 -m unittest discover -s tests -v
 Yalnızca bu yeni sınırları hızlı kontrol etmek için:
 
 ```powershell
-py -3.13 -m unittest tests.test_arac_main tests.test_goz tests.test_goruntu tests.test_durum tests.test_surucu tests.test_kayit -v
+py -3.13 -m unittest tests.test_arac_main tests.test_goz tests.test_goruntu tests.test_durum tests.test_surucu tests.test_kayit tests.test_simulasyon -v
 ```
 
 Komut örneği:
 
 ```powershell
 py -3.13 -m arac.main --mode simulation --language tr --no-color --auto
+```
+
+Motorlara dokunmadan sonlu USB→Pi kamera tanılaması:
+
+```powershell
+py -3.13 -m arac.main --auto --check-camera --camera-frames 3 --language en --no-color
 ```
 
 `vehicle` modunun reddedilmesi şu aşamada başarısızlık değil, beklenen güvenlik
@@ -328,6 +390,7 @@ davranışıdır.
 - Simülasyon dünya verileri.
 - Durum geçişleri.
 - Sahte motor sürücüsü.
+- Webots içindeki dört tekerlekli görsel motor simülasyonu.
 - Hatalı, eksik, eski ve bozuk veri testleri.
 - JSON şema ve kalibrasyon dosyası doğrulaması.
 - CLI ve raporlama.
@@ -405,9 +468,11 @@ Ekip tarafından verilen fiziksel talimatlar:
 `CTRL+C` tek başına acil durdurma değildir. Algı veya kontrol döngüsü çöktüğünde son PWM
 komutunun kendiliğinden sıfırlandığını varsayma.
 
-## 12. KASIM'ı okulda geliştirme planı
+## 12. KASIM'ı okulda doğrulama ve geliştirme planı
 
-Amaç: `CameraSource` protokolünü uygulayan gerçek bir Raspberry Pi kamera bağdaştırıcısı.
+Amaç: Uygulanmış USB→Picamera2 seçim zincirini araç üzerindeki gerçek Raspberry Pi
+kamerasında doğrulamak; ölçülen davranış gerekirse mevcut `CameraSource` sözleşmesini
+bozmadan küçük düzeltmeler yapmak.
 
 Önce keşfedilecek gerçekler:
 
@@ -421,11 +486,16 @@ Amaç: `CameraSource` protokolünü uygulayan gerçek bir Raspberry Pi kamera ba
 
 Önerilen küçük dilimler:
 
-1. Yalnızca aç/kapat deneyi; kareyi algıya gönderme.
-2. Tek kare al ve dosyaya veya test belleğine koy; motorlar kapalı.
-3. On adet karede artan `frame_id` ve zaman ölç.
-4. Kamera çıkarıldığında veya kapatıldığında fail-closed davranışı doğrula.
-5. Bağdaştırıcıyı `CameraSource` sözleşme testlerine ekle.
+1. Motor gücü kapalıyken Picamera2 paketinin ve kamera aygıtının varlığını doğrula.
+2. USB kamera bağlı değilken `--check-camera --camera-frames 1` ile yalnızca aç/oku/kapat
+   deneyi yap; kareyi algıya gönderme ve görüntüyü kaydetme.
+3. Kaynağın `rpi:0` olarak raporlandığını ve kaynak bırakıldıktan sonra yeniden
+   açılabildiğini doğrula.
+4. On adet karede artan `frame_id`, çözünürlük ve geçen süreyi ölç.
+5. Kamera çıkarıldığında veya kapatıldığında iki kaynak da yoksa fail-closed davranışı
+   doğrula.
+6. USB kamera bağlanırsa aynı komutun `usb:0` seçtiğini doğrula; bir çalışma ortasında
+   kaynak değiştirmeye çalışma.
 
 Kabul ölçütleri:
 
@@ -746,7 +816,7 @@ Aşağıdakileri yapma:
 Bu belge yazıldığı anda aşağıdakiler doğrulanmış değildir:
 
 - [ ] Raspberry Pi modeli ve işletim sistemi sürümü.
-- [ ] Kamera modeli, kitaplığı ve aygıt yolu.
+- [ ] Araçtaki Raspberry Pi kamera modeli, Picamera2 sürümü ve aygıt numarası.
 - [ ] Kamera çözünürlük/FPS/pozlama değerleri.
 - [ ] Kamera montaj geometrisi.
 - [ ] Motor sürücü kartı modeli.
@@ -769,9 +839,10 @@ sormalıdır. Ölçülen değer, ölçüm tarihi ve yöntemiyle kaydedilmelidir.
 1. Güncel git durumunu ve test sonucunu kaydet.
 2. Kamera ve motor donanımının tam modellerini fotoğraf/etiket üzerinden insanla doğrula.
 3. Kablolama haritasını insan incelemesiyle çıkar.
-4. Motor gücü kapalıyken tek kamera aç/kapat ve tek kare alma planı sun.
-5. Onaydan sonra yalnızca KASIM gerçek bağdaştırıcısının en küçük dilimini uygula.
-6. Motorlar kapalıyken tek kare ve zaman aşımı davranışını ölç.
+4. Motor gücü kapalıyken uygulanmış USB→Pi zincirinin tek karelik doğrulama planını sun.
+5. Onaydan sonra `--check-camera --camera-frames 1` ile Picamera2 aç/oku/kapat sınırını
+   doğrula; ancak kanıtlanan bir uyumsuzluk varsa küçük bağdaştırıcı düzeltmesi öner.
+6. Motorlar kapalıyken on karelik süre ve kaynak kaybı davranışını ayrı onayla ölç.
 7. Sonuçları yazılım kanıtından ayrı fiziksel gözlem olarak kaydet.
 8. Oturumu küçük, odaklı commit ve açık kalan gerçekler listesiyle bitir.
 
@@ -795,12 +866,15 @@ Genel projenin tamamlandığına yalnızca ekip karar verir.
 
 ## 28. Kısa İngilizce devir özeti
 
-Future agents: the six `arac` modules are intentional, tested simulation contracts, not
-empty placeholders. Preserve their fail-closed boundaries. Do not touch TAWNT, do not edit
-`PLAN_New.md`, and do not add hardware access without a separately approved plan. OSMAN is
-the only planned physical motor gateway; every motion request must pass existing TAWNT
-validation. ARDA currently performs one bounded in-memory probe and refuses vehicle mode.
-At school, integrate one adapter at a time, starting with camera acquisition while motor
-power remains off. A software log or requested stop is not proof of physical behavior.
-Human review, Egemen's live-hardware authorization, immediate final confirmation, reachable
-power switches, and the least energetic test order are mandatory.
+Future agents: the six `arac` modules are intentional, tested contracts, not empty
+placeholders. Preserve their fail-closed boundaries. Do not touch TAWNT, do not edit
+`PLAN_New.md`, and do not add hardware access without a separately approved plan. KASIM has
+an implemented USB-first, Picamera2-second camera cascade; USB acquisition was checked on a
+Windows laptop, but the Pi camera remains physically unverified. ARDA opens it only through
+the explicit finite `--check-camera` diagnostic. OSMAN is the only planned physical motor
+gateway; every motion request must pass existing TAWNT validation. The Webots demo also
+passes requests through TAWNT and `FakeMotorDriver`, but it never proves physical motion.
+At school, verify one adapter at a time while motor power remains off. A software log or
+requested stop is not proof of physical behavior. Human review, Egemen's live-hardware
+authorization, immediate final confirmation, reachable power switches, and the least
+energetic test order are mandatory.
