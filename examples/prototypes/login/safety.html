@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="STARTECH calibration safety acknowledgement prototype">
+  <title>Safety acknowledgement — STARTECH</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safety.css">
+  <script src="safety.js" defer></script>
+</head>
+<body>
+  <main class="safety-shell">
+    <aside class="identity-panel" aria-label="Current session">
+      <header class="welcome-copy">
+        <span>Welcome</span>
+        <strong>Egemen Yusuf Kayra</strong>
+      </header>
+
+      <footer class="session-footer">
+        <img
+          class="school-logo"
+          src="assets/school-logo.png"
+          alt="STARTECH school mark"
+          width="29"
+          height="28"
+        >
+        <div class="session-status" aria-live="polite">
+          <span class="session-label">Your session will expire in</span>
+          <div class="timer" aria-label="Session expires in 15 minutes">
+            <span class="timer-part" id="timer-minutes">15</span>
+            <span class="timer-part" id="timer-seconds">00</span>
+          </div>
+        </div>
+      </footer>
+    </aside>
+
+    <section class="safety-panel" aria-labelledby="safety-title">
+      <div class="safety-content">
+        <div class="warning-heading">
+          <!--
+            HAND ICON ASSET TODO:
+            1. Add the final solid-black icon as assets/hand.svg.
+            2. Uncomment the <img> line below.
+            3. Add `hidden` to the .hand-placeholder <span>.
+            The CSS already sizes both versions to the reference artwork.
+          -->
+          <!-- <img class="hand-icon" src="assets/hand.svg" alt="" width="56" height="56"> -->
+          <span class="hand-placeholder" aria-hidden="true">✋︎</span>
+
+          <h1 id="safety-title">Stop!</h1>
+          <p>Autonomous cars may be dangerous to use.</p>
+        </div>
+
+        <form class="acknowledgement-form" novalidate>
+          <fieldset>
+            <legend class="visually-hidden">Required safety acknowledgements</legend>
+
+            <label class="acknowledgement-row">
+              <input type="checkbox" name="technicalManual" required>
+              <span>
+                <span class="required-mark" aria-hidden="true">*</span>
+                I have read, acknowledged and exported a copy of
+                <a href="#" data-document="technical-manual">STARTECH Teknik Devir, Kurulum ve Kullanım Kılavuzu</a>
+              </span>
+            </label>
+
+            <label class="acknowledgement-row">
+              <input type="checkbox" name="calibrationManual" required>
+              <span>
+                <span class="required-mark" aria-hidden="true">*</span>
+                I have read, acknowledged and exported a copy of
+                <a href="#" data-document="calibration-manual">Araç Kalibrasyon Testleri ve Genel Testler Kılavuzu</a>
+              </span>
+            </label>
+
+            <label class="acknowledgement-row">
+              <input type="checkbox" name="measurementLimits" required>
+              <span>
+                <span class="required-mark" aria-hidden="true">*</span>
+                I understand that this tool does not prove that a calibration was physically measured or safe.
+              </span>
+            </label>
+
+            <label class="acknowledgement-row">
+              <input type="checkbox" name="restrainedTesting" required>
+              <span>
+                <span class="required-mark" aria-hidden="true">*</span>
+                I will review the generated file and begin testing with the car restrained, wheels raised, and the lowest permitted motor power.
+              </span>
+            </label>
+          </fieldset>
+
+          <button class="continue-action" type="submit" disabled>
+            Continue <span aria-hidden="true">→</span>
+          </button>
+          <p class="form-message" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <noscript>This prototype needs JavaScript for the acknowledgement gate and session timer.</noscript>
+</body>
+</html>

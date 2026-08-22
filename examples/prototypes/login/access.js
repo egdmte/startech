@@ -48,7 +48,7 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
-  setMessage("Code verification will be connected to the Vercel function later.");
+  window.location.href = "safety.html";
 });
 
 codeInput.addEventListener("input", () => {
