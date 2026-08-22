@@ -80,6 +80,7 @@ traction, braking or stopping distance.
 |---|---|
 | What must an agent do before editing? | `AGENTS_READ_ME.txt` |
 | What order should the project work follow? | `SIRA.md` |
+| What is the complete phase-gated roadmap? | `ROADMAP.md` |
 | How should work continue at school? | `Markdown/OKULDA_LLM_DEVAM_REHBERI.md` |
 | What is the detailed historical plan? | `Markdown/PLAN_New.md` |
 | What failed before and what evidence exists? | `Markdown/HATA_DEFTERI.md` |
