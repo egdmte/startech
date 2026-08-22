@@ -65,6 +65,33 @@ Raspberry Pi camera and its mounting remain physically unverified.
 py -3.13 -m arac.main --auto --check-camera --camera-frames 3 --language en --no-color
 ```
 
+## Recorded camera sessions
+
+ARDA can store a finite USB-first/Pi-second camera session as numbered JPEG frames
+plus a strict `manifest.json`. It refuses to overwrite an existing directory. The
+completed manifest is written last; an interrupted capture instead leaves
+`incomplete.json`, which replay rejects.
+
+The numbered terminal menu works on Windows, Linux and Raspberry Pi without an extra
+UI package:
+
+```powershell
+py -3.13 -m arac.main --interactive --language en
+```
+
+The same operations remain scriptable. Keep large recordings outside the Git working
+tree unless US explicitly decides to version a small fixed test clip:
+
+```powershell
+py -3.13 -m arac.main --auto --record-camera ../startech-recordings/school-01 --record-frames 300 --language en
+py -3.13 -m arac.main --auto --replay-camera ../startech-recordings/school-01 --language en
+```
+
+Replay verifies the manifest, frame order, dimensions and SHA-256 value of every image,
+then decodes the complete session through the KASIM camera interface. It does not yet
+mean that KEREM can recognize lanes or tasks in those images. A recording is camera
+evidence, not proof that the car moved, steered or stopped.
+
 ## Visual motor simulation
 
 Open `sim/worlds/startech.wbt` in Webots and press Run. The finite controller sends

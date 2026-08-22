@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import io
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 
 from arac import durum, goruntu, goz, kayit, main, surucu
+from arac.kamera_oturumu import (
+    CameraSessionError,
+    RecordedFrame,
+    ReplaySummary,
+    SessionManifest,
+)
 
 
 class ArdaCliTest(unittest.TestCase):
@@ -197,8 +204,255 @@ class ArdaCliTest(unittest.TestCase):
         self.assertEqual("tr", options.language)
         self.assertFalse(options.automatic)
         self.assertFalse(options.check_camera)
+        self.assertIsNone(options.record_camera)
+        self.assertIsNone(options.replay_camera)
+        self.assertFalse(options.interactive)
         self.assertEqual(0, options.usb_index)
         self.assertEqual(3, options.camera_frames)
+        self.assertEqual(120, options.record_frames)
+
+    @staticmethod
+    def session_manifest():
+        return SessionManifest(
+            session_id="record-test",
+            created_at_utc="2026-08-22T12:00:00+00:00",
+            source="usb:0",
+            width=640,
+            height=480,
+            elapsed_seconds=0.0,
+            observed_fps=0.0,
+            warnings=("equal timestamp at frame 0",),
+            frames=(
+                RecordedFrame(
+                    frame_id=0,
+                    offset_seconds=0.0,
+                    path="frames/000000.jpg",
+                    sha256="0" * 64,
+                ),
+            ),
+        )
+
+    @staticmethod
+    def replay_summary():
+        return ReplaySummary(
+            session_id="replay-test",
+            source="rpi:0",
+            frame_count=4,
+            width=640,
+            height=480,
+            elapsed_seconds=0.3,
+            observed_fps=10.0,
+            warnings=(),
+        )
+
+    def test_record_and_replay_arguments_are_mutually_exclusive(self):
+        record = main.parse_options(
+            ["--record-camera", "recordings/school-1", "--record-frames", "250"]
+        )
+        replay = main.parse_options(["--replay-camera", "recordings/school-1"])
+
+        self.assertEqual(Path("recordings/school-1"), record.record_camera)
+        self.assertEqual(250, record.record_frames)
+        self.assertEqual(Path("recordings/school-1"), replay.replay_camera)
+        with patch("sys.stderr", new=io.StringIO()):
+            with self.assertRaises(SystemExit):
+                main.parse_options(
+                    [
+                        "--record-camera",
+                        "one",
+                        "--replay-camera",
+                        "two",
+                    ]
+                )
+
+    def test_recording_renders_progress_summary_and_skips_simulation_probe(self):
+        manifest = self.session_manifest()
+
+        def fake_record(options, *, progress):
+            progress(1, 1, goz.FramePacket(0, 0.0, {}, source="usb:0"))
+            return manifest
+
+        with (
+            patch("arac.main.run_camera_recording", side_effect=fake_record) as record,
+            patch(
+                "arac.main.run_simulation_probe",
+                side_effect=AssertionError("record utility must exit after capture"),
+            ),
+        ):
+            exit_code, output = self.run_cli(
+                [
+                    "--auto",
+                    "--record-camera",
+                    "recordings/school-1",
+                    "--record-frames",
+                    "1",
+                    "--language",
+                    "en",
+                    "--no-color",
+                ]
+            )
+
+        self.assertEqual(main.EXIT_OK, exit_code)
+        record.assert_called_once()
+        self.assertIn("CAMERA SESSION COMPLETE", output)
+        self.assertIn("record-test", output)
+        self.assertIn("1/1", output)
+        self.assertIn("Warning: equal timestamp", output)
+
+    def test_recording_failure_is_fail_closed_before_simulation(self):
+        with (
+            patch(
+                "arac.main.run_camera_recording",
+                side_effect=CameraSessionError("disk became unavailable"),
+            ),
+            patch(
+                "arac.main.run_simulation_probe",
+                side_effect=AssertionError("failed recording must stop"),
+            ),
+        ):
+            exit_code, output = self.run_cli(
+                [
+                    "--auto",
+                    "--record-camera",
+                    "recordings/fail",
+                    "--language",
+                    "en",
+                    "--no-color",
+                ]
+            )
+
+        self.assertEqual(main.EXIT_NOT_READY, exit_code)
+        self.assertIn("Camera recording failed closed", output)
+        self.assertIn("disk became unavailable", output)
+
+    def test_replay_renders_verified_summary_and_skips_simulation(self):
+        with (
+            patch(
+                "arac.main.run_replay_diagnostic",
+                return_value=self.replay_summary(),
+            ) as replay,
+            patch(
+                "arac.main.run_simulation_probe",
+                side_effect=AssertionError("replay utility must exit after validation"),
+            ),
+        ):
+            exit_code, output = self.run_cli(
+                [
+                    "--auto",
+                    "--replay-camera",
+                    "recordings/pi-1",
+                    "--language",
+                    "en",
+                    "--no-color",
+                ]
+            )
+
+        self.assertEqual(main.EXIT_OK, exit_code)
+        replay.assert_called_once()
+        self.assertIn("RECORDED SESSION VERIFIED", output)
+        self.assertIn("replay-test", output)
+        self.assertIn("rpi:0", output)
+        self.assertIn("640x480 BGR8", output)
+
+    def test_replay_integrity_failure_is_visible_and_fail_closed(self):
+        with patch(
+            "arac.main.run_replay_diagnostic",
+            side_effect=CameraSessionError("checksum mismatch"),
+        ):
+            exit_code, output = self.run_cli(
+                [
+                    "--auto",
+                    "--replay-camera",
+                    "recordings/broken",
+                    "--language",
+                    "en",
+                    "--no-color",
+                ]
+            )
+
+        self.assertEqual(main.EXIT_NOT_READY, exit_code)
+        self.assertIn("Recorded session was rejected", output)
+        self.assertIn("checksum mismatch", output)
+
+    def test_interactive_menu_collects_record_path_and_frame_limit(self):
+        values = iter(("3", "recordings/menu-session", "7"))
+
+        with patch(
+            "arac.main.run_camera_recording", return_value=self.session_manifest()
+        ) as record:
+            exit_code, output = self.run_cli(
+                ["--interactive", "--language", "en", "--no-color"],
+                input_fn=lambda _prompt: next(values),
+            )
+
+        self.assertEqual(main.EXIT_OK, exit_code)
+        selected = record.call_args.args[0]
+        self.assertEqual(Path("recordings/menu-session"), selected.record_camera)
+        self.assertEqual(7, selected.record_frames)
+        self.assertIn("ARDA CAMERA LAB", output)
+        self.assertIn("Record a finite camera session", output)
+
+    def test_interactive_menu_retries_invalid_choice_and_can_exit(self):
+        values = iter(("wrong", "5"))
+
+        with patch(
+            "arac.main.run_simulation_probe",
+            side_effect=AssertionError("menu exit must not run a probe"),
+        ):
+            exit_code, output = self.run_cli(
+                ["--interactive", "--language", "en", "--no-color"],
+                input_fn=lambda _prompt: next(values),
+            )
+
+        self.assertEqual(main.EXIT_OK, exit_code)
+        self.assertIn("Choose one of the displayed numbers", output)
+        self.assertIn("no camera or motor action", output)
+
+    def test_interactive_menu_interrupt_and_missing_input_fail_safely(self):
+        def interrupt(_prompt):
+            raise KeyboardInterrupt
+
+        def end_of_input(_prompt):
+            raise EOFError
+
+        interrupted, interrupted_output = self.run_cli(
+            ["--interactive", "--language", "en", "--no-color"],
+            input_fn=interrupt,
+        )
+        missing, missing_output = self.run_cli(
+            ["--interactive", "--language", "en", "--no-color"],
+            input_fn=end_of_input,
+        )
+
+        self.assertEqual(main.EXIT_INTERRUPTED, interrupted)
+        self.assertIn("no hardware action was taken", interrupted_output)
+        self.assertEqual(main.EXIT_NOT_READY, missing)
+        self.assertIn("confirmation input was unavailable", missing_output)
+
+    def test_vehicle_mode_refuses_before_record_or_replay(self):
+        with (
+            patch(
+                "arac.main.run_camera_recording",
+                side_effect=AssertionError("vehicle refusal must happen first"),
+            ),
+            patch(
+                "arac.main.run_replay_diagnostic",
+                side_effect=AssertionError("vehicle refusal must happen first"),
+            ),
+        ):
+            exit_code, output = self.run_cli(
+                [
+                    "--mode",
+                    "vehicle",
+                    "--auto",
+                    "--record-camera",
+                    "recordings/nope",
+                    "--no-color",
+                ]
+            )
+
+        self.assertEqual(main.EXIT_NOT_READY, exit_code)
+        self.assertIn("reddedildi", output)
 
 
 if __name__ == "__main__":
