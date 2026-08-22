@@ -191,7 +191,10 @@ class ProfileStoreTest(unittest.TestCase):
         )
         self.assertEqual(profile.manifest.profile_id, selection.profile_id)
         self.assertEqual("school team", selection.warning_reviewer)
-        self.assertEqual(profile.manifest.profile_id, self.store.load_active_profile().manifest.profile_id)
+        self.assertEqual(
+            profile.manifest.profile_id,
+            self.store.load_active_profile().manifest.profile_id,
+        )
 
     def test_settings_variant_preserves_parent_and_original(self):
         parent = self.import_example()

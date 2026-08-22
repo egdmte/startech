@@ -7,7 +7,7 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-from arac import durum, goruntu, goz, kayit, main, surucu
+from arac import ayar, ayar_cli, durum, goruntu, goz, kayit, main, surucu
 from arac.kamera_oturumu import (
     CameraSessionError,
     RecordedFrame,
@@ -25,6 +25,8 @@ class ArdaCliTest(unittest.TestCase):
     def test_module_identities_match_the_agreed_names(self):
         identities = {
             durum: ("STARTECH-DORA (SARA)", "Durum Okuma ve Raporlama"),
+            ayar: ("STARTECH-YAREN (CLARA)", "Configuration Loading, Archival and Revision"),
+            ayar_cli: ("STARTECH-YAREN", "vehicle arming"),
             goruntu: ("STARTECH-KEREM (CORA)", "Camera Object Recognition Agent"),
             goz: ("STARTECH-KASIM (CAMILA)", "Camera Acquisition and Monitoring"),
             kayit: ("STARTECH-KADER (BLAIR)", "Black-box Logging"),
@@ -207,6 +209,8 @@ class ArdaCliTest(unittest.TestCase):
         self.assertIsNone(options.record_camera)
         self.assertIsNone(options.replay_camera)
         self.assertFalse(options.interactive)
+        self.assertFalse(options.configuration)
+        self.assertIsNone(options.profile_root)
         self.assertEqual(0, options.usb_index)
         self.assertEqual(3, options.camera_frames)
         self.assertEqual(120, options.record_frames)
@@ -389,11 +393,11 @@ class ArdaCliTest(unittest.TestCase):
         selected = record.call_args.args[0]
         self.assertEqual(Path("recordings/menu-session"), selected.record_camera)
         self.assertEqual(7, selected.record_frames)
-        self.assertIn("ARDA CAMERA LAB", output)
+        self.assertIn("ARDA WORKBENCH", output)
         self.assertIn("Record a finite camera session", output)
 
     def test_interactive_menu_retries_invalid_choice_and_can_exit(self):
-        values = iter(("wrong", "5"))
+        values = iter(("wrong", "6"))
 
         with patch(
             "arac.main.run_simulation_probe",
@@ -407,6 +411,41 @@ class ArdaCliTest(unittest.TestCase):
         self.assertEqual(main.EXIT_OK, exit_code)
         self.assertIn("Choose one of the displayed numbers", output)
         self.assertIn("no camera or motor action", output)
+
+    def test_configuration_menu_is_finite_and_skips_simulation_probe(self):
+        with (
+            patch("arac.main.run_configuration_menu", return_value=0) as yaren,
+            patch(
+                "arac.main.run_simulation_probe",
+                side_effect=AssertionError("YAREN utility must not run the drive probe"),
+            ),
+        ):
+            exit_code, output = self.run_cli(
+                [
+                    "--auto",
+                    "--configuration",
+                    "--profile-root",
+                    "profiles/test",
+                    "--language",
+                    "en",
+                    "--no-color",
+                ]
+            )
+
+        self.assertEqual(main.EXIT_OK, exit_code)
+        yaren.assert_called_once()
+        self.assertIn("Opening YAREN", output)
+
+    def test_interactive_workbench_can_open_yaren(self):
+        with patch("arac.main.run_configuration_menu", return_value=0) as yaren:
+            exit_code, output = self.run_cli(
+                ["--interactive", "--language", "en", "--no-color"],
+                input_fn=lambda _prompt: "5",
+            )
+
+        self.assertEqual(main.EXIT_OK, exit_code)
+        yaren.assert_called_once()
+        self.assertIn("Manage calibration and settings", output)
 
     def test_interactive_menu_interrupt_and_missing_input_fail_safely(self):
         def interrupt(_prompt):

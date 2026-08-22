@@ -572,7 +572,9 @@ class ProfileStore:
     def _new_id(self, factory: Callable[[], str], name: str) -> str:
         return _identifier(factory(), name)
 
-    def _locate(self, profile_id: str, *, include_archived: bool = True) -> tuple[Path, ProfileLocation]:
+    def _locate(
+        self, profile_id: str, *, include_archived: bool = True
+    ) -> tuple[Path, ProfileLocation]:
         selected = _identifier(profile_id, "profil_kimligi")
         installed = self.profiles_directory / selected
         archived = self.archive_directory / selected

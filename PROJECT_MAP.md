@@ -16,7 +16,7 @@ Use this page when the repository starts feeling larger than the car.
 
 | Path | What it is | Use it when |
 |---|---|---|
-| `arac/` | Current autonomous-car application contracts | Working on camera, vision, state, logs, orchestration or motor requests |
+| `arac/` | Current autonomous-car application contracts | Working on camera, configuration, vision, state, logs, orchestration or motor requests |
 | `sim/` | Webots-only visual car driven through TAWNT and `FakeMotorDriver` | Watching or testing fake motor behavior without the physical car |
 | `tests/` | Automated proof for the current Python behavior | Changing anything in `arac/`, TAWNT, configuration or project checks |
 | `startech/` | Shared implementation packages used by public entry points | Maintaining TAWNT internals, configuration validation or document checks |
@@ -32,13 +32,46 @@ Use this page when the repository starts feeling larger than the car.
 ```text
 arac/main.py       ARDA / ADAM    command-line entry and orchestration
     |
+    +-- arac/ayar.py       YAREN / CLARA   fail-closed active profile loader
+    +-- arac/ayar_cli.py   YAREN / CLARA   calibration/settings registry menu
     +-- arac/goz.py        KASIM / CAMILA   camera acquisition
+    +-- arac/kamera_oturumu.py             finite record/replay sessions
     +-- arac/goruntu.py    KEREM / CORA     cautious vision observations
     +-- arac/durum.py      DORA / SARA      state transitions
     +-- arac/kayit.py      KADER / BLAIR    black-box software records
     +-- arac/surucu.py     OSMAN / MATT     only planned motor-output boundary
     +-- arac/simulasyon.py                 fake differential-drive bridge
+    +-- arac/cli_ui.py                     shared dependency-free terminal widgets
 ```
+
+## Calibration and settings registry
+
+YAREN joins, versions and selects existing v1 calibration/settings pairs without
+changing their schemas:
+
+```text
+kalibrasyon.json + ayarlar.json
+             |
+             v
+startech/configuration/profiles.py
+             |
+             +-- profil.json + full SHA-256 values
+             +-- selection history and archive
+             +-- arac/ayar.py (read-only runtime snapshot)
+             +-- arac/ayar_cli.py (human/automation interface)
+```
+
+Profiles live outside the repository by default. Open the guided menu directly or
+through ARDA:
+
+```powershell
+py -3.13 -m arac.ayar_cli
+py -3.13 -m arac.main --auto --configuration --language en
+```
+
+Installing, validating or selecting a profile never arms TAWNT or a motor driver and
+never grants a "safe to drive" state. See `Markdown/YAPILANDIRMA_SOZLESMESI.md` for
+the registry layout, warning review and settings-revision rules.
 
 TAWNT keeps every accepted motion request behind a validation gate:
 
@@ -72,8 +105,8 @@ plus a strict `manifest.json`. It refuses to overwrite an existing directory. Th
 completed manifest is written last; an interrupted capture instead leaves
 `incomplete.json`, which replay rejects.
 
-The numbered terminal menu works on Windows, Linux and Raspberry Pi without an extra
-UI package:
+The numbered ARDA workbench works on Windows, Linux and Raspberry Pi without an extra
+UI package. It includes camera utilities and the YAREN configuration menu:
 
 ```powershell
 py -3.13 -m arac.main --interactive --language en

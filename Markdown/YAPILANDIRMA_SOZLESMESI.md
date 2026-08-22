@@ -44,12 +44,22 @@ Bu depodaki dosyalar canlı araç ayarı değildir:
 
 - `config/schema/kalibrasyon-v1.schema.json`: bilgisayar sözleşmesi
 - `config/schema/ayarlar-v1.schema.json`: bilgisayar sözleşmesi
+- `config/schema/profil-v1.schema.json`: iki dosyayı eşleyen YAREN zarfı
 - `config/examples/kalibrasyon-v1.ornek.json`: test örneği
 - `config/examples/ayarlar-v1.ornek.json`: test örneği
 
 StarTechConfig kullanıcının seçtiği klasöre gerçek `kalibrasyon.json` ve
 `ayarlar.json` dosyalarını birlikte yazar. `config/examples` altındaki dosyaları
 Raspberry Pi'ye kopyalamayın; isimlerindeki `.ornek` bunu hatırlatır.
+
+YAREN'in kurulu profilleri depo içinde tutulmaz. Varsayılan yerler:
+
+- Windows: `%LOCALAPPDATA%\STARTECH\configuration`
+- Linux/Raspberry Pi: `$XDG_CONFIG_HOME/startech/configuration`; değişken yoksa
+  `~/.config/startech/configuration`
+
+`STARTECH_PROFILE_ROOT` ortam değişkeni veya komut satırındaki `--profile-root`, test
+ve taşınabilir okul oturumları için bu konumu değiştirebilir.
 
 ## 3. `kalibrasyon.json` bölümleri
 
@@ -195,7 +205,84 @@ motor uçlarında yük altında gerçekten güvenli voltaj görüldüğünü kan
 Uyarı “güvenlidir” anlamına gelmez. Yalnız durumun otomatik olarak tek bir doğru
 cevabı olmadığını belirtir.
 
-## 6. Bugün bilerek çözülmeyen farklılıklar
+## 6. YAREN profil zarfı ve durumları
+
+STARTECH-YAREN (CLARA), mevcut v1 dosyalarını değiştirmeden bir
+`kalibrasyon.json` + `ayarlar.json` çiftini dış bir `profil.json` ile eşler. Tam adları:
+
+- **Yapılandırma Arşivleme, Revizyon ve Etkinleştirme Noktası**
+- **Configuration Loading, Archival and Revision Agent**
+
+Her kurulu profil klasöründe yalnız üç dosya vardır:
+
+```text
+<profil-kimligi>/
+    kalibrasyon.json
+    ayarlar.json
+    profil.json
+```
+
+`profil.json`; iki dosyanın tam SHA-256 özetini, kamera uyumluluğunu, üretim kaynağını,
+ebeveyn revizyonunu ve güncel uyarı kümesinin özetini kaydeder. Kurulum sırasında JSON
+şemaları ve alanlar arası kurallar yeniden denetlenir. Daha sonra tek bir bayt bile
+değişirse profil bütünlük denetimini geçmez.
+
+YAREN durumları özellikle birbirinden ayrıdır:
+
+- **Imported / Kuruldu:** Çift doğrulandı ve inceleme için arşive alındı.
+- **Review required / İnceleme gerekli:** Uyarılar varsa seçimden önce insan bunları
+  görüp adını kaydetmelidir.
+- **Selected / Seçildi:** ARDA'nın okuyacağı atomik işaretçi bu profile yöneliyor.
+- **Archived / Arşivlendi:** Normal seçim listesinden çıkarıldı; veri silinmedi.
+- **Safe to drive / Sürüşe güvenli:** YAREN bu durumu hiçbir zaman vermez.
+
+Seçim TAWNT'ı başlatmaz, motor sürücüsü oluşturmaz ve aracı arm etmez. Etkin profil
+arşivlenemez. Ayar düzenleyicisi mevcut dosyanın üstüne yazmak yerine ebeveyni belli
+yeni bir profil oluşturur. v1 arayüzünde silme komutu bilerek yoktur.
+
+### 6.1 Kayıt yapısı
+
+```text
+configuration/
+    aktif-profil.json
+    profiles/<kimlik>/...
+    archive/<kimlik>/...
+    history/<secim-kimligi>.json
+    .staging/
+```
+
+`aktif-profil.json` profil kimliğini, iki tam özeti, uyarı özetini ve önceki seçim
+kimliğini birlikte taşır. Aynı kayıt `history/` altında yoksa veya kayıt profil
+özetleriyle uyuşmuyorsa `arac/ayar.py` güvenli biçimde yüklemeyi reddeder. Seçim
+geçmişinde tamamlanmamış atomik yazımlar "orphaned" olarak görülebilir; etkin zincirin
+parçası sayılmaz.
+
+### 6.2 Kullanım
+
+Kılavuzlu menü:
+
+```powershell
+py -3.13 -m arac.ayar_cli
+```
+
+ARDA içinden aynı menü:
+
+```powershell
+py -3.13 -m arac.main --auto --configuration --language tr
+```
+
+Otomasyon için alt komutlar `list`, `show`, `import`, `settings`, `activate`,
+`compare`, `diagnose`, `history`, `archive`, `restore` ve `export` olarak sunulur.
+Örneğin bir ayarı değiştirirken yalnız izin verilen sayısal yollar kullanılır:
+
+```powershell
+py -3.13 -m arac.ayar_cli settings <ebeveyn-kimligi> `
+  --name "Yavaş sınıf testi" --set hiz.hedef=48 --set kontrol.kp=0.5
+```
+
+Bu komut ebeveyn profilini değiştirmez ve yeni profili otomatik seçmez.
+
+## 7. Bugün bilerek çözülmeyen farklılıklar
 
 İnceleme sırasında iki ayar grubu görüldü:
 
@@ -209,20 +296,20 @@ Ayrıca 960×540 ve 840×630 kalibrasyon çıktıları görüldü. İki çözün
 olarak geçerli olabilir; fakat bir çözünürlüğün perspektif noktaları diğerinde
 kullanılamaz.
 
-## 7. v1'de bulunmayan kaynak bilgileri
+## 8. v1 dosyalarında bulunmayan kaynak bilgileri
 
-Mevcut v1 dosyasında şunlar yoktur:
+Mevcut `kalibrasyon.json` ve `ayarlar.json` v1 dosyalarında şunlar yoktur:
 
 - Kamera cihaz kimliği veya seri numarası
 - Her alan için “kim, hangi araçla, nasıl ölçtü?” kaydı
 - Kalibrasyonun son geçerlilik tarihi
-- `ayarlar.json` içine gömülü eş kalibrasyon damgası
+- `ayarlar.json` içine gömülü eş kalibrasyon damgası (YAREN bunu dış zarfla eşler)
 - Tam uzunlukta, güvenlik amaçlı dijital imza
 
 Şema bunları varmış gibi göstermez. Eklenmeleri istenirse `sema_surumu: 2` için ayrı
 bir plan, göç yöntemi, araç güncellemesi ve test gerekir.
 
-## 8. Sürüm değiştirme kuralları
+## 9. Sürüm değiştirme kuralları
 
 1. Bilinmeyen şema sürümü sessizce v1 olarak okunmaz.
 2. Alan adı değiştirilirse eski alan sessizce kaybedilmez.
@@ -231,18 +318,18 @@ bir plan, göç yöntemi, araç güncellemesi ve test gerekir.
 5. Eski ve yeni dosya aynı testlerden geçirilir.
 6. İnsan incelemesi yapılmadan yeni dosya araca yüklenmez.
 
-## 9. Testi çalıştırma
+## 10. Testi çalıştırma
 
 Geliştirme bağımlılığı kurulduktan sonra depo kökünde:
 
 ```powershell
-python -m unittest -v tests.test_configuration
+py -3.13 -m unittest -v tests.test_configuration tests.test_profiles tests.test_ayar tests.test_ayar_cli
 ```
 
 Testler gerçek motorları çalıştırmaz. Geçerli örnekleri yükler, kasıtlı bozuk kopyalar
 oluşturur ve bunların reddedildiğini doğrular.
 
-## 10. Sık sorulan sorular
+## 11. Sık sorulan sorular
 
 ### İki JSON aynı dosyada olmak zorunda mı?
 
@@ -250,9 +337,9 @@ Hayır. Bilerek ayrıdırlar. StarTechConfig ikisini aynı klasöre birlikte kay
 
 ### İki dosyanın birbirine ait olduğu nasıl anlaşılır?
 
-Bugünkü yerel dosya içeriğinde ortak bir kimlik yoktur. Sunucu akışı, kalibrasyonun
-zamanı ve kısa özetinden türetilen dış damgayla iki dosyayı eşler. Bu yerel v1'in
-bilinen bir eksikliğidir.
+İki v1 dosyasının kendi içinde ortak kimlik yoktur. YAREN, içeriği değiştirmeden ikisini
+`profil.json` içindeki ayrı tam SHA-256 değerleriyle eşler. Profil dışındaki iki başıboş
+JSON'un birbirine ait olduğu yalnız dosya içeriklerinden kesin olarak anlaşılamaz.
 
 ### `VAR = DATA` yazmakla JSON alanı yazmak aynı mı?
 
@@ -275,12 +362,14 @@ kullanmadığı için saldırıya dayanıklı imza değildir.
 Örnekler testin her bilgisayarda tekrar çalışabilmesi içindir. Canlı kalibrasyonlar
 araç, kamera ve ölçüm oturumuna aittir; örnekle karışmaları tehlikelidir.
 
-## 11. Mevcut araçta görülen doğrulama boşluğu
+## 12. Mevcut araçta görülen doğrulama boşluğu
 
 StarTechConfig, `kalibrasyon.json` yüklerken şema sürümünü kontrol eder. Mevcut
 `AyarlariUygula` yolu ise `ayarlar.json` içindeki `sema_surumu` alanını aynı kesinlikle
 kontrol etmiyor ve bazı eksik bölümleri sessizce atlayabiliyor. Bu belge veya test dosyası
 WinForms uygulamasını kendiliğinden düzeltmez.
 
-Aracın yükleme sırasında iki şemayı da kullanması ve Raspberry Pi tarafındaki gelecekteki
-`ayar.py` doğrulayıcısı ayrı uygulama değişiklikleridir; ayrı plan ve onay gerektirir.
+YAREN'in `arac/ayar.py` yükleyicisi seçili profilde iki şemayı, tam özetleri, uyarı
+onayını, geçmiş kaydını ve istenirse gerçek kameradan gözlenen çözünürlüğü birlikte
+denetler. Bu, WinForms uygulamasındaki sessiz atlama davranışını değiştirmez ve fiziksel
+araçta hangi değerlerin doğru olduğunu kanıtlamaz. Web/WinForms göçü ayrı bir değişikliktir.

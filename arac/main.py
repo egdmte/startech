@@ -22,6 +22,8 @@ if __package__ in {None, ""}:
     if repository_root not in sys.path:
         sys.path.insert(0, repository_root)
     from arac.durum import EventType, StateEvent, StateMachine, VehicleState
+    from arac.ayar_cli import run as run_yaren_cli
+    from startech.configuration.profiles import ProfileStore
     from arac.cli_ui import MenuOption, TerminalUI
     from arac.goruntu import SimulatedVisionAnalyzer
     from arac.goz import (
@@ -44,6 +46,8 @@ if __package__ in {None, ""}:
     from arac.surucu import BlockedMotorDriver
 else:
     from .durum import EventType, StateEvent, StateMachine, VehicleState
+    from .ayar_cli import run as run_yaren_cli
+    from startech.configuration.profiles import ProfileStore
     from .cli_ui import MenuOption, TerminalUI
     from .goruntu import SimulatedVisionAnalyzer
     from .goz import (
@@ -106,6 +110,13 @@ TEXT = {
         "camera_replay_pending": (
             "The stored session has not been opened or integrity-checked yet."
         ),
+        "configuration_label": "YAREN/CLARA configuration registry",
+        "configuration_ready": (
+            "An integrity-checked profile is selected; the vehicle is not armed."
+        ),
+        "configuration_pending": (
+            "No valid selected profile is available. Open the YAREN menu."
+        ),
         "camera_missing": "No physical camera provider is connected.",
         "vision_label": "KEREM/CORA vision analyzer",
         "vision_simulated": "Explicit simulation payloads are validated conservatively.",
@@ -131,13 +142,14 @@ TEXT = {
             "resolution={width}x{height}, elapsed={elapsed:.3f}s."
         ),
         "camera_probe_failed": "Camera check failed closed: {error}",
-        "menu_title": "ARDA CAMERA LAB",
+        "menu_title": "ARDA WORKBENCH",
         "menu_simulation": "Run the bounded simulation self-check",
         "menu_check": "Check a live camera without saving frames",
         "menu_record": "Record a finite camera session",
         "menu_replay": "Validate and replay a recorded session",
+        "menu_configuration": "Manage calibration and settings with YAREN",
         "menu_exit": "Exit without running an operation",
-        "menu_prompt": "Choose 1-5: ",
+        "menu_prompt": "Choose 1-6: ",
         "menu_invalid": "Choose one of the displayed numbers.",
         "path_prompt_record": "New session directory: ",
         "path_prompt_replay": "Existing session directory: ",
@@ -145,6 +157,7 @@ TEXT = {
         "frames_prompt": "Frame count [120]: ",
         "frames_invalid": "Enter an integer between 1 and 30000.",
         "menu_cancelled": "Menu closed; no camera or motor action was taken.",
+        "configuration_open": "Opening YAREN. Profile selection cannot arm the vehicle.",
         "record_start": (
             "Recording a finite session: USB camera {index} first, then Raspberry Pi."
         ),
@@ -203,6 +216,9 @@ TEXT = {
         "camera_replay_pending": (
             "Kayıtlı oturum henüz açılmadı veya bütünlük denetiminden geçmedi."
         ),
+        "configuration_label": "YAREN/CLARA yapılandırma arşivi",
+        "configuration_ready": "Bütünlüğü doğrulanmış profil seçili; araç arm edilmedi.",
+        "configuration_pending": "Geçerli seçili profil yok. YAREN menüsünü açın.",
         "camera_missing": "Fiziksel kamera sağlayıcısı bağlı değil.",
         "vision_label": "KEREM/CORA görüntü çözümleyicisi",
         "vision_simulated": "Açık simülasyon verileri ihtiyatlı biçimde doğrulanır.",
@@ -228,13 +244,14 @@ TEXT = {
             "çözünürlük={width}x{height}, süre={elapsed:.3f}sn."
         ),
         "camera_probe_failed": "Kamera denetimi güvenli biçimde durdu: {error}",
-        "menu_title": "ARDA KAMERA LABORATUVARI",
+        "menu_title": "ARDA ÇALIŞMA TEZGAHI",
         "menu_simulation": "Sınırlı simülasyon öz denetimini çalıştır",
         "menu_check": "Kare kaydetmeden canlı kamerayı denetle",
         "menu_record": "Sonlu bir kamera oturumu kaydet",
         "menu_replay": "Kayıtlı bir oturumu doğrula ve yeniden oynat",
+        "menu_configuration": "Kalibrasyon ve ayarları YAREN ile yönet",
         "menu_exit": "İşlem çalıştırmadan çık",
-        "menu_prompt": "1-5 arasında seçim yapın: ",
+        "menu_prompt": "1-6 arasında seçim yapın: ",
         "menu_invalid": "Gösterilen sayılardan birini seçin.",
         "path_prompt_record": "Yeni oturum klasörü: ",
         "path_prompt_replay": "Mevcut oturum klasörü: ",
@@ -242,6 +259,7 @@ TEXT = {
         "frames_prompt": "Kare sayısı [120]: ",
         "frames_invalid": "1 ile 30000 arasında bir tam sayı girin.",
         "menu_cancelled": "Menü kapatıldı; kamera veya motor işlemi yapılmadı.",
+        "configuration_open": "YAREN açılıyor. Profil seçimi aracı arm edemez.",
         "record_start": (
             "Sonlu oturum kaydı: önce USB kamera {index}, sonra Raspberry Pi denenir."
         ),
@@ -289,6 +307,8 @@ class StartupOptions:
     record_camera: Path | None
     replay_camera: Path | None
     interactive: bool
+    configuration: bool
+    profile_root: Path | None
     usb_index: int
     camera_frames: int
     record_frames: int
@@ -391,7 +411,17 @@ def build_parser() -> argparse.ArgumentParser:
     actions.add_argument(
         "--interactive",
         action="store_true",
-        help="open the numbered camera-lab menu",
+        help="open the numbered ARDA workbench menu",
+    )
+    actions.add_argument(
+        "--configuration",
+        action="store_true",
+        help="open the YAREN calibration/settings menu",
+    )
+    parser.add_argument(
+        "--profile-root",
+        type=Path,
+        help="override YAREN's OS-local profile registry directory",
     )
     parser.add_argument(
         "--usb-index",
@@ -428,6 +458,8 @@ def parse_options(argv: Sequence[str] | None = None) -> StartupOptions:
         record_camera=args.record_camera,
         replay_camera=args.replay_camera,
         interactive=args.interactive,
+        configuration=args.configuration,
+        profile_root=args.profile_root,
         usb_index=args.usb_index,
         camera_frames=args.camera_frames,
         record_frames=args.record_frames,
@@ -478,6 +510,12 @@ def _build_checks(options: StartupOptions) -> tuple[StartupCheck, ...]:
         camera_state = simulated_or_blocked
         camera_detail = mode_detail("camera_simulated", "camera_missing")
 
+    configuration_diagnosis = ProfileStore(options.profile_root).diagnose_active()
+    configuration_state = "ready" if configuration_diagnosis.valid else "pending"
+    configuration_detail = (
+        "configuration_ready" if configuration_diagnosis.valid else "configuration_pending"
+    )
+
     return (
         StartupCheck(
             _text(language, "ready"),
@@ -488,6 +526,11 @@ def _build_checks(options: StartupOptions) -> tuple[StartupCheck, ...]:
             _text(language, camera_state),
             _text(language, "camera_label"),
             _text(language, camera_detail),
+        ),
+        StartupCheck(
+            _text(language, configuration_state),
+            _text(language, "configuration_label"),
+            _text(language, configuration_detail),
         ),
         StartupCheck(
             _text(language, simulated_or_blocked),
@@ -688,7 +731,8 @@ def _interactive_options(
             MenuOption("2", _text(language, "menu_check")),
             MenuOption("3", _text(language, "menu_record")),
             MenuOption("4", _text(language, "menu_replay")),
-            MenuOption("5", _text(language, "menu_exit")),
+            MenuOption("5", _text(language, "menu_configuration")),
+            MenuOption("6", _text(language, "menu_exit")),
         ),
         input_fn=input_fn,
         prompt=_text(language, "menu_prompt"),
@@ -700,6 +744,7 @@ def _interactive_options(
         check_camera=False,
         record_camera=None,
         replay_camera=None,
+        configuration=False,
     )
     if choice == "1":
         return base
@@ -727,7 +772,26 @@ def _interactive_options(
             invalid_message=_text(language, "path_invalid"),
         )
         return replace(base, replay_camera=Path(path))
+    if choice == "5":
+        return replace(base, configuration=True)
     return None
+
+
+def run_configuration_menu(
+    options: StartupOptions,
+    *,
+    input_fn: Callable[[str], str],
+    output: TextIO,
+) -> int:
+    """Open YAREN as a finite ARDA utility without starting the drive probe."""
+
+    arguments: list[str] = []
+    if options.profile_root is not None:
+        arguments.extend(("--profile-root", str(options.profile_root)))
+    if not options.color:
+        arguments.append("--no-color")
+    arguments.append("interactive")
+    return run_yaren_cli(arguments, input_fn=input_fn, output=output)
 
 
 def _progress_renderer(
@@ -842,6 +906,14 @@ def run(
             except EOFError:
                 console.write(_text(options.language, "no_input"), style=TerminalUI.RED)
                 return EXIT_NOT_READY
+
+    if options.configuration:
+        console.write()
+        console.write(
+            _text(options.language, "configuration_open"),
+            style=TerminalUI.YELLOW,
+        )
+        return run_configuration_menu(options, input_fn=input_fn, output=output)
 
     if options.check_camera:
         console.write()
