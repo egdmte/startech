@@ -12,6 +12,7 @@ from jsonschema import Draft202012Validator
 from startech.configuration import (
     AYARLAR_SEMASI,
     KALIBRASYON_SEMASI,
+    PROFILE_SCHEMA,
     ayarlar_uyarilari,
     ayarlari_dogrula,
     json_oku,
@@ -46,6 +47,7 @@ class YapilandirmaSemasiTesti(unittest.TestCase):
     def test_semalar_draft_2020_12_icin_gecerli(self):
         Draft202012Validator.check_schema(KALIBRASYON_SEMASI)
         Draft202012Validator.check_schema(AYARLAR_SEMASI)
+        Draft202012Validator.check_schema(PROFILE_SCHEMA)
 
     def test_ornek_kalibrasyon_gecerli(self):
         self.assertEqual([], kalibrasyonu_dogrula(self.kalibrasyon))
