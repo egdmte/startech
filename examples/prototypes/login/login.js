@@ -3,9 +3,9 @@ const translations = {
     pageTitle: "Calibrate your STARTECH instance",
     panelLabel: "Login",
     languageLabel: "Language",
-    introTitle: "Calibrate your STARTECH<br> instance",
+    introTitle: "Calibrate your STARTECH<br>instance",
     introDescription:
-      "Any car with compatible code can receive a new calibration without manually transferring a file.",
+      "Any car with a proper code can sideload new calibrations without a file transfer.",
     learn: "Learn how to update your code",
     nameLabel: "Your full legal name",
     passwordLabel: "Password provided",
@@ -13,17 +13,16 @@ const translations = {
     offline: "Continue without access to the car",
     nameError: "Enter your name.",
     passwordError: "Enter the access password.",
-    prototypeStatus: "Opening temporary code verification.",
     learnStatus: "The code-update guide will be connected when that document is ready.",
-    offlineStatus: "The offline calibration workspace will be connected in the next slice."
+    offlineStatus: "The offline calibration workspace will be connected later."
   },
   tr: {
     pageTitle: "STARTECH aracını kalibre et",
     panelLabel: "Giriş",
     languageLabel: "Dil",
-    introTitle: "STARTECH aracını<br> kalibre et",
+    introTitle: "STARTECH aracını<br>kalibre et",
     introDescription:
-      "Uyumlu koda sahip araçlar, elle dosya aktarmadan yeni bir kalibrasyon alabilir.",
+      "Uygun koda sahip araçlar, dosya aktarmadan yeni kalibrasyonları yan yükleyebilir.",
     learn: "Kodu nasıl güncelleyeceğini öğren",
     nameLabel: "Adın ve soyadın",
     passwordLabel: "Verilen parola",
@@ -31,9 +30,8 @@ const translations = {
     offline: "Araca erişmeden devam et",
     nameError: "Adını ve soyadını yaz.",
     passwordError: "Erişim parolasını yaz.",
-    prototypeStatus: "Geçici kod doğrulaması açılıyor.",
     learnStatus: "Kod güncelleme kılavuzu hazırlandığında bu bağlantı etkinleştirilecek.",
-    offlineStatus: "Çevrimdışı kalibrasyon alanı bir sonraki aşamada bağlanacak."
+    offlineStatus: "Çevrimdışı kalibrasyon alanı daha sonra bağlanacak."
   }
 };
 
@@ -104,7 +102,6 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
-  setStatus("prototypeStatus");
   window.location.href = "access.html";
 });
 

@@ -3,7 +3,7 @@
   --muted: #3f3f3f;
   --line: #8c8c8c;
   --paper: #ffffff;
-  --surface: #f5f5f5;
+  --surface: #f7f7f7;
   --danger: #c5161d;
   --focus: #155eef;
 }
@@ -41,14 +41,14 @@ button {
 
 button:focus-visible,
 input:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 3px;
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .login-shell {
   display: grid;
   min-height: 100vh;
-  grid-template-columns: minmax(410px, 41.5%) minmax(0, 1fr);
+  grid-template-columns: minmax(410px, 42.55%) minmax(0, 1fr);
 }
 
 .intro-panel,
@@ -63,34 +63,35 @@ input:focus-visible {
 
 .intro-copy {
   position: absolute;
-  top: 37.3%;
-  right: 8%;
-  left: 7.5%;
+  top: 36.86%;
+  right: 7%;
+  left: 7.45%;
 }
 
 .car-icon {
   display: block;
   width: 39px;
   height: 39px;
-  margin-bottom: 17px;
+  margin-bottom: 14px;
 }
 
 .intro-copy h1 {
-  max-width: 470px;
+  max-width: 500px;
   margin: 0;
-  font-size: clamp(31px, 2.45vw, 38px);
+  font-size: 30px;
   font-weight: 600;
-  line-height: 1.08;
-  letter-spacing: -0.045em;
+  line-height: 1.1;
+  letter-spacing: -0.055em;
 }
 
 .intro-copy p {
-  max-width: 490px;
-  margin: 22px 0 0;
+  max-width: 390px;
+  margin: 9px 0 0;
   color: var(--muted);
-  font-size: clamp(17px, 1.4vw, 21px);
-  line-height: 1.33;
-  letter-spacing: -0.025em;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: -0.028em;
 }
 
 .text-action,
@@ -117,9 +118,10 @@ input:focus-visible {
 }
 
 .learn-action {
-  margin-top: 29px;
-  font-size: clamp(17px, 1.35vw, 20px);
-  letter-spacing: -0.025em;
+  margin-top: 23px;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.04em;
 }
 
 .auth-panel {
@@ -128,9 +130,9 @@ input:focus-visible {
 
 .auth-form {
   position: absolute;
-  top: 40.4%;
-  right: 5.4%;
-  left: 6.1%;
+  top: 40.43%;
+  right: 38px;
+  left: 48px;
 }
 
 .field-group {
@@ -138,17 +140,27 @@ input:focus-visible {
   margin-bottom: 25px;
 }
 
+.field-group:last-of-type {
+  margin-bottom: 29px;
+}
+
 .field-group label {
   display: block;
   margin-bottom: 9px;
-  font-size: clamp(20px, 1.55vw, 24px);
-  letter-spacing: -0.035em;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+.field-group:last-of-type label {
+  margin-bottom: 12px;
 }
 
 .field-group input {
   display: block;
   width: 100%;
-  height: 42px;
+  height: 41px;
   padding: 6px 11px;
   border: 1px solid var(--line);
   border-radius: 5px;
@@ -174,24 +186,25 @@ input:focus-visible {
 }
 
 .login-action {
-  margin-top: 2px;
-  font-size: clamp(20px, 1.55vw, 24px);
+  margin-top: 1px;
+  font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.035em;
+  line-height: 1.15;
+  letter-spacing: 0;
 }
 
 .form-status {
-  min-height: 20px;
-  margin: 12px 0 0;
+  min-height: 18px;
+  margin: 10px 0 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .auth-footer {
   position: absolute;
-  right: 5.4%;
+  right: 38px;
   bottom: 35px;
-  left: 6.1%;
+  left: 30px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -210,7 +223,6 @@ input:focus-visible {
   height: 26px;
   place-items: center;
   border-radius: 7px;
-  opacity: 1;
   transition: transform 120ms ease;
 }
 
@@ -221,18 +233,16 @@ input:focus-visible {
 }
 
 .language-option:hover,
-.language-option.is-active {
+.language-option:focus-visible {
   transform: translateY(-1px);
-}
-
-.language-option.is-active {
-  box-shadow: 0 2px 0 var(--ink);
 }
 
 .offline-action {
   justify-content: flex-end;
-  font-size: clamp(17px, 1.35vw, 20px);
-  letter-spacing: -0.025em;
+  transform: translateY(-6px);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.039em;
   text-align: right;
 }
 
