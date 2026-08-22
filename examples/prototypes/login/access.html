@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="STARTECH temporary web-code access prototype">
+  <title>Prove that you possess the code — STARTECH</title>
+  <link rel="stylesheet" href="access.css">
+  <script src="access.js" defer></script>
+</head>
+<body>
+  <main class="access-shell">
+    <aside class="identity-panel" aria-label="Current session">
+      <header class="welcome-copy">
+        <span>Welcome</span>
+        <strong>Egemen Yusuf Kayra</strong>
+      </header>
+
+      <footer class="session-footer">
+        <img
+          class="school-logo"
+          src="assets/school-logo.png"
+          alt="STARTECH school mark"
+          width="29"
+          height="28"
+        >
+        <div class="session-status" aria-live="polite">
+          <span class="session-label">Your session will expire in</span>
+          <div class="timer" aria-label="Session expires in 15 minutes">
+            <span class="timer-part" id="timer-minutes">15</span>
+            <span class="timer-part" id="timer-seconds">00</span>
+          </div>
+        </div>
+      </footer>
+    </aside>
+
+    <section class="access-panel" aria-labelledby="access-title">
+      <div class="access-content">
+        <img class="access-icon" src="assets/email.png" alt="" width="39" height="39">
+        <h1 id="access-title">Prove that you possess the code.</h1>
+        <p class="access-explanation">
+          Open YAREN, select the 10th action and enter the code it outputted here. It will be disabled in 15 minutes.
+        </p>
+
+        <form class="code-form" novalidate>
+          <div class="code-entry">
+            <label class="visually-hidden" for="web-code">Temporary YAREN web code</label>
+            <input
+              id="web-code"
+              name="webCode"
+              type="text"
+              inputmode="text"
+              autocomplete="one-time-code"
+              spellcheck="false"
+              maxlength="20"
+              aria-describedby="code-message"
+              required
+            >
+            <button class="send-action" type="submit" aria-label="Verify web code">
+              <img src="assets/send.png" alt="" width="24" height="24">
+            </button>
+          </div>
+          <p class="code-message" id="code-message" role="status" aria-live="polite"></p>
+        </form>
+
+        <button class="offline-action" type="button">
+          Continue without access to the car <span aria-hidden="true">→</span>
+        </button>
+      </div>
+
+      <p class="reassurance">You can always change your mind.</p>
+    </section>
+  </main>
+
+  <noscript>This prototype needs JavaScript for code validation and the session timer.</noscript>
+</body>
+</html>

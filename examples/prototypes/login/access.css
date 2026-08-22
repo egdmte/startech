@@ -1,21 +1,42 @@
 @font-face {
   font-family: "Startech Inter";
-  src:
-    local("Inter 24pt 24pt"),
-    local("Inter 24pt"),
-    local("Inter");
+  src: local("Inter 24pt Regular"), local("Inter 24pt");
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Startech Inter";
+  src: local("Inter 24pt Medium");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Startech Inter";
+  src: local("Inter 24pt SemiBold");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Startech Inter";
+  src: local("Inter 24pt Bold");
+  font-style: normal;
+  font-weight: 700;
   font-display: swap;
 }
 
 :root {
   --ink: #080808;
   --muted: #3f3f3f;
-  --quiet: #9d9d9d;
+  --quiet: #9e9e9e;
   --line: #d1d1d1;
   --paper: #ffffff;
-  --surface: #f5f5f5;
+  --surface: #f7f7f7;
   --danger: #c5161d;
   --focus: #155eef;
 }
@@ -36,6 +57,7 @@ body {
   background: var(--surface);
   font-family: "Startech Inter", "Inter 24pt", Inter, Arial, Helvetica, sans-serif;
   font-size: 16px;
+  font-synthesis: none;
   line-height: 1.35;
   text-rendering: geometricPrecision;
 }
@@ -52,18 +74,18 @@ button {
 
 button:focus-visible,
 input:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 3px;
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
-.email-shell {
+.access-shell {
   display: grid;
   min-height: 100vh;
-  grid-template-columns: minmax(270px, 21.7%) minmax(0, 1fr);
+  grid-template-columns: minmax(270px, 21.6667%) minmax(0, 1fr);
 }
 
 .identity-panel,
-.email-panel {
+.access-panel {
   position: relative;
   min-width: 0;
 }
@@ -78,7 +100,9 @@ input:focus-visible {
   right: 30px;
   left: 30px;
   font-size: 17px;
-  line-height: 1.2;
+  font-weight: 400;
+  line-height: 1.18;
+  letter-spacing: -0.025em;
 }
 
 .welcome-copy span,
@@ -89,7 +113,8 @@ input:focus-visible {
 .welcome-copy strong {
   margin-top: 3px;
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: -0.035em;
 }
 
 .session-footer {
@@ -118,6 +143,8 @@ input:focus-visible {
 .session-label {
   margin-bottom: 10px;
   font-size: 14px;
+  font-weight: 400;
+  letter-spacing: -0.015em;
   white-space: nowrap;
 }
 
@@ -129,98 +156,105 @@ input:focus-visible {
 
 .timer-part {
   display: grid;
-  width: 35px;
-  height: 35px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   color: var(--paper);
   background: var(--ink);
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
-.email-panel {
+.access-panel {
   background: var(--surface);
 }
 
-.email-content {
+.access-content {
   position: absolute;
-  top: 36.2%;
-  right: 5.4%;
-  left: 4.3%;
+  top: 36.23%;
+  right: 4.3%;
+  left: 4.27%;
 }
 
-.email-icon {
+.access-icon {
   display: block;
   width: 39px;
   height: 39px;
-  margin-bottom: 17px;
+  margin-bottom: 12px;
   object-fit: contain;
 }
 
-.email-content h1 {
+.access-content h1 {
   margin: 0;
-  font-size: clamp(18px, 1.45vw, 21px);
-  font-weight: 650;
+  font-size: 20px;
+  font-weight: 600;
   line-height: 1.15;
   letter-spacing: -0.04em;
 }
 
-.email-explanation {
-  max-width: 980px;
-  margin: 12px 0 0;
-  color: var(--muted);
-  font-size: clamp(16px, 1.25vw, 18px);
-  letter-spacing: -0.025em;
+.access-explanation {
+  margin: 7px 0 0;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.28;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
 }
 
-.email-form {
-  max-width: 560px;
-  margin-top: 25px;
+.code-form {
+  position: relative;
+  width: 210px;
+  margin-top: 17px;
 }
 
-.email-entry {
+.code-entry {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px;
-  gap: 6px;
+  grid-template-columns: minmax(0, 165px) 40px;
+  gap: 5px;
 }
 
-.email-entry input {
-  width: 100%;
-  height: 42px;
-  padding: 6px 11px;
+.code-entry input,
+.send-action {
+  height: 37px;
   border: 1px solid var(--line);
   border-radius: 5px;
   background: transparent;
-  font-size: 18px;
 }
 
-.email-entry input:hover {
+.code-entry input {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 9px;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.code-entry input:hover,
+.send-action:hover {
   border-color: var(--ink);
 }
 
-.email-entry input[aria-invalid="true"] {
+.code-entry input[aria-invalid="true"] {
   border-color: var(--danger);
 }
 
 .send-action {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 40px;
   padding: 0;
   place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: transparent;
   cursor: pointer;
 }
 
 .send-action:hover {
-  border-color: var(--ink);
   background: var(--paper);
 }
 
 .send-action:disabled,
-.email-entry input:disabled {
+.code-entry input:disabled {
   cursor: not-allowed;
   opacity: 0.48;
 }
@@ -231,33 +265,34 @@ input:focus-visible {
   height: 24px;
 }
 
-.field-error,
-.form-status {
-  margin: 5px 0 0;
-  font-size: 13px;
-}
-
-.field-error {
-  color: var(--danger);
-}
-
-.form-status {
-  min-height: 18px;
+.code-message {
+  position: absolute;
+  top: 41px;
+  left: 0;
+  width: 420px;
+  margin: 0;
   color: var(--muted);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.code-message.is-error {
+  color: var(--danger);
 }
 
 .offline-action {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  margin-top: 29px;
+  margin-top: 58px;
   padding: 0;
   color: var(--muted);
   border: 0;
   background: transparent;
   cursor: pointer;
-  font-size: clamp(16px, 1.25vw, 18px);
-  letter-spacing: -0.025em;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: -0.035em;
 }
 
 .offline-action:hover {
@@ -269,11 +304,12 @@ input:focus-visible {
 .reassurance {
   position: absolute;
   bottom: 27px;
-  left: 4.3%;
+  left: 3%;
   margin: 0;
   color: var(--quiet);
-  font-size: clamp(16px, 1.25vw, 18px);
-  letter-spacing: -0.025em;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: -0.035em;
 }
 
 .visually-hidden {
@@ -300,7 +336,7 @@ noscript {
 }
 
 @media (max-width: 900px) {
-  .email-shell {
+  .access-shell {
     grid-template-columns: 1fr;
   }
 
@@ -320,29 +356,21 @@ noscript {
     left: 24px;
   }
 
-  .email-panel {
+  .access-panel {
     display: flex;
     min-height: calc(100vh - 180px);
     flex-direction: column;
     padding: 58px 24px 26px;
   }
 
-  .email-content,
+  .access-content,
   .reassurance {
     position: static;
   }
 
-  .email-content {
-    width: 100%;
-  }
-
-  .email-explanation {
+  .access-explanation {
     max-width: 660px;
-    font-size: 18px;
-  }
-
-  .email-form {
-    max-width: 100%;
+    white-space: normal;
   }
 
   .reassurance {
@@ -374,17 +402,25 @@ noscript {
     white-space: normal;
   }
 
-  .email-panel {
+  .access-panel {
     min-height: calc(100vh - 196px);
     padding: 48px 22px 24px;
   }
 
-  .email-content h1 {
-    font-size: 21px;
+  .access-content h1 {
+    font-size: 20px;
   }
 
-  .email-entry {
-    grid-template-columns: minmax(0, 1fr) 42px;
+  .access-explanation {
+    font-size: 17px;
+  }
+
+  .code-form {
+    width: min(100%, 290px);
+  }
+
+  .code-entry {
+    grid-template-columns: minmax(0, 1fr) 40px;
   }
 
   .offline-action {

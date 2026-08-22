@@ -1,11 +1,24 @@
 @font-face {
   font-family: "Startech Inter";
-  src:
-    local("Inter 24pt 24pt"),
-    local("Inter 24pt"),
-    local("Inter");
+  src: local("Inter 24pt Regular"), local("Inter 24pt");
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Startech Inter";
+  src: local("Inter 24pt SemiBold");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Startech Inter";
+  src: local("Inter 24pt Bold");
+  font-style: normal;
+  font-weight: 700;
   font-display: swap;
 }
 
@@ -35,6 +48,7 @@ body {
   background: var(--surface);
   font-family: "Startech Inter", "Inter 24pt", Inter, Arial, Helvetica, sans-serif;
   font-size: 16px;
+  font-synthesis: none;
   line-height: 1.35;
   text-rendering: geometricPrecision;
 }
@@ -89,7 +103,7 @@ input:focus-visible {
   max-width: 470px;
   margin: 0;
   font-size: clamp(31px, 2.45vw, 38px);
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.08;
   letter-spacing: -0.045em;
 }

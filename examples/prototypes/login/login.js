@@ -13,7 +13,7 @@ const translations = {
     offline: "Continue without access to the car",
     nameError: "Enter your name.",
     passwordError: "Enter the access password.",
-    prototypeStatus: "Authentication will be connected in a later implementation slice.",
+    prototypeStatus: "Opening temporary code verification.",
     learnStatus: "The code-update guide will be connected when that document is ready.",
     offlineStatus: "The offline calibration workspace will be connected in the next slice."
   },
@@ -31,7 +31,7 @@ const translations = {
     offline: "Araca erişmeden devam et",
     nameError: "Adını ve soyadını yaz.",
     passwordError: "Erişim parolasını yaz.",
-    prototypeStatus: "Kimlik doğrulama daha sonraki uygulama aşamasında bağlanacak.",
+    prototypeStatus: "Geçici kod doğrulaması açılıyor.",
     learnStatus: "Kod güncelleme kılavuzu hazırlandığında bu bağlantı etkinleştirilecek.",
     offlineStatus: "Çevrimdışı kalibrasyon alanı bir sonraki aşamada bağlanacak."
   }
@@ -105,6 +105,7 @@ form.addEventListener("submit", (event) => {
   }
 
   setStatus("prototypeStatus");
+  window.location.href = "access.html";
 });
 
 nameInput.addEventListener("input", () => clearFieldError(nameInput, nameError));
