@@ -13,14 +13,39 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 import os
+from pathlib import Path
 import sys
 from typing import Callable, Sequence, TextIO
 
-from .durum import EventType, StateEvent, StateMachine, VehicleState
-from .goruntu import SimulatedVisionAnalyzer
-from .goz import FramePacket, SequenceCamera
-from .kayit import MemoryBlackBox, RecordKind
-from .surucu import BlockedMotorDriver
+if __package__ in {None, ""}:
+    repository_root = str(Path(__file__).resolve().parent.parent)
+    if repository_root not in sys.path:
+        sys.path.insert(0, repository_root)
+    from arac.durum import EventType, StateEvent, StateMachine, VehicleState
+    from arac.goruntu import SimulatedVisionAnalyzer
+    from arac.goz import (
+        CameraError,
+        CameraProbeResult,
+        FramePacket,
+        SequenceCamera,
+        build_preferred_camera,
+        probe_camera,
+    )
+    from arac.kayit import MemoryBlackBox, RecordKind
+    from arac.surucu import BlockedMotorDriver
+else:
+    from .durum import EventType, StateEvent, StateMachine, VehicleState
+    from .goruntu import SimulatedVisionAnalyzer
+    from .goz import (
+        CameraError,
+        CameraProbeResult,
+        FramePacket,
+        SequenceCamera,
+        build_preferred_camera,
+        probe_camera,
+    )
+    from .kayit import MemoryBlackBox, RecordKind
+    from .surucu import BlockedMotorDriver
 
 
 APP_VERSION = "0.1.0-scaffold"
@@ -74,6 +99,14 @@ TEXT = {
         "tawnt_standby": "Tawnt is watching the paperwork, not the car.",
         "prompt": "Press Enter to open the simulation scaffold, or Ctrl+C to exit.",
         "auto": "Prompt skipped. Automatic vehicle arming remains impossible.",
+        "camera_probe_start": (
+            "Checking USB camera {index} first, then Raspberry Pi camera if unavailable."
+        ),
+        "camera_probe_ok": (
+            "Camera check passed: source={source}, frames={frames}, "
+            "resolution={width}x{height}, elapsed={elapsed:.3f}s."
+        ),
+        "camera_probe_failed": "Camera check failed closed: {error}",
         "self_check_ok": (
             "Bounded self-check passed: DORA={state}, records={records}, motor={motor}."
         ),
@@ -124,6 +157,14 @@ TEXT = {
         "tawnt_standby": "Tawnt arabayı değil, şimdilik evrakları izliyor.",
         "prompt": "Simülasyon iskelesini açmak için Enter'a basın; çıkmak için Ctrl+C.",
         "auto": "Onay beklemesi atlandı. Otomatik araç arm işlemi hâlâ imkânsız.",
+        "camera_probe_start": (
+            "Önce USB kamera {index}, kullanılamazsa Raspberry Pi kamerası denetleniyor."
+        ),
+        "camera_probe_ok": (
+            "Kamera denetimi geçti: kaynak={source}, kare={frames}, "
+            "çözünürlük={width}x{height}, süre={elapsed:.3f}sn."
+        ),
+        "camera_probe_failed": "Kamera denetimi güvenli biçimde durdu: {error}",
         "self_check_ok": (
             "Sınırlı öz denetim geçti: DORA={state}, kayıt={records}, motor={motor}."
         ),
@@ -148,6 +189,9 @@ class StartupOptions:
     language: str
     automatic: bool
     color: bool
+    check_camera: bool
+    usb_index: int
+    camera_frames: int
 
 
 @dataclass(frozen=True)
@@ -199,6 +243,23 @@ class Console:
         self.write(f"| {clipped:<{available}} |", style=style)
 
 
+def _non_negative_integer(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("value must be an integer") from exc
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("value cannot be negative")
+    return parsed
+
+
+def _camera_frame_count(value: str) -> int:
+    parsed = _non_negative_integer(value)
+    if not 1 <= parsed <= 30:
+        raise argparse.ArgumentTypeError("camera frame count must be between 1 and 30")
+    return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build ARDA's hardware-free command-line interface."""
 
@@ -229,6 +290,23 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="disable ANSI terminal colors",
     )
+    parser.add_argument(
+        "--check-camera",
+        action="store_true",
+        help="capture a few real frames: USB first, then Raspberry Pi",
+    )
+    parser.add_argument(
+        "--usb-index",
+        type=_non_negative_integer,
+        default=0,
+        help="OpenCV USB camera device index (default: 0)",
+    )
+    parser.add_argument(
+        "--camera-frames",
+        type=_camera_frame_count,
+        default=3,
+        help="frames captured by the finite diagnostic, 1-30 (default: 3)",
+    )
     parser.add_argument("--version", action="version", version=APP_VERSION)
     return parser
 
@@ -242,6 +320,9 @@ def parse_options(argv: Sequence[str] | None = None) -> StartupOptions:
         language=args.language,
         automatic=args.auto,
         color=not args.no_color,
+        check_camera=args.check_camera,
+        usb_index=args.usb_index,
+        camera_frames=args.camera_frames,
     )
 
 
@@ -392,6 +473,15 @@ def run_simulation_probe() -> SimulationProbeResult:
     )
 
 
+def run_camera_diagnostic(options: StartupOptions) -> CameraProbeResult:
+    """Run the explicit finite real-camera diagnostic without retaining images."""
+
+    if not isinstance(options, StartupOptions):
+        raise TypeError("camera diagnostic needs StartupOptions")
+    camera = build_preferred_camera(options.usb_index)
+    return probe_camera(camera, frame_count=options.camera_frames)
+
+
 def _render_header(console: Console, options: StartupOptions) -> None:
     language = options.language
     selected_mode = _text(language, options.mode)
@@ -463,6 +553,33 @@ def run(
         except EOFError:
             console.write(_text(options.language, "no_input"), style=Console.RED)
             return EXIT_NOT_READY
+
+    if options.check_camera:
+        console.write()
+        console.write(
+            _text(options.language, "camera_probe_start").format(
+                index=options.usb_index
+            ),
+            style=Console.YELLOW,
+        )
+        try:
+            camera_result = run_camera_diagnostic(options)
+        except CameraError as exc:
+            console.write(
+                _text(options.language, "camera_probe_failed").format(error=str(exc)),
+                style=Console.RED,
+            )
+            return EXIT_NOT_READY
+        console.write(
+            _text(options.language, "camera_probe_ok").format(
+                source=camera_result.source,
+                frames=camera_result.frame_count,
+                width=camera_result.width,
+                height=camera_result.height,
+                elapsed=camera_result.elapsed_seconds,
+            ),
+            style=Console.GREEN,
+        )
 
     try:
         probe = run_simulation_probe()

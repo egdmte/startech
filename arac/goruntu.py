@@ -15,7 +15,10 @@ from dataclasses import dataclass
 import math
 from typing import Protocol, runtime_checkable
 
-from .goz import FramePacket
+if __package__ in {None, ""}:
+    from goz import FramePacket
+else:
+    from .goz import FramePacket
 
 
 class VisionError(RuntimeError):

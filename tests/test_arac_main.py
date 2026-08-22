@@ -98,6 +98,52 @@ class ArdaCliTest(unittest.TestCase):
 
         self.assertEqual(main.EXIT_NOT_READY, exit_code)
 
+    def test_real_camera_check_is_explicit_and_reports_metadata(self):
+        result = goz.CameraProbeResult(
+            source="usb:0",
+            frame_count=3,
+            width=640,
+            height=480,
+            elapsed_seconds=0.125,
+        )
+        with patch("arac.main.run_camera_diagnostic", return_value=result) as probe:
+            exit_code, output = self.run_cli(
+                [
+                    "--auto",
+                    "--check-camera",
+                    "--camera-frames",
+                    "3",
+                    "--language",
+                    "en",
+                    "--no-color",
+                ]
+            )
+
+        self.assertEqual(main.EXIT_OK, exit_code)
+        probe.assert_called_once()
+        self.assertIn("Checking USB camera 0 first", output)
+        self.assertIn("source=usb:0", output)
+        self.assertIn("resolution=640x480", output)
+
+    def test_camera_check_failure_stops_before_simulation_probe(self):
+        with (
+            patch(
+                "arac.main.run_camera_diagnostic",
+                side_effect=goz.CameraUnavailable("USB and Pi unavailable"),
+            ),
+            patch(
+                "arac.main.run_simulation_probe",
+                side_effect=AssertionError("self-check must not follow camera failure"),
+            ),
+        ):
+            exit_code, output = self.run_cli(
+                ["--auto", "--check-camera", "--language", "en", "--no-color"]
+            )
+
+        self.assertEqual(main.EXIT_NOT_READY, exit_code)
+        self.assertIn("Camera check failed closed", output)
+        self.assertIn("USB and Pi unavailable", output)
+
     def test_bounded_probe_exercises_only_simulated_boundaries(self):
         result = main.run_simulation_probe()
 
@@ -150,6 +196,9 @@ class ArdaCliTest(unittest.TestCase):
         self.assertEqual(main.SIMULATION, options.mode)
         self.assertEqual("tr", options.language)
         self.assertFalse(options.automatic)
+        self.assertFalse(options.check_camera)
+        self.assertEqual(0, options.usb_index)
+        self.assertEqual(3, options.camera_frames)
 
 
 if __name__ == "__main__":
