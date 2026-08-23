@@ -24,6 +24,11 @@ function resetTimer() {
 
 document.querySelectorAll("[data-flow]").forEach((control) => {
   control.addEventListener("click", () => {
+    if (control.dataset.destination) {
+      window.startechNavigate(control.dataset.destination);
+      return;
+    }
+
     dialogTitle.textContent = control.dataset.dialogTitle;
     dialogCopy.textContent = control.dataset.dialogCopy;
     flowDialog.showModal();
