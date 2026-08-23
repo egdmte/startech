@@ -138,7 +138,7 @@ function handleAction(action) {
 
   if (action === "add-variables") {
     sessionStorage.setItem("startech-cam-schema-choice", "add-variables");
-    prototypeMessage.textContent = "The add-variable page will be connected after its design is supplied.";
+    window.startechNavigate("schema-variables.html");
   }
 }
 

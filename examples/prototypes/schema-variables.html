@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="CAM variable-management prototype">
+  <title>Variable Management — STARTECH CAM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/cam-ui.css">
+  <link rel="stylesheet" href="schema-variables.css">
+  <link rel="stylesheet" href="shared/motion.css">
+  <script src="shared/motion.js" defer></script>
+  <script src="schema-variables.js" defer></script>
+</head>
+<body>
+  <main class="variables-shell" data-page>
+    <aside class="identity-panel" aria-label="Current session">
+      <header class="welcome-copy" data-motion data-motion-delay="1">
+        <span>Welcome</span>
+        <strong>Egemen Yusuf Kayra</strong>
+      </header>
+
+      <footer class="session-footer" data-motion data-motion-delay="3">
+        <img
+          class="school-logo"
+          src="login/assets/school-logo.png"
+          alt="STARTECH school mark"
+          width="29"
+          height="28"
+        >
+        <div class="session-status" aria-live="polite">
+          <span class="session-label">Your session will expire in</span>
+          <div class="timer" aria-label="Session expires in 15 minutes">
+            <span class="timer-part" id="timer-minutes">15</span>
+            <span class="timer-part" id="timer-seconds">00</span>
+          </div>
+        </div>
+      </footer>
+    </aside>
+
+    <section class="variables-panel" aria-labelledby="variables-title">
+      <form class="variables-form" id="variables-form" novalidate>
+        <header class="variables-heading" data-motion data-motion-delay="1">
+          <h1 id="variables-title">Variable Management</h1>
+          <p>If you recently used LLMs to fill the schema, please ask it to explain these variables with full detail.</p>
+        </header>
+
+        <div class="variable-list" id="variable-list" data-motion data-motion-delay="2"></div>
+
+        <div class="form-actions" data-motion data-motion-delay="3">
+          <button class="cam-action cam-action--primary" id="save-variables" type="submit" data-motion-button>
+            Continue
+          </button>
+          <button class="back-action" id="back-to-warning" type="button">← Go back</button>
+          <p class="form-message" id="form-message" role="status" aria-live="polite"></p>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <template id="variable-card-template">
+    <fieldset class="variable-card">
+      <legend class="visually-hidden">Unresolved schema variable</legend>
+      <div class="variable-title">
+        <strong data-variable-key></strong>
+        <span>Exists in <span data-variable-module></span></span>
+      </div>
+
+      <label class="value-field">
+        <span class="visually-hidden">Value</span>
+        <input class="cam-input" type="text" data-field="value" placeholder="Value" autocomplete="off">
+      </label>
+
+      <div class="variable-properties">
+        <label class="inline-control type-control">
+          <span>Type:</span>
+          <select data-field="type">
+            <option value="bool">Bool</option>
+            <option value="string">String</option>
+            <option value="integer">Integer</option>
+            <option value="number">Number</option>
+            <option value="enum">Enum</option>
+          </select>
+        </label>
+
+        <label class="inline-control accepted-control">
+          <span>Accepted values:</span>
+          <input type="text" data-field="acceptedValues" autocomplete="off">
+        </label>
+
+        <label class="inline-control default-control">
+          <span>Default?</span>
+          <input type="text" data-field="defaultValue" autocomplete="off">
+        </label>
+
+        <label class="inline-control required-control">
+          <span>Required</span>
+          <input type="checkbox" data-field="required">
+        </label>
+
+        <label class="inline-control safety-control">
+          <span>Safety Class:</span>
+          <select data-field="safetyClass">
+            <option value="safe">Safe</option>
+            <option value="review">Review</option>
+            <option value="critical">Critical</option>
+          </select>
+        </label>
+      </div>
+    </fieldset>
+  </template>
+
+  <noscript>This prototype needs JavaScript to render and preserve variable definitions.</noscript>
+</body>
+</html>
