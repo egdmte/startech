@@ -10,18 +10,20 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="login.css">
+  <link rel="stylesheet" href="../shared/motion.css">
+  <script src="../shared/motion.js" defer></script>
   <script src="login.js" defer></script>
 </head>
 <body>
-  <main class="login-shell">
+  <main class="login-shell" data-page>
     <section class="intro-panel" aria-labelledby="intro-title">
-      <div class="intro-copy">
-        <img class="car-icon" src="assets/car.svg" alt="" width="39" height="39">
+      <div class="intro-copy" data-motion data-motion-delay="1">
+        <img class="car-icon" src="assets/car.svg" alt="" width="39" height="39" data-motion-illustration>
         <h1 id="intro-title" data-copy="introTitle">Calibrate your STARTECH<br>instance</h1>
         <p data-copy="introDescription">
           Any car with a proper code can sideload new calibrations without a file transfer.
         </p>
-        <button class="text-action learn-action" type="button" data-action="learn">
+        <button class="text-action learn-action" type="button" data-action="learn" data-motion-button>
           <span data-copy="learn">Learn how to update your code</span>
           <span aria-hidden="true">→</span>
         </button>
@@ -29,7 +31,7 @@
     </section>
 
     <section class="auth-panel" aria-label="Login">
-      <form class="auth-form" novalidate>
+      <form class="auth-form" novalidate data-motion data-motion-delay="2">
         <div class="field-group">
           <label for="full-name" data-copy="nameLabel">Your full legal name</label>
           <input
@@ -56,21 +58,21 @@
           <p class="field-error" id="password-error" data-copy="passwordError" hidden>Enter the access password.</p>
         </div>
 
-        <button class="login-action" type="submit" data-copy="login">Log in</button>
+        <button class="login-action" type="submit" data-copy="login" data-motion-button>Log in</button>
         <p class="form-status" role="status" aria-live="polite"></p>
       </form>
 
-      <footer class="auth-footer">
+      <footer class="auth-footer" data-motion data-motion-delay="3">
         <div class="language-switcher" role="group" aria-label="Language">
-          <button class="language-option" type="button" data-language="tr" aria-label="Türkçe">
+          <button class="language-option" type="button" data-language="tr" aria-label="Türkçe" data-motion-button>
             <img src="assets/tr.svg" alt="" width="35" height="26">
           </button>
-          <button class="language-option is-active" type="button" data-language="en" aria-label="English" aria-pressed="true">
+          <button class="language-option is-active" type="button" data-language="en" aria-label="English" aria-pressed="true" data-motion-button>
             <img src="assets/en.svg" alt="" width="35" height="26">
           </button>
         </div>
 
-        <button class="text-action offline-action" type="button" data-action="offline">
+        <button class="text-action offline-action" type="button" data-action="offline" data-motion-button>
           <span data-copy="offline">Continue without access to the car</span>
           <span aria-hidden="true">→</span>
         </button>

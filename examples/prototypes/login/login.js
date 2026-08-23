@@ -102,7 +102,7 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
-  window.location.href = "access.html";
+  window.startechNavigate("access.html");
 });
 
 nameInput.addEventListener("input", () => clearFieldError(nameInput, nameError));

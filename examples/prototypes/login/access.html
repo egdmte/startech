@@ -10,17 +10,19 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="access.css">
+  <link rel="stylesheet" href="../shared/motion.css">
+  <script src="../shared/motion.js" defer></script>
   <script src="access.js" defer></script>
 </head>
 <body>
-  <main class="access-shell">
+  <main class="access-shell" data-page>
     <aside class="identity-panel" aria-label="Current session">
-      <header class="welcome-copy">
+      <header class="welcome-copy" data-motion data-motion-delay="1">
         <span>Welcome</span>
         <strong>Egemen Yusuf Kayra</strong>
       </header>
 
-      <footer class="session-footer">
+      <footer class="session-footer" data-motion data-motion-delay="3">
         <img
           class="school-logo"
           src="assets/school-logo.png"
@@ -39,8 +41,8 @@
     </aside>
 
     <section class="access-panel" aria-labelledby="access-title">
-      <div class="access-content">
-        <img class="access-icon" src="assets/email.png" alt="" width="39" height="39">
+      <div class="access-content" data-motion data-motion-delay="2">
+        <img class="access-icon" src="assets/email.png" alt="" width="39" height="39" data-motion-illustration>
         <h1 id="access-title">Prove that you possess the code.</h1>
         <p class="access-explanation">
           Open YAREN, select the 10th action and enter the code it outputted here. It will be disabled in 15 minutes.
@@ -60,19 +62,19 @@
               aria-describedby="code-message"
               required
             >
-            <button class="send-action" type="submit" aria-label="Verify web code">
+            <button class="send-action" type="submit" aria-label="Verify web code" data-motion-button>
               <img src="assets/send.png" alt="" width="24" height="24">
             </button>
           </div>
           <p class="code-message" id="code-message" role="status" aria-live="polite"></p>
         </form>
 
-        <button class="offline-action" type="button">
+        <button class="offline-action" type="button" data-motion-button>
           Continue without access to the car <span aria-hidden="true">→</span>
         </button>
       </div>
 
-      <p class="reassurance">You can always change your mind.</p>
+      <p class="reassurance" data-motion data-motion-delay="3">You can always change your mind.</p>
     </section>
   </main>
 

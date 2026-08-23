@@ -10,17 +10,19 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="safety.css">
+  <link rel="stylesheet" href="../shared/motion.css">
+  <script src="../shared/motion.js" defer></script>
   <script src="safety.js" defer></script>
 </head>
 <body>
-  <main class="safety-shell">
+  <main class="safety-shell" data-page>
     <aside class="identity-panel" aria-label="Current session">
-      <header class="welcome-copy">
+      <header class="welcome-copy" data-motion data-motion-delay="1">
         <span>Welcome</span>
         <strong>Egemen Yusuf Kayra</strong>
       </header>
 
-      <footer class="session-footer">
+      <footer class="session-footer" data-motion data-motion-delay="3">
         <img
           class="school-logo"
           src="assets/school-logo.png"
@@ -40,7 +42,7 @@
 
     <section class="safety-panel" aria-labelledby="safety-title">
       <div class="safety-content">
-        <div class="warning-heading">
+        <div class="warning-heading" data-motion data-motion-delay="1">
           <!--
             HAND ICON ASSET TODO:
             1. Add the final solid-black icon as assets/hand.svg.
@@ -49,13 +51,13 @@
             The CSS already sizes both versions to the reference artwork.
           -->
           <!-- <img class="hand-icon" src="assets/hand.svg" alt="" width="56" height="56"> -->
-          <span class="hand-placeholder" aria-hidden="true">✋︎</span>
+          <span class="hand-placeholder" aria-hidden="true" data-motion-illustration>✋︎</span>
 
           <h1 id="safety-title">Stop!</h1>
           <p>Autonomous cars may be dangerous to use.</p>
         </div>
 
-        <form class="acknowledgement-form" novalidate>
+        <form class="acknowledgement-form" novalidate data-motion data-motion-delay="2">
           <fieldset>
             <legend class="visually-hidden">Required safety acknowledgements</legend>
 
@@ -94,7 +96,7 @@
             </label>
           </fieldset>
 
-          <button class="continue-action" type="submit" disabled>
+          <button class="continue-action" type="submit" disabled data-motion-button>
             Continue <span aria-hidden="true">→</span>
           </button>
           <p class="form-message" role="status" aria-live="polite"></p>

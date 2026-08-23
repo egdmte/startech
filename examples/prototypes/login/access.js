@@ -48,7 +48,7 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
-  window.location.href = "safety.html";
+  window.startechNavigate("safety.html");
 });
 
 codeInput.addEventListener("input", () => {

@@ -60,7 +60,7 @@
 
     .page-title {
       margin: 0 0 24px;
-      font-size: clamp(29px, 2.15vw, 40px);
+      font-size: clamp(26px, 2.15vw, 40px);
       font-weight: 800;
       letter-spacing: -0.035em;
     }
@@ -475,12 +475,14 @@
       }
     }
   </style>
+  <link rel="stylesheet" href="shared/motion.css">
+  <script src="shared/motion.js" defer></script>
 </head>
 <body>
-  <main class="dashboard">
-    <h1 class="page-title">STARTECH TEAM welcomes you.</h1>
+  <main class="dashboard" data-page>
+    <h1 class="page-title" data-motion data-motion-delay="1">STARTECH TEAM welcomes you.</h1>
 
-    <section class="integration-banner" aria-labelledby="integration-title">
+    <section class="integration-banner" aria-labelledby="integration-title" data-motion data-motion-delay="2">
       <svg class="integration-mascot doodle" viewBox="0 0 110 105" stroke-width="3.1" aria-hidden="true">
         <path d="M35 95c-1-19 2-37 11-49 8-10 24-11 32-1 8 10 7 30 2 48"/>
         <path d="M48 46c-11-18-9-31-4-34 7-3 18 9 22 29"/>
@@ -501,10 +503,10 @@
       </div>
     </section>
 
-    <section class="version-block" aria-label="Latest calibration">
+    <section class="version-block" aria-label="Latest calibration" data-motion data-motion-delay="3">
       <span class="version-hash">e11b19</span>
       <span class="version-copy">is the latest version.</span>
-      <button class="sideload-button" type="button" data-dialog-title="Connect the Pi first" data-dialog-copy="The production interface would verify that the Pi is authenticated, stationary, unarmed, and in calibration mode before enabling sideloading.">
+      <button class="sideload-button" type="button" data-dialog-title="Connect the Pi first" data-dialog-copy="The production interface would verify that the Pi is authenticated, stationary, unarmed, and in calibration mode before enabling sideloading." data-motion-button>
         <svg class="link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
           <path d="M9.4 14.6 14.6 9.4"/>
           <path d="M7.2 17.5 5.8 19a4.1 4.1 0 0 1-5.8-5.8l4-4A4.1 4.1 0 0 1 9.8 9"/>
@@ -514,31 +516,31 @@
       </button>
     </section>
 
-    <section class="choice-grid" aria-label="Calibration actions">
-      <button class="choice-card creator-card" type="button" data-dialog-title="Create a new calibration" data-dialog-copy="This would open the guided camera, perspective, lane, colour, motor-measurement, validation, and export workflow.">
+    <section class="choice-grid" aria-label="Calibration actions" data-motion data-motion-delay="3">
+      <button class="choice-card creator-card" type="button" data-dialog-title="Create a new calibration" data-dialog-copy="This would open the guided camera, perspective, lane, colour, motor-measurement, validation, and export workflow." data-motion-button>
         <h2>Create a new calibration</h2>
         <p>Use the wizard to create new calibrations from scratch.</p>
         <p>You can validate the result, export it, or continue into the advanced section for more fine tuning.</p>
         <p>Recommended for first-time users.</p>
-        <img class="creator-mascot" src="login/assets/characters/triangleman.svg" alt="" width="159" height="260">
+        <img class="creator-mascot" src="login/assets/characters/triangleman.svg" alt="" width="159" height="260" data-motion-illustration>
       </button>
 
       <div class="choice-stack">
-        <button class="choice-card advanced-card" type="button" data-dialog-title="Advanced mode" data-dialog-copy="Advanced mode would expose raw values, comparisons, schema analysis, and diff tools while preserving hard validation and safety limits.">
+        <button class="choice-card advanced-card" type="button" data-dialog-title="Advanced mode" data-dialog-copy="Advanced mode would expose raw values, comparisons, schema analysis, and diff tools while preserving hard validation and safety limits." data-motion-button>
           <h2>Use the advanced mode</h2>
           <p>Change variables with more precision and test non-standard values in simulation.</p>
           <p>Export to version control, analyze the JSON schema, and access diff tools.</p>
-          <img class="advanced-mascot" src="login/assets/characters/squareman.svg" alt="" width="155" height="206">
+          <img class="advanced-mascot" src="login/assets/characters/squareman.svg" alt="" width="155" height="206" data-motion-illustration>
         </button>
 
-        <button class="choice-card old-card" type="button" data-dialog-title="Copy an old version" data-dialog-copy="This would create a new draft based on a historical calibration. The original version would remain unchanged.">
+        <button class="choice-card old-card" type="button" data-dialog-title="Copy an old version" data-dialog-copy="This would create a new draft based on a historical calibration. The original version would remain unchanged." data-motion-button>
           <h2>Copy an old version</h2>
-          <img class="old-mascot" src="login/assets/characters/ovalman.svg" alt="" width="101" height="100">
+          <img class="old-mascot" src="login/assets/characters/ovalman.svg" alt="" width="101" height="100" data-motion-illustration>
         </button>
       </div>
     </section>
 
-    <footer class="footer">
+    <footer class="footer" data-motion data-motion-delay="4">
       <div class="session" aria-live="polite">
         <span class="session-copy">Your session will expire after 15 minutes of inactivity.</span>
         <div class="timer" aria-label="Session expires in 15 minutes">
@@ -556,7 +558,7 @@
     <div class="dialog-inner">
       <h2 id="dialog-title">Prototype action</h2>
       <p id="dialog-copy">This interaction will be connected during implementation.</p>
-      <button class="dialog-close" type="button">Close</button>
+      <button class="dialog-close" type="button" data-motion-button>Close</button>
     </div>
   </dialog>
 

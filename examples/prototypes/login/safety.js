@@ -55,7 +55,7 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
-  window.location.href = "../startech_calibration_dashboard.html";
+  window.startechNavigate("../startech_calibration_dashboard.html");
 });
 
 window.setInterval(() => {
