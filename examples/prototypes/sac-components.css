@@ -78,6 +78,24 @@
   filter: saturate(1.15);
 }
 
+.car-hotspot.is-configured::after {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  content: "✓";
+  color: #ffffff;
+  background: #009b4e;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 24%);
+}
+
 .car-hotspot--power {
   top: 43.78%;
   left: 10.22%;
@@ -147,6 +165,25 @@
 
 .component-details__selection {
   color: var(--cam-muted);
+}
+
+.component-details .component-details__status {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.component-details__status.is-configured {
+  color: #00763b;
+  background: rgb(0 155 78 / 10%);
+}
+
+.component-details__status.is-pending {
+  color: #6b5a00;
+  background: rgb(184 117 0 / 11%);
 }
 
 .component-details__continue {

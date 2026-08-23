@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Simulated STARTECH wheel and motor-balance calibration">
+  <title>Edit wheel and motor balance — STARTECH CAM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/cam-ui.css">
+  <link rel="stylesheet" href="shared/cam-page.css">
+  <link rel="stylesheet" href="sac-wheel.css">
+  <link rel="stylesheet" href="shared/motion.css">
+  <script src="shared/motion.js" defer></script>
+  <script src="sac-wheel.js" defer></script>
+</head>
+<body>
+  <main class="cam-frame" data-page>
+    <section class="wheel-panel" aria-labelledby="wheel-title" data-motion data-motion-delay="1">
+      <header class="wheel-heading">
+        <h1 id="wheel-title">Edit wheel and motor balance</h1>
+        <p>Record left/right correction and wheel direction without moving the physical car.</p>
+      </header>
+
+      <p class="wheel-status" role="status">
+        <span class="wheel-status__icon" aria-hidden="true">✓</span>
+        <span>Wheel corrections are simulated. No motor command is available on this page.</span>
+      </p>
+
+      <div class="wheel-grid">
+        <section class="wheel-side" aria-labelledby="left-wheel-title">
+          <h2 id="left-wheel-title">Left side</h2>
+          <label class="correction-control">
+            <span><b>Drive correction</b><output id="left-correction-output" for="left-correction">0%</output></span>
+            <input id="left-correction" type="range" min="-20" max="20" value="0" step="1">
+            <small><span>-20%</span><span>No correction</span><span>+20%</span></small>
+          </label>
+          <fieldset class="direction-group">
+            <legend>Wheel direction</legend>
+            <label><input type="radio" name="left-direction" value="normal" checked><span>Normal</span></label>
+            <label><input type="radio" name="left-direction" value="reversed"><span>Reversed</span></label>
+          </fieldset>
+        </section>
+
+        <section class="wheel-side" aria-labelledby="right-wheel-title">
+          <h2 id="right-wheel-title">Right side</h2>
+          <label class="correction-control">
+            <span><b>Drive correction</b><output id="right-correction-output" for="right-correction">0%</output></span>
+            <input id="right-correction" type="range" min="-20" max="20" value="0" step="1">
+            <small><span>-20%</span><span>No correction</span><span>+20%</span></small>
+          </label>
+          <fieldset class="direction-group">
+            <legend>Wheel direction</legend>
+            <label><input type="radio" name="right-direction" value="normal" checked><span>Normal</span></label>
+            <label><input type="radio" name="right-direction" value="reversed"><span>Reversed</span></label>
+          </fieldset>
+        </section>
+      </div>
+
+      <fieldset class="mechanical-review" id="mechanical-review">
+        <legend>Before a later physical test, I will check that</legend>
+        <label><input type="checkbox" value="wheels-secured"><span>all wheels are secured to their shafts</span></label>
+        <label><input type="checkbox" value="motors-mounted"><span>the motor mounts do not move under light hand pressure</span></label>
+        <label><input type="checkbox" value="path-clear"><span>cables and chassis parts are clear of the wheels</span></label>
+      </fieldset>
+
+      <p class="wheel-note">These entries do not prove physical alignment. Verify direction with raised wheels and the lowest permitted motor power later.</p>
+
+      <button class="cam-action cam-action--secondary wheel-continue" id="continue-wheel" type="button" disabled>
+        Save changes and return
+      </button>
+    </section>
+
+    <footer class="cam-workflow-footer" data-motion data-motion-delay="2">
+      <div class="cam-session" aria-live="polite">
+        <span>Your session will expire in</span>
+        <strong class="cam-session-time" id="session-time">15:00</strong>
+      </div>
+      <div class="cam-progress" role="progressbar" aria-label="Service Assisted Calibration progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="84">
+        <span class="cam-progress__value" style="--cam-progress: 84%"></span>
+      </div>
+    </footer>
+  </main>
+
+  <noscript>This prototype needs JavaScript to validate the mechanical-review gate.</noscript>
+</body>
+</html>

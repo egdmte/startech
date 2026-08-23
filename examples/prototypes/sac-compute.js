@@ -3,7 +3,6 @@ const inactivityLengthSeconds = 15 * 60;
 const requiredModules = [...document.querySelectorAll("[data-required-module]")];
 const allModules = [...document.querySelectorAll("#module-picker input")];
 const continueButton = document.querySelector("#continue-compute");
-const computeDialog = document.querySelector("#compute-dialog");
 const sessionTime = document.querySelector("#session-time");
 
 let remainingSeconds = inactivityLengthSeconds;
@@ -21,6 +20,27 @@ function resetTimer() {
   remainingSeconds = inactivityLengthSeconds;
   lastResetAt = now;
   renderTimer();
+}
+
+function selectRadio(name, value) {
+  const option = document.querySelector(`input[name="${name}"][value="${value}"]`);
+  if (option) option.checked = true;
+}
+
+function hydrateSettings() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("startech-sac-compute") || "null");
+    if (!saved) return;
+    selectRadio("startup-precaution", saved.startupPrecaution);
+    selectRadio("service-status", saved.serviceStatus);
+    selectRadio("m3th-aggressiveness", saved.m3thAggressiveness);
+    const enabled = new Set(saved.enabledModules || []);
+    allModules.forEach((module) => {
+      module.checked = enabled.has(module.value);
+    });
+  } catch {
+    sessionStorage.removeItem("startech-sac-compute");
+  }
 }
 
 function updateRequiredModules() {
@@ -47,11 +67,8 @@ continueButton.addEventListener("click", () => {
     mode: "simulation-only"
   };
   sessionStorage.setItem("startech-sac-compute", JSON.stringify(settings));
-  computeDialog.showModal();
-});
-
-computeDialog.addEventListener("click", (event) => {
-  if (event.target === computeDialog) computeDialog.close();
+  sessionStorage.setItem("startech-sac-parts", JSON.stringify(["compute"]));
+  window.startechNavigate("sac-components.html");
 });
 
 ["pointerdown", "keydown"].forEach((eventName) => {
@@ -63,5 +80,6 @@ window.setInterval(() => {
   renderTimer();
 }, 1000);
 
-renderTimer();
+hydrateSettings();
 updateRequiredModules();
+renderTimer();

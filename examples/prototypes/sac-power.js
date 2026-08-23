@@ -9,7 +9,6 @@ const minimumSpeedControl = document.querySelector("#minimum-speed-control");
 const maximumSpeedWarning = document.querySelector("#maximum-speed-warning");
 const minimumSpeedWarning = document.querySelector("#minimum-speed-warning");
 const continueButton = document.querySelector("#continue-power");
-const powerDialog = document.querySelector("#power-dialog");
 const sessionTime = document.querySelector("#session-time");
 
 let remainingSeconds = inactivityLengthSeconds;
@@ -27,6 +26,17 @@ function resetTimer() {
   remainingSeconds = inactivityLengthSeconds;
   lastResetAt = now;
   renderTimer();
+}
+
+function hydrateSettings() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("startech-sac-power") || "null");
+    if (!saved) return;
+    maximumSpeed.value = String(saved.maximumSpeedPercent ?? 0);
+    minimumSpeed.value = String(saved.minimumSpeedPercent ?? 0);
+  } catch {
+    sessionStorage.removeItem("startech-sac-power");
+  }
 }
 
 function setWarning(element, message) {
@@ -76,11 +86,8 @@ continueButton.addEventListener("click", () => {
     mode: "simulation-only"
   };
   sessionStorage.setItem("startech-sac-power", JSON.stringify(settings));
-  powerDialog.showModal();
-});
-
-powerDialog.addEventListener("click", (event) => {
-  if (event.target === powerDialog) powerDialog.close();
+  sessionStorage.setItem("startech-sac-parts", JSON.stringify(["power"]));
+  window.startechNavigate("sac-components.html");
 });
 
 ["pointerdown", "keydown"].forEach((eventName) => {
@@ -92,5 +99,6 @@ window.setInterval(() => {
   renderTimer();
 }, 1000);
 
-renderTimer();
+hydrateSettings();
 updateSpeedControls();
+renderTimer();

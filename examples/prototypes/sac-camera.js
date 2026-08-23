@@ -4,7 +4,6 @@ const orientationOptions = [...document.querySelectorAll("[data-orientation]")];
 const orientationPreview = document.querySelector("#orientation-preview");
 const continueButton = document.querySelector("#continue-camera");
 const prioritizeRpicam = document.querySelector("#prioritize-rpicam");
-const cameraDialog = document.querySelector("#camera-dialog");
 const sessionTime = document.querySelector("#session-time");
 
 let selectedOrientation = null;
@@ -36,6 +35,27 @@ function selectOrientation(option) {
   continueButton.classList.add("cam-action--primary");
 }
 
+function selectRadio(name, value) {
+  const option = document.querySelector(`input[name="${name}"][value="${value}"]`);
+  if (option) option.checked = true;
+}
+
+function hydrateSettings() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("startech-sac-camera") || "null");
+    if (!saved) return;
+    selectRadio("capture-profile", saved.captureProfile);
+    selectRadio("recognition-sensitivity", saved.recognitionSensitivity);
+    prioritizeRpicam.checked = Boolean(saved.prioritizeRaspberryPi);
+    const orientation = orientationOptions.find(
+      (option) => Number(option.dataset.orientation) === Number(saved.orientationDegrees)
+    );
+    if (orientation) selectOrientation(orientation);
+  } catch {
+    sessionStorage.removeItem("startech-sac-camera");
+  }
+}
+
 orientationOptions.forEach((option) => {
   option.addEventListener("click", () => selectOrientation(option));
 });
@@ -51,11 +71,8 @@ continueButton.addEventListener("click", () => {
     mode: "simulation-only"
   };
   sessionStorage.setItem("startech-sac-camera", JSON.stringify(settings));
-  cameraDialog.showModal();
-});
-
-cameraDialog.addEventListener("click", (event) => {
-  if (event.target === cameraDialog) cameraDialog.close();
+  sessionStorage.setItem("startech-sac-parts", JSON.stringify(["vision"]));
+  window.startechNavigate("sac-components.html");
 });
 
 ["pointerdown", "keydown"].forEach((eventName) => {
@@ -67,4 +84,5 @@ window.setInterval(() => {
   renderTimer();
 }, 1000);
 
+hydrateSettings();
 renderTimer();

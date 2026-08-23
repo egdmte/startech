@@ -95,6 +95,7 @@
         <strong class="cam-session-time" id="session-time">15:00</strong>
       </div>
       <div
+        id="component-progress"
         class="cam-progress"
         role="progressbar"
         aria-label="Service Assisted Calibration progress"
@@ -102,18 +103,10 @@
         aria-valuemax="100"
         aria-valuenow="26"
       >
-        <span class="cam-progress__value" style="--cam-progress: 26%"></span>
+        <span class="cam-progress__value" id="component-progress-value" style="--cam-progress: 26%"></span>
       </div>
     </footer>
   </main>
-
-  <dialog class="cam-dialog" id="component-dialog" aria-labelledby="component-dialog-title">
-    <form method="dialog" class="cam-dialog__content">
-      <h2 id="component-dialog-title">Calibration scope saved</h2>
-      <p>The guided value-entry screens for these components will be designed next.</p>
-      <button class="cam-action cam-action--primary cam-dialog__close" value="close">Close</button>
-    </form>
-  </dialog>
 
   <noscript>This prototype needs JavaScript for interactive component selection.</noscript>
 </body>

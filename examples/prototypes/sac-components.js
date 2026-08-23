@@ -3,6 +3,8 @@ const inactivityLengthSeconds = 15 * 60;
 const partInformation = {
   power: {
     name: "Battery and power",
+    path: "sac-power.html",
+    storageKey: "startech-sac-power",
     elements: "the 3S motor supply, 2S Raspberry Pi supply, switches and voltage profile",
     assistance: "battery-profile selection, warning thresholds and power-source documentation",
     tests: "measure voltage with the car restrained and verify each physical power switch",
@@ -10,6 +12,8 @@ const partInformation = {
   },
   compute: {
     name: "Raspberry Pi and compute stack",
+    path: "sac-compute.html",
+    storageKey: "startech-sac-compute",
     elements: "the Raspberry Pi, YAREN connection and enabled STARTECH software modules",
     assistance: "module availability, process startup, schema selection and request validation",
     tests: "verify boot, heartbeat, temperature and module health without arming the motors",
@@ -17,6 +21,8 @@ const partInformation = {
   },
   vision: {
     name: "Camera and recognition",
+    path: "sac-camera.html",
+    storageKey: "startech-sac-camera",
     elements: "the USB or Raspberry Pi camera, image source and recognition pipeline",
     assistance: "source priority, frame size, orientation, confidence and tracking tolerance",
     tests: "use fixed recorded clips before supervised live-camera testing",
@@ -24,6 +30,8 @@ const partInformation = {
   },
   drive: {
     name: "Motor driver and steering",
+    path: "sac-drive.html",
+    storageKey: "startech-sac-drive",
     elements: "the headless motor driver, steering controller and their safe output limits",
     assistance: "direction, minimum PWM, steering centre, travel limits and command validation",
     tests: "disconnect or raise the wheels and begin with the lowest permitted motor power",
@@ -31,6 +39,8 @@ const partInformation = {
   },
   wheel: {
     name: "Wheel and motor balance",
+    path: "sac-wheel.html",
+    storageKey: "startech-sac-wheel",
     elements: "wheel direction, left/right drive balance and mechanical alignment",
     assistance: "dead-zone, minimum movement power and side-to-side correction",
     tests: "perform a wheels-raised direction test before a restrained low-speed floor test",
@@ -41,8 +51,9 @@ const partInformation = {
 let selectedPart = null;
 const hotspots = [...document.querySelectorAll("[data-part]")];
 const details = document.querySelector("#component-details");
-const componentDialog = document.querySelector("#component-dialog");
 const sessionTime = document.querySelector("#session-time");
+const componentProgress = document.querySelector("#component-progress");
+const componentProgressValue = document.querySelector("#component-progress-value");
 
 let remainingSeconds = inactivityLengthSeconds;
 let lastResetAt = 0;
@@ -69,13 +80,44 @@ function addDetailItem(list, label, value) {
   list.append(item);
 }
 
-function renderDetails() {
-  details.replaceChildren();
+function hasStoredSettings(part) {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(partInformation[part].storageKey) || "null");
+    return Boolean(value && typeof value === "object");
+  } catch {
+    return false;
+  }
+}
 
-  if (!selectedPart) {
-    const heading = document.createElement("h2");
-    const copy = document.createElement("p");
-    const list = document.createElement("ul");
+function configuredParts() {
+  return Object.keys(partInformation).filter(hasStoredSettings);
+}
+
+function updateMapStatus() {
+  const completed = configuredParts();
+  const completedSet = new Set(completed);
+  hotspots.forEach((hotspot) => {
+    const configured = completedSet.has(hotspot.dataset.part);
+    hotspot.classList.toggle("is-configured", configured);
+    hotspot.dataset.status = configured ? "configured" : "not-configured";
+  });
+
+  const progress = 26 + completed.length * 12;
+  componentProgress.setAttribute("aria-valuenow", String(progress));
+  componentProgress.setAttribute(
+    "aria-label",
+    `Service Assisted Calibration progress, ${completed.length} of 5 component sections configured`
+  );
+  componentProgressValue.style.setProperty("--cam-progress", `${progress}%`);
+}
+
+function renderOverview() {
+  const completed = configuredParts();
+  const heading = document.createElement("h2");
+  const copy = document.createElement("p");
+  const list = document.createElement("ul");
+
+  if (completed.length === 0) {
     heading.textContent = "NO PARTS SELECTED";
     copy.textContent = "As you click/touch the blue areas, we will";
     [
@@ -88,19 +130,44 @@ function renderDetails() {
       item.textContent = text;
       list.append(item);
     });
-    details.append(heading, copy, list);
+  } else {
+    heading.textContent = completed.length === 5
+      ? "ALL 5 SECTIONS CONFIGURED"
+      : `${completed.length} OF 5 SECTIONS CONFIGURED`;
+    copy.textContent = completed.length === 5
+      ? "The saved SAC draft is ready for your summary and download screen."
+      : "Configured sections stay available for review:";
+    completed.forEach((part) => {
+      const item = document.createElement("li");
+      item.textContent = partInformation[part].name;
+      list.append(item);
+    });
+  }
+
+  details.append(heading, copy, list);
+}
+
+function renderDetails() {
+  details.replaceChildren();
+
+  if (!selectedPart) {
+    renderOverview();
     return;
   }
 
   const selection = partInformation[selectedPart];
+  const configured = hasStoredSettings(selectedPart);
   const heading = document.createElement("h2");
   const selectionNames = document.createElement("p");
+  const status = document.createElement("p");
   const list = document.createElement("ul");
   const continueButton = document.createElement("button");
 
   heading.textContent = "1 PART SELECTED";
   selectionNames.className = "component-details__selection";
   selectionNames.textContent = selection.name;
+  status.className = `component-details__status ${configured ? "is-configured" : "is-pending"}`;
+  status.textContent = configured ? "CONFIGURED — saved draft available" : "NOT CONFIGURED";
 
   addDetailItem(list, "Elements", selection.elements);
   addDetailItem(list, "Assistance", selection.assistance);
@@ -109,24 +176,12 @@ function renderDetails() {
 
   continueButton.className = "cam-action cam-action--primary component-details__continue";
   continueButton.type = "button";
-  continueButton.textContent = "Continue with selected parts";
+  continueButton.textContent = configured ? "Review configured part" : "Continue with selected part";
   continueButton.addEventListener("click", () => {
-    if (selectedPart === "power") {
-      window.startechNavigate("sac-power.html");
-      return;
-    }
-    if (selectedPart === "vision") {
-      window.startechNavigate("sac-camera.html");
-      return;
-    }
-    if (selectedPart === "compute") {
-      window.startechNavigate("sac-compute.html");
-      return;
-    }
-    componentDialog.showModal();
+    window.startechNavigate(selection.path);
   });
 
-  details.append(heading, selectionNames, list, continueButton);
+  details.append(heading, selectionNames, status, list, continueButton);
   sessionStorage.setItem("startech-sac-parts", JSON.stringify([selectedPart]));
 }
 
@@ -143,10 +198,6 @@ hotspots.forEach((hotspot) => {
   });
 });
 
-componentDialog.addEventListener("click", (event) => {
-  if (event.target === componentDialog) componentDialog.close();
-});
-
 ["pointerdown", "keydown"].forEach((eventName) => {
   document.addEventListener(eventName, resetTimer, { passive: true });
 });
@@ -156,4 +207,20 @@ window.setInterval(() => {
   renderTimer();
 }, 1000);
 
+function restoreSelection() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("startech-sac-parts") || "[]");
+    const candidate = Array.isArray(saved) ? saved[0] : null;
+    if (!Object.hasOwn(partInformation, candidate)) return;
+    selectedPart = candidate;
+    const hotspot = hotspots.find((control) => control.dataset.part === selectedPart);
+    if (hotspot) hotspot.setAttribute("aria-pressed", "true");
+  } catch {
+    sessionStorage.removeItem("startech-sac-parts");
+  }
+}
+
+restoreSelection();
+updateMapStatus();
+renderDetails();
 renderTimer();
