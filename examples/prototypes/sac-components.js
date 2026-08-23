@@ -115,6 +115,10 @@ function renderDetails() {
       window.startechNavigate("sac-power.html");
       return;
     }
+    if (selectedPart === "vision") {
+      window.startechNavigate("sac-camera.html");
+      return;
+    }
     componentDialog.showModal();
   });
 

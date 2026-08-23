@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Simulated STARTECH camera and recognition calibration">
+  <title>Edit camera settings — STARTECH CAM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/cam-ui.css">
+  <link rel="stylesheet" href="shared/cam-page.css">
+  <link rel="stylesheet" href="sac-camera.css">
+  <link rel="stylesheet" href="shared/motion.css">
+  <script src="shared/motion.js" defer></script>
+  <script src="sac-camera.js" defer></script>
+</head>
+<body>
+  <main class="cam-frame" data-page>
+    <section class="camera-panel" aria-labelledby="camera-title" data-motion data-motion-delay="1">
+      <header class="camera-heading">
+        <h1 id="camera-title">Edit camera settings</h1>
+        <p>
+          Cameras are either controlled by rpicam (for Raspberry Camera) or OpenCV (USB cameras and webcams).<br>
+          Both are handled by KASIM.
+        </p>
+      </header>
+
+      <p class="camera-status" role="status">
+        <span class="camera-status__icon" aria-hidden="true">✓</span>
+        <span>Nice, KASIM is available.</span>
+      </p>
+
+      <div class="camera-workspace">
+        <div class="camera-orientation">
+          <fieldset class="orientation-picker">
+            <legend class="visually-hidden">Camera orientation</legend>
+            <button class="orientation-option orientation-option--0" type="button" data-orientation="0" aria-pressed="false">0</button>
+            <button class="orientation-option orientation-option--90" type="button" data-orientation="90" aria-pressed="false">90</button>
+            <button class="orientation-option orientation-option--180" type="button" data-orientation="180" aria-pressed="false">180</button>
+            <button class="orientation-option orientation-option--270" type="button" data-orientation="270" aria-pressed="false">270</button>
+            <strong class="orientation-preview" id="orientation-preview" aria-hidden="true">1</strong>
+          </fieldset>
+          <p class="camera-switching">Switching between frames is unavailable.</p>
+        </div>
+
+        <div class="camera-options">
+          <fieldset class="camera-option-group">
+            <legend>Capture profile</legend>
+            <label class="camera-option">
+              <input type="radio" name="capture-profile" value="640x480" checked>
+              <span>640×480 (SD) - Ultra performance</span>
+            </label>
+            <label class="camera-option">
+              <input type="radio" name="capture-profile" value="1280x720">
+              <span>1280×720 (HD) - Balanced</span>
+            </label>
+            <label class="camera-option">
+              <input type="radio" name="capture-profile" value="1920x1080">
+              <span>1920×1080 (Full HD) - Ultra quality</span>
+            </label>
+          </fieldset>
+
+          <fieldset class="camera-option-group camera-option-group--sensitivity">
+            <legend>Recognition sensitivity</legend>
+            <p>How many consecutive requests should be processed</p>
+            <label class="camera-option">
+              <input type="radio" name="recognition-sensitivity" value="conservative" checked>
+              <span>Conservative - car reacts less to sudden changes</span>
+            </label>
+            <label class="camera-option">
+              <input type="radio" name="recognition-sensitivity" value="balanced">
+              <span>Balanced - car reacts normally to sudden changes</span>
+            </label>
+            <label class="camera-option">
+              <input type="radio" name="recognition-sensitivity" value="sensitive">
+              <span>Sensitive - car reacts more to sudden changes</span>
+            </label>
+          </fieldset>
+        </div>
+      </div>
+
+      <label class="camera-priority">
+        <input id="prioritize-rpicam" type="checkbox">
+        <span>Prioritize Raspberry Camera (try rpicam before USB)</span>
+      </label>
+
+      <p class="camera-note">White lane detection thresholds, ROI and more fine-tuning is available on MAC or Windows.</p>
+
+      <button class="cam-action cam-action--secondary camera-continue" id="continue-camera" type="button" disabled>
+        Continue
+      </button>
+    </section>
+
+    <footer class="cam-workflow-footer" data-motion data-motion-delay="2">
+      <div class="cam-session" aria-live="polite">
+        <span>Your session will expire in</span>
+        <strong class="cam-session-time" id="session-time">15:00</strong>
+      </div>
+      <div
+        class="cam-progress"
+        role="progressbar"
+        aria-label="Service Assisted Calibration progress"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="26"
+      >
+        <span class="cam-progress__value" style="--cam-progress: 26%"></span>
+      </div>
+    </footer>
+  </main>
+
+  <dialog class="cam-dialog" id="camera-dialog" aria-labelledby="camera-dialog-title">
+    <form method="dialog" class="cam-dialog__content">
+      <h2 id="camera-dialog-title">Camera settings saved</h2>
+      <p>The selected camera settings were saved for this simulated calibration.</p>
+      <button class="cam-action cam-action--primary cam-dialog__close" value="close">Close</button>
+    </form>
+  </dialog>
+
+  <noscript>This prototype needs JavaScript to select a camera orientation.</noscript>
+</body>
+</html>
