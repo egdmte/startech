@@ -41,10 +41,7 @@ downloadWindowsButton.addEventListener("click", () => {
 
 continueOnlineButton.addEventListener("click", () => {
   sessionStorage.setItem("startech-sac-connection", "online");
-  showPrototypeChoice(
-    "Online calibration selected",
-    "This choice is saved for the next calibration screen."
-  );
+  window.startechNavigate("sac-preflight.html");
 });
 
 goBackButton.addEventListener("click", () => {
