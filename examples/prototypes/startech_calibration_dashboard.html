@@ -10,20 +10,20 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared/cam-ui.css">
-  <link rel="stylesheet" href="startech_calibration_dashboard.css">
+  <link rel="stylesheet" href="shared/cam-page.css">
   <link rel="stylesheet" href="shared/motion.css">
   <script src="shared/motion.js" defer></script>
   <script src="startech_calibration_dashboard.js" defer></script>
 </head>
 <body>
   <main class="cam-frame" data-page>
-    <section class="launch-panel" aria-labelledby="cam-title">
-      <header class="launch-heading">
+    <section class="cam-center-panel" aria-labelledby="cam-title">
+      <header class="cam-page-heading">
         <p id="cam-title">Welcome to Calibration Arrangement and Management Tool (CAM)</p>
         <strong>Select an option to begin.</strong>
       </header>
 
-      <div class="launch-actions" aria-label="Calibration options">
+      <div class="cam-action-stack" aria-label="Calibration options">
         <button
           class="cam-action cam-action--primary"
           type="button"
@@ -46,7 +46,7 @@
       </div>
 
       <button
-        class="history-action"
+        class="cam-tertiary-action"
         type="button"
         data-flow="history"
         data-dialog-title="Version history"

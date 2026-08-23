@@ -143,12 +143,12 @@ a:focus-visible {
 
 .cam-input {
   width: 100%;
-  height: 37px;
+  height: 33px;
   padding: 6px 10px;
   border: 1px solid #858585;
   border-radius: 3px;
   background: rgb(255 255 255 / 22%);
-  font-size: 18px;
+  font-size: 13px;
   box-shadow: inset 0 1px 2px rgb(0 0 0 / 5%);
 }
 
@@ -163,18 +163,17 @@ a:focus-visible {
 
 .cam-workflow-footer {
   position: absolute;
-  right: 30px;
-  bottom: 13px;
-  left: 18px;
+  right: 14px;
+  bottom: 11px;
+  left: 14px;
   display: grid;
   grid-template-columns: max-content minmax(120px, 1fr);
   align-items: center;
-  gap: 22px;
+  gap: 18px;
 }
 
 .cam-workflow-footer .cam-session {
   position: static;
-  font-size: 13px;
 }
 
 .cam-progress {
