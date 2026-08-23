@@ -253,8 +253,10 @@
     .creator-mascot,
     .advanced-mascot,
     .old-mascot {
+      display: block;
       position: absolute;
       z-index: 1;
+      object-fit: contain;
       pointer-events: none;
     }
 
@@ -514,15 +516,7 @@
         <p>Use the wizard to create new calibrations from scratch.</p>
         <p>You can validate the result, export it, or continue into the advanced section for more fine tuning.</p>
         <p>Recommended for first-time users.</p>
-        <svg class="creator-mascot doodle" viewBox="0 0 240 390" stroke-width="6" aria-hidden="true">
-          <path d="M84 123 33 192l109 32 54-77-112-24Z"/>
-          <path d="M80 121c-23-23-17-53 5-65 20-11 45 4 42 31 16-23 48-20 59 2 13 25-7 51-36 51"/>
-          <path d="M74 91c8-10 18-10 26 0M135 92c7-11 17-11 25 0"/>
-          <path d="M105 156c12 11 24 11 35-1"/>
-          <path d="M121 225c-1 53-2 102 6 151M120 254c-25 33-48 65-69 96M121 254c27 30 51 64 72 101"/>
-          <path d="M49 349c-12 2-16 11-10 19 5 7 13 7 20 1M191 354c12-1 19 8 15 17-4 8-13 9-21 4"/>
-          <path d="M115 248c-8 3-18 1-24-5M136 249c8 2 17 0 23-5"/>
-        </svg>
+        <img class="creator-mascot" src="login/assets/characters/triangleman.svg" alt="" width="159" height="260">
       </button>
 
       <div class="choice-stack">
@@ -530,27 +524,12 @@
           <h2>Use the advanced mode</h2>
           <p>Change variables with more precision and test non-standard values in simulation.</p>
           <p>Export to version control, analyze the JSON schema, and access diff tools.</p>
-          <svg class="advanced-mascot doodle" viewBox="0 0 250 320" stroke-width="6" aria-hidden="true">
-            <path d="M45 80c21-11 47-15 72-14 33 0 62 7 89 21"/>
-            <path d="M43 84 24 98l17 96 76 8 86-14 13-91-24-11"/>
-            <path d="m43 84 69 13 82-11M112 98l5 104"/>
-            <path d="M72 137h2M157 137h2" stroke-width="13"/>
-            <path d="M97 170c15 8 30 8 45-1"/>
-            <path d="M85 68 87 35l75 7 9 38"/>
-            <path d="M112 204c3 36 2 73-1 108M134 202c7 35 12 72 14 109"/>
-            <path d="M102 311h20M140 311h19"/>
-          </svg>
+          <img class="advanced-mascot" src="login/assets/characters/squareman.svg" alt="" width="155" height="206">
         </button>
 
         <button class="choice-card old-card" type="button" data-dialog-title="Copy an old version" data-dialog-copy="This would create a new draft based on a historical calibration. The original version would remain unchanged.">
           <h2>Copy an old version</h2>
-          <svg class="old-mascot doodle" viewBox="0 0 210 130" stroke-width="5.5" aria-hidden="true">
-            <path d="M48 66c-3-28 17-47 43-42 18 3 28 18 28 37 10-17 35-22 52-9 19 15 14 47-8 57-16 8-36 2-44-13-11 17-34 23-52 12-14-8-21-24-19-42Z"/>
-            <path d="M57 34c11-13 28-20 46-17M122 29c13-10 32-10 46-1"/>
-            <path d="M75 75h2M145 74h2" stroke-width="13"/>
-            <path d="M99 101c12 6 24 5 34-2"/>
-            <path d="M66 26 67 7M63 8l25-2M145 30l8-18M146 12l27 8"/>
-          </svg>
+          <img class="old-mascot" src="login/assets/characters/ovalman.svg" alt="" width="101" height="100">
         </button>
       </div>
     </section>
