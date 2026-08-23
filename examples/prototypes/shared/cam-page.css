@@ -8,6 +8,10 @@
   transform: translate(-50%, -48%);
 }
 
+.cam-stage-panel {
+  left: calc(50% + 18px);
+}
+
 .cam-page-heading {
   margin-bottom: 32px;
   text-align: center;
@@ -43,6 +47,19 @@
 
 .cam-action-stack .cam-action {
   width: 100%;
+}
+
+.cam-action__content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+}
+
+.cam-action__content img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
 }
 
 .cam-tertiary-action {
@@ -120,8 +137,16 @@ noscript {
     transform: translate(-50%, -53%);
   }
 
+  .cam-stage-panel {
+    left: 50%;
+  }
+
   .cam-page-heading {
     margin-bottom: 31px;
+  }
+
+  .cam-action__content {
+    gap: 9px;
   }
 
 }

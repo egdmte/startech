@@ -170,13 +170,13 @@ a:focus-visible {
 
 .cam-workflow-footer {
   position: absolute;
-  right: 14px;
+  right: 38px;
   bottom: 11px;
   left: 14px;
   display: grid;
   grid-template-columns: max-content minmax(120px, 1fr);
   align-items: center;
-  gap: 18px;
+  gap: 10px;
 }
 
 .cam-workflow-footer .cam-session {

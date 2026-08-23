@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Choose an online or Windows-assisted SAC workflow">
+  <title>Choose a SAC connection — STARTECH CAM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/cam-ui.css">
+  <link rel="stylesheet" href="shared/cam-page.css">
+  <link rel="stylesheet" href="sac-connection.css">
+  <link rel="stylesheet" href="shared/motion.css">
+  <script src="shared/motion.js" defer></script>
+  <script src="sac-connection.js" defer></script>
+</head>
+<body>
+  <main class="cam-frame" data-page>
+    <section class="cam-center-panel cam-stage-panel" aria-labelledby="connection-title">
+      <div class="connection-content" data-motion data-motion-delay="1">
+        <header class="cam-page-heading">
+          <h1 id="connection-title">Next time, you can use our Windows tool for offline calibration.</h1>
+        </header>
+
+        <div class="cam-action-stack" aria-label="Calibration connection options">
+          <button class="cam-action cam-action--primary" id="download-windows" type="button">
+            <span class="cam-action__content">
+              <img src="login/assets/updatecar.png" alt="">
+              <span>Download the Windows module</span>
+            </span>
+          </button>
+          <button class="cam-action cam-action--secondary" id="continue-online" type="button">
+            <span class="cam-action__content">
+              <img src="login/assets/default.png" alt="">
+              <span>Continue online</span>
+            </span>
+          </button>
+        </div>
+
+        <button class="cam-tertiary-action connection-back" id="go-back" type="button">
+          <span aria-hidden="true">←</span> Go back
+        </button>
+      </div>
+    </section>
+
+    <footer class="cam-workflow-footer" data-motion data-motion-delay="2">
+      <div class="cam-session" aria-live="polite">
+        <span>Your session will expire in</span>
+        <strong class="cam-session-time" id="session-time">15:00</strong>
+      </div>
+      <div
+        class="cam-progress"
+        role="progressbar"
+        aria-label="Service Assisted Calibration progress"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="26"
+      >
+        <span class="cam-progress__value" style="--cam-progress: 26%"></span>
+      </div>
+    </footer>
+  </main>
+
+  <dialog class="cam-dialog" id="connection-dialog" aria-labelledby="connection-dialog-title">
+    <form method="dialog" class="cam-dialog__content">
+      <h2 id="connection-dialog-title">Prototype connection choice</h2>
+      <p id="connection-dialog-copy">The next calibration screen will continue from this choice.</p>
+      <button class="cam-action cam-action--primary cam-dialog__close" value="close">Close</button>
+    </form>
+  </dialog>
+
+  <noscript>This prototype needs JavaScript to choose a calibration connection.</noscript>
+</body>
+</html>

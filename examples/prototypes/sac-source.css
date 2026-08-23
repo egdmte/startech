@@ -1,7 +1,7 @@
 .sac-abort {
   position: absolute;
   top: 25.5%;
-  left: 50%;
+  left: calc(50% + 18px);
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -31,19 +31,6 @@
   display: grid;
 }
 
-.source-action__content {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 13px;
-}
-
-.source-action__content img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-}
-
 .source-back {
   margin-top: 33px;
 }
@@ -51,15 +38,13 @@
 @media (max-width: 560px) {
   .sac-abort {
     top: 16%;
+    left: 50%;
   }
 
   .source-panel {
     top: 49%;
   }
 
-  .source-action__content {
-    gap: 9px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

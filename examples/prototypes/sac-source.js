@@ -28,6 +28,12 @@ document.querySelectorAll("[data-source]").forEach((button) => {
   button.addEventListener("click", () => {
     const sourceLabel = button.dataset.sourceLabel;
     sessionStorage.setItem("startech-sac-source", button.dataset.source);
+
+    if (button.dataset.source === "car") {
+      window.startechNavigate("sac-connection.html");
+      return;
+    }
+
     sourceDialogTitle.textContent = `${sourceLabel} selected`;
     sourceDialogCopy.textContent = "This starting point is saved for the next calibration screen.";
     sourceDialog.showModal();
