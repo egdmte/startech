@@ -1,0 +1,136 @@
+.launch-panel {
+  position: absolute;
+  top: 51.75%;
+  left: 50%;
+  display: grid;
+  width: min(426px, calc(100% - 48px));
+  justify-items: stretch;
+  transform: translate(-50%, -48%);
+}
+
+.launch-heading {
+  margin-bottom: 37px;
+  text-align: center;
+}
+
+.launch-heading p,
+.launch-heading strong {
+  display: block;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+.launch-heading p {
+  font-weight: 400;
+}
+
+.launch-heading strong {
+  margin-top: 4px;
+  font-weight: 700;
+}
+
+.launch-actions {
+  display: grid;
+  gap: 7px;
+}
+
+.launch-actions .cam-action {
+  width: 100%;
+}
+
+.history-action {
+  display: inline-flex;
+  align-items: center;
+  justify-self: center;
+  gap: 5px;
+  margin-top: 13px;
+  padding: 0;
+  color: var(--cam-muted);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: -0.02em;
+  transition: color 130ms ease, transform 130ms ease;
+}
+
+.history-action:hover {
+  color: var(--cam-ink);
+  transform: translateX(2px);
+}
+
+.cam-dialog {
+  width: min(390px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--cam-border);
+  border-radius: 8px;
+  background: var(--cam-surface);
+  box-shadow: 0 12px 45px rgb(0 0 0 / 18%);
+}
+
+.cam-dialog::backdrop {
+  background: rgb(0 0 0 / 14%);
+  backdrop-filter: blur(2px);
+}
+
+.cam-dialog__content {
+  display: grid;
+  padding: 28px;
+}
+
+.cam-dialog__content h2 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}
+
+.cam-dialog__content p {
+  margin: 8px 0 24px;
+  color: var(--cam-muted);
+  font-size: 13px;
+}
+
+.cam-dialog__close {
+  min-width: 120px;
+  justify-self: end;
+}
+
+noscript {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  left: 20px;
+  z-index: 5;
+  padding: 12px;
+  color: #ffffff;
+  background: var(--cam-ink);
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .launch-panel {
+    width: calc(100% - 36px);
+    transform: translate(-50%, -53%);
+  }
+
+  .launch-heading {
+    margin-bottom: 31px;
+  }
+
+  .launch-heading p,
+  .launch-heading strong {
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history-action {
+    transition: none;
+  }
+
+  .history-action:hover {
+    transform: none;
+  }
+}
