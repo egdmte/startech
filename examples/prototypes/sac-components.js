@@ -110,7 +110,13 @@ function renderDetails() {
   continueButton.className = "cam-action cam-action--primary component-details__continue";
   continueButton.type = "button";
   continueButton.textContent = "Continue with selected parts";
-  continueButton.addEventListener("click", () => componentDialog.showModal());
+  continueButton.addEventListener("click", () => {
+    if (selectedPart === "power") {
+      window.startechNavigate("sac-power.html");
+      return;
+    }
+    componentDialog.showModal();
+  });
 
   details.append(heading, selectionNames, list, continueButton);
   sessionStorage.setItem("startech-sac-parts", JSON.stringify([selectedPart]));
