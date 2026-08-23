@@ -30,7 +30,7 @@ editWithMacButton.addEventListener("click", () => {
   if (!calibration?.tag) return;
   sessionStorage.setItem("startech-mac-source-tag", calibration.tag);
   window.startechNavigate(
-    `startech_calibration_dashboard.html?flow=mac&source=${encodeURIComponent(calibration.tag)}`
+    `mac-source.html?source=${encodeURIComponent(calibration.tag)}`
   );
 });
 

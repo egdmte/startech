@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Select a browser-local source for a simulated STARTECH Manual Assisted Calibration">
+  <title>MAC source — STARTECH CAM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/cam-ui.css">
+  <link rel="stylesheet" href="mac-source.css">
+  <link rel="stylesheet" href="shared/motion.css">
+  <script src="shared/motion.js" defer></script>
+  <script src="mac-source.js" defer></script>
+</head>
+<body>
+  <main class="cam-frame mac-frame" data-page>
+    <header class="mac-topbar" data-motion data-motion-delay="1">
+      <h1>Manual Assisted Calibration - Interface v0.1</h1>
+      <div class="mac-publish-status">
+        <span>Not published</span>
+        <button class="cam-action cam-action--secondary mac-compact-action" id="publish-mac" type="button" disabled>Publish</button>
+      </div>
+    </header>
+
+    <div class="mac-body">
+      <aside class="mac-sidebar" aria-label="MAC document actions" data-motion data-motion-delay="2">
+        <button class="cam-action cam-action--secondary mac-compact-action mac-save" id="save-mac" type="button" disabled>Save</button>
+        <p class="mac-session-note">Your session doesn’t expire</p>
+      </aside>
+
+      <section class="mac-workspace" aria-labelledby="mac-source-title">
+        <div class="mac-source-picker" data-motion data-motion-delay="3">
+          <p id="mac-source-title">Please upload a calibration</p>
+          <div class="mac-source-actions">
+            <button class="cam-action cam-action--primary mac-source-action" id="upload-json" type="button">Upload latest .json</button>
+            <button class="cam-action cam-action--primary mac-source-action" id="version-history" type="button">Version history</button>
+            <button class="mac-source-action mac-source-action--empty" id="empty-json" type="button">Empty .json</button>
+          </div>
+          <input class="visually-hidden" id="json-file" type="file" accept="application/json,.json">
+          <p class="mac-source-message" id="mac-source-message" role="status" aria-live="polite"></p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <noscript>This prototype needs JavaScript to read and validate browser-local JSON files.</noscript>
+</body>
+</html>
