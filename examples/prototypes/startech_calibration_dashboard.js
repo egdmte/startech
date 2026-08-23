@@ -8,6 +8,12 @@ const sessionTime = document.querySelector("#session-time");
 let remainingSeconds = inactivityLengthSeconds;
 let lastResetAt = 0;
 
+function openFlowDialog(title, copy) {
+  dialogTitle.textContent = title;
+  dialogCopy.textContent = copy;
+  flowDialog.showModal();
+}
+
 function renderTimer() {
   const minutes = Math.floor(remainingSeconds / 60);
   const seconds = remainingSeconds % 60;
@@ -29,9 +35,7 @@ document.querySelectorAll("[data-flow]").forEach((control) => {
       return;
     }
 
-    dialogTitle.textContent = control.dataset.dialogTitle;
-    dialogCopy.textContent = control.dataset.dialogCopy;
-    flowDialog.showModal();
+    openFlowDialog(control.dataset.dialogTitle, control.dataset.dialogCopy);
   });
 });
 
@@ -49,3 +53,12 @@ window.setInterval(() => {
 }, 1000);
 
 renderTimer();
+
+const requestedFlow = new URLSearchParams(window.location.search);
+if (requestedFlow.get("flow") === "mac") {
+  const source = requestedFlow.get("source");
+  const sourceCopy = source
+    ? `Calibration ${source} is saved as the source. The MAC editor will be connected in the next prototype slice.`
+    : "The MAC editor will be connected in the next prototype slice.";
+  openFlowDialog("Manual Assisted Calibration", sourceCopy);
+}

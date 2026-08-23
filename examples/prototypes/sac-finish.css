@@ -1,0 +1,261 @@
+.finish-shell {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: minmax(270px, 21.6667%) minmax(0, 1fr);
+  background: #f7f7f7;
+}
+
+.finish-identity,
+.finish-stage {
+  position: relative;
+  min-width: 0;
+}
+
+.finish-identity {
+  background: #ffffff;
+}
+
+.finish-welcome {
+  position: absolute;
+  top: 57px;
+  right: 30px;
+  left: 30px;
+  font-size: 17px;
+  line-height: 1.18;
+}
+
+.finish-welcome span,
+.finish-welcome strong {
+  display: block;
+}
+
+.finish-welcome strong {
+  margin-top: 3px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.finish-session-footer {
+  position: absolute;
+  right: 29px;
+  bottom: 29px;
+  left: 30px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.finish-school-logo {
+  display: block;
+  width: 29px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.finish-session-status {
+  display: grid;
+  justify-items: end;
+}
+
+.finish-session-label {
+  margin-bottom: 10px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.finish-timer {
+  display: flex;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.finish-timer-part {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: #ffffff;
+  background: #080808;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.finish-stage {
+  background: #f7f7f7;
+}
+
+.finish-summary-layout,
+.finish-result-layout {
+  position: absolute;
+  top: 23.2%;
+  left: 50%;
+  display: grid;
+  width: min(var(--cam-content-width), calc(100% - 48px));
+  justify-items: stretch;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.finish-result-layout {
+  top: 31.7%;
+}
+
+.finish-copy {
+  display: grid;
+  justify-items: center;
+}
+
+.finish-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  margin-bottom: 17px;
+  color: #080808;
+  font-family: "Segoe UI Symbol", sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.finish-icon--success {
+  width: 39px;
+  height: 39px;
+  margin-bottom: 18px;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #009b4e;
+  font-family: Inter, Arial, sans-serif;
+  font-size: 24px;
+}
+
+.finish-copy h1,
+.finish-copy p {
+  margin: 0;
+  font-size: var(--cam-copy-size);
+  letter-spacing: 0;
+}
+
+.finish-copy h1 {
+  font-weight: 600;
+}
+
+.finish-copy p {
+  margin-top: 13px;
+  color: #595959;
+  line-height: 1.35;
+}
+
+.finish-copy p + p {
+  margin-top: 22px;
+}
+
+.finish-summary-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 195px;
+}
+
+.finish-result-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 46px;
+}
+
+.finish-summary-actions .cam-action,
+.finish-result-actions .cam-action {
+  width: 100%;
+}
+
+.finish-action-message {
+  min-height: 18px;
+  margin: 12px 0 0;
+  color: #595959;
+  font-size: 13px;
+}
+
+.finish-action-message.is-warning {
+  color: #9c0000;
+}
+
+@media (max-width: 900px) {
+  .finish-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .finish-identity {
+    min-height: 180px;
+  }
+
+  .finish-welcome {
+    top: 36px;
+    right: 24px;
+    left: 24px;
+  }
+
+  .finish-session-footer {
+    right: 24px;
+    bottom: 23px;
+    left: 24px;
+  }
+
+  .finish-stage {
+    min-height: calc(100vh - 180px);
+  }
+
+  .finish-summary-layout,
+  .finish-result-layout {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: calc(100% - 40px);
+    margin: 72px auto 90px;
+    transform: none;
+  }
+
+  .finish-summary-actions {
+    margin-top: 110px;
+  }
+
+  .finish-result-actions {
+    margin-top: 52px;
+  }
+}
+
+@media (max-width: 520px) {
+  .finish-identity {
+    min-height: 196px;
+  }
+
+  .finish-welcome {
+    font-size: 15px;
+  }
+
+  .finish-welcome strong {
+    font-size: 18px;
+  }
+
+  .finish-session-footer {
+    align-items: flex-start;
+  }
+
+  .finish-session-label {
+    max-width: 190px;
+    text-align: right;
+    white-space: normal;
+  }
+
+  .finish-stage {
+    min-height: calc(100vh - 196px);
+  }
+
+  .finish-summary-layout,
+  .finish-result-layout {
+    margin-top: 54px;
+  }
+
+  .finish-summary-actions {
+    margin-top: 82px;
+  }
+}
