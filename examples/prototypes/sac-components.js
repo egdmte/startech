@@ -93,6 +93,17 @@ function configuredParts() {
   return Object.keys(partInformation).filter(hasStoredSettings);
 }
 
+function createSummaryButton() {
+  const button = document.createElement("button");
+  button.className = "cam-action cam-action--primary component-details__continue";
+  button.type = "button";
+  button.textContent = "Review and create calibration";
+  button.addEventListener("click", () => {
+    window.startechNavigate("sac-summary.html");
+  });
+  return button;
+}
+
 function updateMapStatus() {
   const completed = configuredParts();
   const completedSet = new Set(completed);
@@ -116,7 +127,6 @@ function renderOverview() {
   const heading = document.createElement("h2");
   const copy = document.createElement("p");
   const list = document.createElement("ul");
-  const reviewButton = document.createElement("button");
 
   if (completed.length === 0) {
     heading.textContent = "NO PARTS SELECTED";
@@ -148,13 +158,7 @@ function renderOverview() {
   details.append(heading, copy, list);
 
   if (completed.length === 5) {
-    reviewButton.className = "cam-action cam-action--primary component-details__continue";
-    reviewButton.type = "button";
-    reviewButton.textContent = "Review and create calibration";
-    reviewButton.addEventListener("click", () => {
-      window.startechNavigate("sac-summary.html");
-    });
-    details.append(reviewButton);
+    details.append(createSummaryButton());
   }
 }
 
@@ -193,6 +197,9 @@ function renderDetails() {
   });
 
   details.append(heading, selectionNames, status, list, continueButton);
+  if (configuredParts().length === 5) {
+    details.append(createSummaryButton());
+  }
   sessionStorage.setItem("startech-sac-parts", JSON.stringify([selectedPart]));
 }
 
