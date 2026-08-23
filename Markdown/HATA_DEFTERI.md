@@ -1,37 +1,34 @@
 # HATA DEFTERİ — the LEGACY defect log
 
-Every fault found in the 4 May 2026 build, with evidence, cause, cost and the guard that
-prevents it recurring.
+4 Ağustos 2026 incelemelerinde bulunan sorunların içerildiği, Claude tarafından hazırlanarak E.Y.K tarafından Türkçe'ye çevirilen bir belgedir.
 
-**This is a derived document.** `PLAN_New.md` is authoritative; every entry cites the plan
-section it came from. If the two disagree, the plan is right.
+**Türetilmiş bir belgeyi okuyorsunuz.** `PLAN_New.md` burada yer alan hataların tamamını daha ayrıntılı şekilde içeriyor, eğer burada yer alan bilgiler PLAN_New.md'de yanlışsa o zaman plana güvenmelisiniz.
 
 ---
 
-## 0. Read this before the list
+## 0. Lütfen Okuyun
 
-A defect list read on its own gives a false impression, so this part is not padding.
+Buradaki hata listesi kendi başına önceki kodun hatalı olduğu algısı yaratacağı için kodun iyi özelliklerini vurgulamak gerekti.
 
 ### What the May car actually did well
 
-- **Bird's-eye perspective warp** before lane finding, rather than chasing pixels in a
-  camera-angle image.
-- **CLAHE on the L channel** to normalise spot reflections before thresholding.
-- **Adaptive white profiles** — DARK / NORMAL / BRIGHT chosen per frame from mean
-  brightness, instead of one fixed threshold.
-- **Column-continuity weighting.** A lane line is vertically continuous in bird's-eye view;
-  a glare spot is not. Weighting histogram columns by their vertical coverage filters
-  reflections almost for free. This is a genuinely clever idea and it is original.
-- **Near/far weighted error** — a lookahead term for curves plus a near term for position.
-- **Lane memory with a narrowed search window**, which is also what already handles dashed
-  centre lines.
-- **PD control with dynamic gain, derivative capping, curve-speed coordination and
-  dead-zone compensation.**
-- **Event debouncing** — a detection must persist N frames before it fires.
-- **`gpiozero` and `picamera2`**, both import-guarded for off-Pi development. Most people
-  get the Pi 5 GPIO story wrong; this build did not.
-- **A HOG sign classifier** with rotation and brightness augmentation.
-- **Nine calibration tools**, including a live tuner that writes back to config.
+- **Kuşbakışı perspektifi** şerit bulmadan önce yapılıyor
+- **L kanalınca CLAHE uygulanarak** renk tespitinden önce yansımalar gideriliyor
+- **Değişken beyazlık profilleri** Duruma göre değişen karanlık/aydınlık/parlak dengesi
+- **Sütun devamlılık ölçümü:** Şeritler kamerada düz çizgi olarak görünür, yansımalar ise gözükmez.
+- Yakın/uzak ağırlıklı hata — virajlar için ileri bakış (lookahead) terimi ve pozisyon için yakın alan terimi.
+
+- Daraltılmış arama pencereli şerit hafızası — kesikli orta çizgileri sorunsuz takip eden sistem de zaten tam olarak bu.
+
+- Dinamik kazanç, türev sınırlama (derivative capping), viraj-hız koordinasyonu ve ölü bölge (dead-zone) kompanzasyonlu PD kontrol.
+
+- **Olay kararsızlığını önleme/Event debouncing** — bir tespitin tetiklenmesi için N kare (frame) boyunca kararlı şekilde sürmesi gerekir.
+
+-gpiozero ve picamera2 — ikisi de Raspberry Pi dışı geliştirme için import korumalı (import-guarded). Çoğu kişi Pi 5'in GPIO olayını eline yüzüne bulaştırır, bu projede o iş temiz çözülmüş.
+
+-Döndürme ve parlaklık veri çoğaltmalı (augmentation) HOG tabela sınıflandırıcısı.
+
+- Ayarları doğrudan konfigürasyona geri yazan canlı bir tuner dahil dokuz kalibrasyon aracı.
 
 That is a strong build. Hold onto that while reading the rest.
 
@@ -252,16 +249,16 @@ different statement from "unreliable", and it is countable directly off the draw
 
 ## 1. Summary
 
-| # | Defect | Category | Cost |
+| # | Hata | Kategori | Sonuç |
 |---|---|---|---|
-| 1 | Perspective quad never rescaled after resolution change | Driving | Suspected primary cause of the road-following failure |
-| 2 | Motor trims never measured | Driving | Constant pull to one side |
-| 3 | Balance tool writes variable names nothing reads | Tooling | Made #2 undetectable even if run |
-| 4 | Trim applied twice | Latent | Squares the correction |
-| 5 | Trim selected by sign, not by wheel | Latent | Correction cannot correct anything |
-| 6 | `sign_type` consumed but never produced | Points | Çıkmaz yol, **100 points**, unreachable |
-| 7 | Trained sign model never connected | Points | Same root as #6 |
-| 8 | No PWM frequency set anywhere | Driving | 100 Hz default; probable cause of the dead-zone hack |
+| 1 | Perspektif ile kamera boyutu alakalı değildi | Sürüş | Arabanın var olmayan bir kamera hatasını çözmeye çalışnası |
+| 2 | Motor hız değişkenleri ayarlanmadı | Sürüş | Motorlar farklı güçlerle giderek arabayı savurdu |
+| 3 | Ölçüm aracı (motor_balance.py) çalışmıyordu | Araç | 2. sorunu çözmek için yapılan ama işe yaramayan bir belge |
+| 4 | Motor hız değişkenleri iki kez ayarlandı | Latent | Eğer motor hızları ayarlansaydı |
+| 5 | Motor hız değişkenleri tabelaya göre seçiliyordu | Latent | Tabela seçimi olmadığı için hız değişkenleri aranmadı |
+| 6 | Araç tabela ölçümü yapmadı | Points | (beklenen olay) |
+| 7 | Araç tabela eğitim modeli koda geçirilmedi | Points |  (beklenen olay)  |
+| 8 (YALAN) | No PWM frequency set anywhere | Driving | 100 Hz default; probable cause of the dead-zone hack |
 | 9 | Error handler does not stop motors | **Safety** | Up to ~1.2 s driving blind |
 | 10 | Log stops at 120 s of a 240 s race | Diagnosis | Half of every run unrecorded |
 | 11 | Physical start button removed | Points | **50 points** + rule exposure |

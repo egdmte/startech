@@ -22,7 +22,7 @@ import statistics
 from typing import Any, Protocol
 import uuid
 
-from .goz import (
+from goz import (
     CameraError,
     CameraExhausted,
     CameraSource,

@@ -18,30 +18,23 @@ Bu plan gerçeğin yerine geçmez. Kod, donanım ve resmî kurallar değişebili
 
 ### 0.1 Beş temel gerçek
 
-1. `LEGACY/` içindeki eski yazılım değersiz değildir. PD direksiyon, dinamik kazanç,
-   uyarlanabilir ışık profilleri, `gpiozero`, `picamera2`, olay debounce'u ve eğitimli
-   tabela sınıflandırıcısı içerir.
-2. Mayıs 2026 başarısızlığının güçlü adayları kötü algoritmadan çok tamamlanmamış
-   kalibrasyon, bağlanmamış özellik ve yanlış belgedir.
-3. Eski perspektif dörtgeni 640×480 koordinatlarını 800×680 karede kullanır. Bu, en güçlü
-   tek arıza adayıdır; fiziksel testle yeniden ölçülmelidir.
-4. Motor trimleri ölçülmemiş görünmektedir. Ölçüm aracı, yapılandırmanın artık okumadığı
-   isimleri yazdırır; araç düzeltilmeden ölçüme güvenilmez.
-5. Bazı eski TXT belgeleri var olmayan sabit, yöntem, dosya ve performans sayıları ileri
-   sürer. Kodda bulunamayan bir iddia doğru kabul edilmez.
+1. `LEGACY/` klasörünün içerisindeki yazılım kullanılamaz halde değil. PD, dinamik kazanç sistemi,
+  ışık profilleri, olay debounce'u ve eğitimli tabela sistemi gibi önemli olan parçaları içeriyor.
+2. Mayıs 2026 yarışında kaybetmemizin ana sebeplerinin koddan ziyade yapılan kalibrasyon hataları olması muhtemel.
+3. 640x480 için yazılan koordinatlar 800x680 boyutunda görüntü için kullanılmış. Bunun tekrarlanmaması önem arz ediyor.
+4. Motor trimleri ölçülmemiş gerekiyor, bunun sebebi trim aracının, kodda kullanılmayan bir isimde bu değişkenleri kaybetmesi.
+5. LEGACY içerisindeki eski belgeler yalan ve güvenilmez durumda.
 
 ### 0.2 Projenin mevcut durumu — 6 Ağustos 2026
 
-- `LEGACY/` 4 Mayıs 2026 uygulamasını taşır ve yeni sistem için referanstır.
-- Yeni `arac/` çalışma zinciri henüz yoktur.
-- Git deposunda VPS `origin` ve GitHub `github` uzakları vardır.
-- `core.hooksPath=.githooks` yapılandırılmıştır.
-- SUBIRU çalışır fakat `subiru/data/tasks.json` hâlâ boştur.
-- 3awnt prototipi vardır fakat üretim çalışma zincirine bağlı değildir ve dosyaları henüz
-  Git tarafından izlenmemektedir.
-- Çalışma ağacı kullanıcı değişiklikleri içerir; bunlar korunacaktır.
-- `kontrol.py`, HATA DEFTERİ'ndeki `motor_balance` + `.py` adı nedeniyle mevcut durumda
-  hata verir; gerçek dosya `motor_balance_test.py` adındadır.
+- `LEGACY/` , 4 Mayıs 2026'da kullanılan versiyonu içerir. Bu versiyon yarışta kullanılan versiyon DEĞİLDİR. Kodun en son değiştirilme tarihi 6 Mayıs 2026'dır. Legacy içerisindeki kod ise bu tarihe en yakın olan koddur.
+- Bitmiş bir `arac/` mekanizması yok (henüz!)
+- Git olarak VPS'e  (`origin`) ve GitHub'a `github` kaydediyoruz.
+- Hepsi için `master` kanalı kullanılıyor.
+- SUBIRU (Şununla Bir uğraşsan) iptal edilecektir, onunla ilgili yazıları uygulamanız gerekiyor
+- 3awnt (m3th) hazır olmasına rağmen yeni bir araçta test edilmiyor.
+- Git'e atılmamış kodları silmeyin veya git'e atılması için zorlamayın, ama her zaman commit yapın.
+- `kontrol.py`, HATA DEFTERİ'ndeki `motor_balance` + `.py` adı nedeniyle mevcut durumda hata verir; gerçek dosya `motor_balance_test.py` adındadır. (anladıysanız belirtsenize)
 
 ### 0.3 Araçla ilk oturumda yapılacaklar
 
@@ -58,6 +51,10 @@ Fiziksel testten önce insan incelemesi, iki kişi, Egemen'in donanım izni ve t
 adımdan hemen önce son onay zorunludur. Ayrıntılı sıra `SIRA.md` içindedir.
 
 ### 0.4 Bu belge nasıl kullanılır?
+
+Yapılacak işlemleri arıyorsan Sıra.MD'ye bakmalısın. Burada genel plan ile ilgili detaylar yazıyor.
+§ = Konu başlık numarası
+minecraftta renkli yazı mı yazıyoz bu niye?
 
 | Aradığın konu | Bölüm |
 |---|---:|
@@ -83,15 +80,14 @@ adımdan hemen önce son onay zorunludur. Ayrıntılı sıra `SIRA.md` içindedi
 
 ### 0.5 Plan ve değişiklik kuralları
 
-- Bu dosyayı, yol haritasını veya TODO'yu yalnız Egemen ya da T açıkça istediğinde değiştir.
-- Egemen bu planı açıkça geçersiz kılabilir veya belirli bir deney için istisna verebilir.
+- Bu dosyayı bir değişiklikten sonra otomatik olarak değiştiremezsin. Sadece biz sana söylediğimizde veya planın genel amacı buysa değiştirebilirsin. 
+- Yapacağın değişiklikler için önce AGENTS_READ_ME.txt'yi oku. Her promptta okumana gerek yok, ama unuttukça okumalısın.
 - Yeni bir kaynak dosya gerekiyorsa önce plan ve dosya listesi onaylanır.
 - `[DOĞRULANMADI]` işaretli bilgi fiziksel veya resmî kanıt olmadan temel alınmaz.
-- Değişiklikler `Tuna.txt` içine sade dille kaydedilir.
-- AI kodu araçta kullanılmadan önce insanlar tarafından okunur ve anlaşılır.
-- Projenin tamamlandığına yalnız US karar verir.
+- Üretilen kodu bir aptala anlatır gibi anlatman ve her fonksiyonun ne anlama geldiğini açıklaman gerekir.
+- Projenin/planın bitme kararı bize bağlıdır. Bir planı test etmeden "başarılı" olarak göremezsin.
 
----
+8
 
 ## 1. Proje
 
@@ -106,24 +102,18 @@ Bu depoda üç ana parça vardır:
 
 ### 1.1 Takım
 
-| Kişi | Mevcut/önerilen sorumluluk |
-|---|---|
-| Egemen Y. K. | Yazılım mimarisi, ana döngü, canlı donanım yetkisi |
-| Tuna B. | Donanım, kalibrasyon, fiziksel test ve kayıt toplama |
-| Mehmet E. U. | Danışman öğretmen ve başvuru işlemleri |
+Projede minimum 2, maksimum 4 kişi çalışacak.
+Şu anki kişi sayısı: 2
 
-Günlük proje kararlarında Egemen ve T birincil otoritedir. SCHOOL daha düşük yetkilidir;
-ancak resmî yarışma gereklilikleri ve başvuru süreci kendi yetki alanında bağlayıcıdır.
+Eylül 2026'dan itibaren bu kişi sayısının 3-4 olma şansı var. Kişi sayısı duruma bağlı olarak 4 kişiden fazla olabilir ama bunun olma ihtimali nereden baksan Pisa kulesinin düzelmesi.
 
-Kılavuz lise seviyesinde en fazla üç öğrenci ve zorunlu danışman öğretmene izin verir.
-Sahada aynı anda en fazla iki öğrenci bulunabilir; danışman aktif rol alamaz. Üçüncü
-öğrenci gelirse test/pist/kayıt alt sistemi veya park görevini uçtan uca üstlenebilir.
+İhtimaller gerçeği yansıtmaz.
 
 ### 1.2 Çalışma düzeni
 
-Yaz boyunca fiziksel araç çalışması yapılmaz; esas çalışma okul dönemindedir. Bu nedenle
-plan tarihten çok bağımlılık sırasına dayanır. Bir fazın çıkış testi geçmeden sonraki faz
-açılmaz.
+Bu belge okuldan ayrı bir yerde, yaz tatilinde yazılmadığı için tam olarak tarih içermiyor. Okuldaki dersler gibi faktörlerin robotu etkileyip etkilemeyeceğini bilmiyoruz.
+
+Çalışma düzeninin dağınık ve üşengeç insanlarla dolu olduğunu varsay.
 
 ---
 
@@ -150,33 +140,26 @@ açılmaz.
 
 Sonuçlar:
 
-- Dört dakikalık, yani 240 saniyelik sert sınır vardır.
-- Hız puanı büyük olabilir; 120 saniyede bitirmek 120 ek puan verir.
-- Turların puanları toplanır. Tek parlak tur yerine sürekli güvenilirlik önemlidir.
-- Önce güvenilir şerit takibi, sonra kara kutu kanıtına göre kontrollü hız artışı yapılır.
-- Bölge tamamlama puanının her bölge için olup olmadığı koordinatöre sorulmalıdır; cevap
-  gelene kadar 50 toplam varsayımıyla plan yapılır.
+- Yarış 240 saniye sürer, bonusu x saniye cinsinden f(x) = puan + (240-x)
+- Hız ve doğruluk dengesi olmalı.
+- Bu bölgeler birbirine toplanır. Yaya geçidinin yapılmaması park görevinin puanını silmez.
+- Önemli olan önce doğruluk olmalı. KADA/BADA (arac/kayit.py prensiplerine göre) kontrol edilir, onaylandığında hıza önem verilir.
 
 ### 2.2 Diskalifiye doğurabilecek teknik sınırlar
 
-- Araç 20×30 cm kutuya rahatça sığmalı; yükseklik en fazla 25 cm.
-- Teker çapı en fazla 10 cm; ağırlık sınırı yok.
-- Algılama yalnız kamerayla yapılır. Lidar, IR, ultrasonik veya mesafe sensörü yasaktır.
-- Kamera sayısı için sınır belirtilmemiştir.
-- Kontrol kartı, motor sayısı ve RPM için özel sınır yoktur.
-- Takımın geliştirdiği/açıklayabildiği yazılım gerekir; hazır ticari kontrol sistemi veya
-  indirilen otonom proje kabul edilmez.
-- OpenCV gibi kütüphaneler kullanılabilir.
-- Bluetooth, Wi‑Fi, IR ve RF koşu sırasında kapalı olmalıdır. Aktif uzaktan kontrol veya
-  aktif haberleşme modülü diskalifiye sebebidir.
-- Sıvı, yanıcı, patlayıcı veya basınçlı enerji kaynağı kullanılamaz.
-- Kayıtta verilen QR kod sabit gövdeye takılır; sökülmesi, taşınması veya zarar görmesi
-  diskalifiye doğurabilir.
-- Turlar arasında lastik ve pil değişebilir. Elektronik parça yalnız aynı tür ve aynı
-  konumla değiştirilebilir; gövde değiştirilemez.
+- 20 santim genişlik, 30 santim uzunluk, 25 santim yükseklik (bu çapta bir kutuya girmesi gerekir)
+- Ağırlık sınırı yok.
+- Teker r^2<=10cm
+- Kamera dışı sensör yasaktır.
+- Kamera adet sınırı yoktur.
+- Kontrol kartı, motor ve RPM sınırı yoktur.
+- Hazır olmayan kod gereklidir.
+- Uzaktan haberleşme araçları (yarış içinde) yasaktır
+- Sadece Li-po veya Li-ion bataryalar
+- QR yırtılmamalı veya sökülmemeli.
+- Sadece (yarışta) lastik ve pil değiştirilebilir.
 
-AI tarafından yazılmış kod hakkında kılavuz açık bir madde içermiyor. Takım kararı:
-AI kodu kullanılabilir; insanlar kodu incelemeli, anlamalı ve hakeme açıklayabilmelidir.
+Yapay zekayla yapılmış olması kodun hazır olduğu anlamına gelmez. Bize gelip de edebiyat yapma. Kodu bize açıkla, yeter.
 
 ### 2.3 Pist ve nesneler
 
@@ -190,146 +173,69 @@ AI kodu kullanılabilir; insanlar kodu incelemeli, anlamalı ve hakeme açıklay
 - Park alanları kırmızı, mavi ve yeşildir; yerleri turdan tura değişir. Hedef kırmızıdır.
 - Mavi yol kenarı işaretleri bölge tamamlamayı gösterir.
 
-Turuncu ve sarı ayrımı projenin en riskli renk kararıdır. İki nesne aynı karede ve yarışma
-ışığı altında kalibre edilmelidir. Birini ayrı ayrı ayarlamak örtüşmeyi gizler.
+Turuncu ve sarı birbirine yakın olduğu için HSV'de farklı gözükmesi önemli.
 
 ### 2.4 Görev sırası sabit değildir
 
-Yaya geçidi, hemzemin geçit ve tümsek yerleri/sırası hakemlerce değiştirilebilir. Park
-renklerinin yerleri de değişir. Durum makinesi sabit görev dizisi kullanmayacaktır.
+Pist değiştirilebildiği için görevlerin belirli bir sırası yoktur.
+Yarış alanı, bahsedildiği şekilden ziyade tek bir varyasyonla hazırlanır ve o gün değiştirilmez. 
+Kısacası sabit A -> B -> C modülü yerine A -> C -> B kaldıracak bir modüle ihtiyacımız var.
 
 ### 2.5 İki kamera seçeneği
 
-Şerit takibi aşağıya bakan dar/yakın görüntü ister; tabela ve ışık daha ileri/geniş görüntü
-ister. İki kamera yasal görünüyor ve Faz 4 sonrası düşünülebilir. Faz 1–2'de eklenmez;
-kalibrasyon ve işlem maliyetini erken ikiye katlar. `goz.py` baştan çoklu arka uca uygun
-yazılır.
+Planda belirtildiği faza geldiğimizde (4) iki kameralı bir sistem düşünebiliriz, bu sayede tek bir kamerayı birden çok kez kullanmamış oluruz. Bunun için RCP (goz.py) buna uygun yazılmalı.
 
 ### 2.6 Tarihler ve kaynak disiplini
 
-18. yarışma 6–8 Mayıs 2026'da Antalya'da yapıldı. 2026 kılavuzu yaklaşık Ocak ayında
-yayınlandı; başvuru 20 Mart 18.00 civarında kapandı. 2027 tarihi ve belgeleri henüz
-bilinemez. Ocak 2027'de resmî kaynak yeniden okunacaktır.
+Bu araç MEB Robot'a 5-8 Mayıs arasında katıldı. Kılavuz Ocak ayı civarında yayınlandı. Başvuru (3 gün ertelenerek) 20 Mart 18.00 civarında kapandı.
 
-Otonom Araç için ayrıca tasarım/üretim raporu istenmediği 2026 kılavuzundan anlaşılmıştır;
-başvuru için Uygulama Kılavuzu ayrıca kontrol edilmelidir. Kaynaksız kural cümlesi kılavuz
-alıntısı gibi yazılmayacaktır.
+Son günlerde sunucular çöktüğü için pisi pisine yetiştirdik, son güne başvuru bırakma.
 
+Otonom Araç için HENÜZ teknik rapor istenmiyor. Teknik rapor, arabanın BİTİRİLMİŞ şekilde detaylı anlatılması demek olduğu için ileride rapor gerekirse bunun farklı bir başlığı yakında açılacaktır.
 ---
 
 ## 3. Mayıs 2026'da ne yanlış gitti?
 
 ### 3.1 Araçta gerçekten bulunanlar
 
-Eski araç; kamera alma, kuş bakışı dönüşüm, şerit histogramı, süreklilik puanı, dinamik
-PD kontrol, olay debounce'u, görev durumları, motor katmanı, Picamera2, kayıt ve tabela
+Kamera alma, kuş bakışı dönüşüm, şerit histogramı, süreklilik puanı, dinamik
+PD kontrol, olay debounce'u, görev durumları, motor katmanı, Picamera2 (ciddi misin yaa??), kayıt ve tabela
 modeli içeriyordu. “Hiçbir şey yapılmamıştı” doğru değildir.
 
-### 3.2 Perspektif dörtgeni — en güçlü aday
+### Detaylar
 
-`PERSP_SRC = [[160,300],[480,300],[0,480],[640,480]]` değerleri 640×480 geometrisine
-aittir; çalışma görüntüsü 800×680'e çıkmıştır. Kodda uyarı vardır fakat kalibrasyon
-yapılmamıştır. Sonuç yaklaşık 80 piksel yatay önyargı ve aracın en yakın yol bölümünün
-kaybı olabilir.
-
-**Kanıt durumu:** Kod ve koordinat uyuşmazlığı doğrulandı; yarışma davranışının tek nedeni
-olduğu doğrulanmadı. Ucuz deneyle sınanacaktır.
-
-### 3.3 Motor dengesi ölçülmedi
-
-Dört trim değeri de `1.0` görünür. Bu “ölçtük ve eşit çıktı” ile “hiç ölçmedik” durumunu
-ayıramaz. Ölçüm aracının yazdığı adlar ile config'in okuduğu dört ad uyuşmamaktadır.
-
-### 3.4 İki gizli trim hatası
-
-- Trim teker kimliğine göre değil PWM işaretine göre seçiliyor olabilir.
-- Trim hem `controller.py` hem `motor.py` içinde uygulanarak iki kez çarpılıyor olabilir.
-
-Değerler 1.0 iken görünmezler; gerçek trim girildiğinde ortaya çıkarlar. Ölçümden önce
-düzeltilmeleri gerekir.
-
-### 3.5 Başlatma butonu kaldırıldı
-
-`LEGACY/main.py`, GPIO 16 butonunun kaldırıldığını ve klavye `GG`/`EZ`/boşluk ile başlatma
-olduğunu gösterir. Bu yöntem dış bilgisayar gerektirir ve 50 puanı riske atar. Egemen,
-2S güç anahtarını başlangıç olarak düşünmüştür; 2026 gözleminde hakemler Pi'ın açılmasını
-beklemiştir. Ayrı GPIO butonu yine geliştirme hızını ve kural değişimine dayanıklılığı
-artırır. 2027 metni görülmeden “güç anahtarı kesin yasaktır” denmeyecektir.
-
-### 3.6 Çıkmaz yol bağlantısı kopuk
-
-Eski ana döngü `sign_type` alanını tüketir; olay üreticisi bu alanı üretmez. Böylece eğitimli
-tabela sınıflandırıcısı bulunsa bile sonuç durum makinesine ulaşmaz. Düzeltme küçük olabilir
-fakat kalıcı değişiklik ayrı plan gerektirir.
-
-### 3.7 Motor gerilimi
-
-Fotoğrafa ve takım beyanına göre motorlar ayrı 3S 18650 paketten, Pi ise step-down üzerinden
-2S paketten besleniyor. Motorlar 6 V ise L298N kaybından sonra yaklaşık 9–10,6 V görebilir.
-Bu tam görevde yaklaşık %175 nominal gerilim demektir.
-
-`max_pwm ≈ 57` yalnız aritmetik başlangıç tahminidir. Motor etiketi, yük altındaki gerilim
-ve ölü bölge ölçülmeden uygulanmaz.
-
-### 3.8 Mayıs koşusu gözlemi
-
-5 Ağustos'ta eklenen takım gözlemine göre araç açıldı, ilerledi fakat şerit kararlılığı ve
-görev bağlantıları beklenen sonucu vermedi. Bu anlatım tarihli insan gözlemidir; kara kutu
-kaydı olmadığı için sayısal kanıt değildir.
-
-### 3.9 Hâlâ olası fakat kanıtsız nedenler
-
-- Işık ve HSV eşikleri,
-- lastik/mekanik asimetri,
-- pilin yük altında çökmesi,
-- yazılım PWM titreşimi,
-- kamera montajı veya açı değişimi,
-- kesikli şeritte zayıf sinyal,
-- motor akım sınırı.
-
-Rastgele kazanç değiştirerek değil, tek değişkenli deneylerle eleneceklerdir.
-
-### 3.10 Neden kesin cevap yok?
-
-Koşu başına eşzamanlı kare, durum, hata, düzeltme ve PWM kaydı yoktu. Bu yüzden yeni sistem
-için kara kutu isteğe bağlı değildir.
+Burası HATA_DEFTERİ_PAYLASIM.pdf'e taşındı, oradan daha fazla bilgiye erişim sağlayabilirsin.
 
 ---
 
 ## 4. Dosya yapısı
 
-Yeni araç için onaylanmış çekirdek yapı:
+İngilizceleri dosyada yer alıyor.
 
 ```text
-arac/
-  main.py              Başlangıç, ana döngü ve sinyal yönetimi
-  durum.py             Durum makinesi
-  goz.py               USB, Picamera2 ve video girişi
-  goruntu.py           Şerit, renk, ışık ve tabela algılama
-  surucu.py            Sahte/gerçek motor sürücüsü; tek PWM çıkışı
-  ayar.py              Ayar ve kalibrasyon yükleme/doğrulama
-  kayit.py             Kara kutu
-  bildir.py            LED/buzzer durum bildirimi
+  arac/
+  main.py              OSAM (ASAM) Otonom Sürüş Ana Modülü - ana kod
+  durum.py             DATA (SARA) Durum Analizi ve Tespiti Algoritması - görevler
+  goz.py               RKP (RCP) Raspberry Kamera Pipeline - kamera
+  goruntu.py           KOTAM (COTAM) Kamera Gözlemleme ve Takip Algoritması - opencv/hsv/algılama vb.
+  surucu.py            YATA (AVTA) Yapay Araç Test Algoritması - yapay stres testi
+  ayar.py              ADA (CAA) Araç Düzenleme Aracı - ayarlar
+  kayit.py             KADA (BADA) Karakutu Analiz ve Depolama Algoritması - kara kutu
+  bildir.py            HEDAM (FISAM) Hızlı ve Etkileşimli Durum Analiz Mekanizması - led/buzzer
   ayarlar.json         Seçilmiş kontrol ve davranış değerleri
   kalibrasyon.json     Ölçülmüş kamera, renk ve motor değerleri
-arac.service           Açılışta kontrollü çalıştırma
+arac.service           (ARSER) Açılışta kontrollü çalıştırma
 requirements.txt       Sabitlenmiş bağımlılık sürümleri
-klipler/               Tekrarlanabilir görüntü testleri veya manifestleri
-subiru/                Görev ve kanıt panosu
+klipler/               (KkVIDEO -Karakutu video) Tekrarlanabilir görüntü testleri veya manifestleri
 LEGACY/                4 Mayıs 2026 referansı
 Markdown/PLAN_New.md   Bu belge
 AGENTS_READ_ME.txt     Ajan çalışma sözleşmesi
 SIRA.md                Zaman çizelgesi ve TODO
 TAWNT.md               3awnt kılavuzu
-Tuna.txt               Sade değişiklik kaydı
-kontrol.py             Belge iddialarını denetleyen araç
-kontrol-izin.txt       Gerekçeli denetim istisnaları
 .githooks/pre-commit   Commit öncesi belge kontrolü
 Markdown/pdf_yap.py    Onaylanırsa PDF anlık görüntülerini üretir
 ```
 
-3awnt'ın üretim yapısına eklenmesi henüz kararlaştırılmamıştır. `tawnt.py`, entegrasyon
-planı Egemen tarafından onaylanmadan yeni aracın zorunlu dosya listesine girmiş sayılmaz.
 
 ### 4.1 `LEGACY/` kuralı
 
