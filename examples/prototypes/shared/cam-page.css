@@ -3,13 +3,13 @@
   top: 51.75%;
   left: 50%;
   display: grid;
-  width: min(426px, calc(100% - 48px));
+  width: min(var(--cam-content-width), calc(100% - 48px));
   justify-items: stretch;
   transform: translate(-50%, -48%);
 }
 
 .cam-page-heading {
-  margin-bottom: 37px;
+  margin-bottom: 32px;
   text-align: center;
 }
 
@@ -18,9 +18,9 @@
 .cam-page-heading strong {
   display: block;
   margin: 0;
-  font-size: 13px;
+  font-size: var(--cam-copy-size);
   line-height: 1.25;
-  letter-spacing: -0.025em;
+  letter-spacing: 0;
 }
 
 .cam-page-heading h1,
@@ -38,7 +38,7 @@
 
 .cam-action-stack {
   display: grid;
-  gap: 7px;
+  gap: 9px;
 }
 
 .cam-action-stack .cam-action {
@@ -56,8 +56,8 @@
   border: 0;
   background: transparent;
   cursor: pointer;
-  font-size: 12px;
-  letter-spacing: -0.02em;
+  font-size: var(--cam-copy-size);
+  letter-spacing: 0;
   transition: color 130ms ease, transform 130ms ease;
 }
 
@@ -87,14 +87,14 @@
 
 .cam-dialog__content h2 {
   margin: 0;
-  font-size: 18px;
-  letter-spacing: -0.03em;
+  font-size: var(--cam-copy-size);
+  letter-spacing: 0;
 }
 
 .cam-dialog__content p {
   margin: 8px 0 24px;
   color: var(--cam-muted);
-  font-size: 13px;
+  font-size: var(--cam-copy-size);
 }
 
 .cam-dialog__close {
@@ -124,11 +124,6 @@ noscript {
     margin-bottom: 31px;
   }
 
-  .cam-page-heading h1,
-  .cam-page-heading p,
-  .cam-page-heading strong {
-    font-size: 12px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

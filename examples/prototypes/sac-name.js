@@ -37,6 +37,7 @@ namingForm.addEventListener("submit", (event) => {
   calibrationName.removeAttribute("aria-invalid");
   sessionStorage.setItem("startech-sac-name", name);
   formMessage.textContent = `“${name}” is ready for the next calibration step.`;
+  window.startechNavigate("sac-source.html");
 });
 
 calibrationName.addEventListener("input", () => {

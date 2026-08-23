@@ -8,7 +8,7 @@
 .naming-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 7px;
+  gap: 9px;
   margin-top: 36px;
 }
 
@@ -20,7 +20,7 @@
   min-height: 18px;
   margin: 10px 0 0;
   color: var(--cam-muted);
-  font-size: 12px;
+  font-size: var(--cam-session-size);
   text-align: center;
 }
 

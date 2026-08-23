@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Select a starting source for a Service Assisted Calibration">
+  <title>Select a SAC target — STARTECH CAM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/cam-ui.css">
+  <link rel="stylesheet" href="shared/cam-page.css">
+  <link rel="stylesheet" href="sac-source.css">
+  <link rel="stylesheet" href="shared/motion.css">
+  <script src="shared/motion.js" defer></script>
+  <script src="sac-source.js" defer></script>
+</head>
+<body>
+  <main class="cam-frame" data-page>
+    <button class="sac-abort" id="abort-calibration" type="button">
+      <span aria-hidden="true">←</span> Abort
+    </button>
+
+    <section class="cam-center-panel source-panel" aria-labelledby="source-title">
+      <div class="source-content" data-motion data-motion-delay="1">
+        <header class="cam-page-heading">
+          <h1 id="source-title">Select a target for the calibration.</h1>
+          <p>Please provide a starting point for this calibration.</p>
+        </header>
+
+        <div class="cam-action-stack" aria-label="Calibration starting points">
+          <button
+            class="cam-action cam-action--primary source-action"
+            type="button"
+            data-source="car"
+            data-source-label="Update from the car"
+          >
+            <span class="source-action__content">
+              <img src="login/assets/updatecar.png" alt="">
+              <span>Update from the car</span>
+            </span>
+          </button>
+          <button
+            class="cam-action cam-action--secondary source-action"
+            type="button"
+            data-source="default"
+            data-source-label="Use the default model"
+          >
+            <span class="source-action__content">
+              <img src="login/assets/default.png" alt="">
+              <span>Use the default model</span>
+            </span>
+          </button>
+          <button
+            class="cam-action cam-action--secondary source-action"
+            type="button"
+            data-source="old-version"
+            data-source-label="Copy an old version"
+          >
+            <span class="source-action__content">
+              <img src="login/assets/copy.png" alt="">
+              <span>Copy an old version</span>
+            </span>
+          </button>
+        </div>
+
+        <button class="cam-tertiary-action source-back" id="go-back" type="button">
+          <span aria-hidden="true">←</span> Go back
+        </button>
+      </div>
+    </section>
+
+    <footer class="cam-workflow-footer" data-motion data-motion-delay="2">
+      <div class="cam-session" aria-live="polite">
+        <span>Your session will expire in</span>
+        <strong class="cam-session-time" id="session-time">15:00</strong>
+      </div>
+      <div
+        class="cam-progress"
+        role="progressbar"
+        aria-label="Service Assisted Calibration progress"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="33"
+      >
+        <span class="cam-progress__value" style="--cam-progress: 33%"></span>
+      </div>
+    </footer>
+  </main>
+
+  <dialog class="cam-dialog" id="source-dialog" aria-labelledby="source-dialog-title">
+    <form method="dialog" class="cam-dialog__content">
+      <h2 id="source-dialog-title">Starting point saved</h2>
+      <p id="source-dialog-copy">This starting point is ready for the next calibration screen.</p>
+      <button class="cam-action cam-action--primary cam-dialog__close" value="close">Close</button>
+    </form>
+  </dialog>
+
+  <noscript>This prototype needs JavaScript to select a calibration source.</noscript>
+</body>
+</html>
