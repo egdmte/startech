@@ -119,6 +119,10 @@ function renderDetails() {
       window.startechNavigate("sac-camera.html");
       return;
     }
+    if (selectedPart === "compute") {
+      window.startechNavigate("sac-compute.html");
+      return;
+    }
     componentDialog.showModal();
   });
 
