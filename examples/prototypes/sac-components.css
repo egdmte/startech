@@ -1,0 +1,190 @@
+.component-selector {
+  position: absolute;
+  top: 16.3%;
+  left: 50%;
+  width: min(1184px, calc(100% - 48px));
+  transform: translateX(-50%);
+}
+
+.component-heading {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  transform: translateX(18px);
+}
+
+.component-heading h1,
+.component-heading p {
+  margin: 0;
+  font-size: var(--cam-copy-size);
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.component-heading h1 {
+  font-weight: 700;
+}
+
+.component-heading p {
+  margin-top: 7px;
+}
+
+.component-workspace {
+  display: grid;
+  grid-template-columns: 685px minmax(0, 1fr);
+  margin-top: -5px;
+}
+
+.car-map {
+  position: relative;
+  width: 685px;
+  max-width: 100%;
+  aspect-ratio: 685 / 635;
+}
+
+.car-map__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.car-hotspot {
+  position: absolute;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    filter 140ms ease;
+}
+
+.car-hotspot:hover,
+.car-hotspot:focus-visible {
+  border-color: rgb(255 255 255 / 90%);
+  box-shadow: 0 0 0 2px rgb(5 92 255 / 75%);
+}
+
+.car-hotspot[aria-pressed="true"] {
+  border-color: #ffffff;
+  background: rgb(5 92 255 / 16%);
+  box-shadow:
+    inset 0 0 0 2px rgb(255 255 255 / 72%),
+    0 0 0 2px #055cff;
+  filter: saturate(1.15);
+}
+
+.car-hotspot--power {
+  top: 43.78%;
+  left: 10.22%;
+  width: 41.61%;
+  height: 21.1%;
+}
+
+.car-hotspot--compute {
+  top: 21.26%;
+  left: 49.93%;
+  width: 19.85%;
+  height: 21.1%;
+}
+
+.car-hotspot--vision {
+  top: 20%;
+  left: 79.27%;
+  width: 8.47%;
+  height: 14.17%;
+}
+
+.car-hotspot--drive {
+  top: 51.18%;
+  left: 51.97%;
+  width: 23.07%;
+  height: 14.02%;
+}
+
+.car-hotspot--wheel {
+  top: 65.83%;
+  left: 31.53%;
+  width: 20%;
+  height: 22.2%;
+}
+
+.component-details {
+  align-self: start;
+  min-width: 0;
+  padding: 216px 0 0;
+}
+
+.component-details h2,
+.component-details p,
+.component-details ul {
+  margin: 0;
+  font-size: var(--cam-copy-size);
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.component-details h2 {
+  font-weight: 700;
+}
+
+.component-details p {
+  margin-top: 10px;
+}
+
+.component-details ul {
+  margin-top: 20px;
+  padding-left: 25px;
+}
+
+.component-details strong {
+  font-weight: 600;
+}
+
+.component-details__selection {
+  color: var(--cam-muted);
+}
+
+.component-details__continue {
+  width: min(360px, 100%);
+  margin-top: 25px;
+}
+
+@media (max-width: 1050px) {
+  .component-frame {
+    overflow: auto;
+  }
+
+  .component-selector {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: calc(100% - 32px);
+    margin: 80px auto 130px;
+    transform: none;
+  }
+
+  .component-heading {
+    transform: none;
+  }
+
+  .component-workspace {
+    grid-template-columns: minmax(0, 685px);
+    justify-content: center;
+    margin-top: 18px;
+  }
+
+  .component-details {
+    padding: 24px 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .car-hotspot {
+    transition: none;
+  }
+}

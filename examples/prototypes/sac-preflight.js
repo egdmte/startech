@@ -5,7 +5,6 @@ const preflightList = document.querySelector(".preflight-list");
 const preflightItems = [...document.querySelectorAll("[data-preflight-item]")];
 const preflightNote = document.querySelector("#preflight-note");
 const continueButton = document.querySelector("#continue-preflight");
-const preflightDialog = document.querySelector("#preflight-dialog");
 const sessionTime = document.querySelector("#session-time");
 
 let remainingSeconds = inactivityLengthSeconds;
@@ -48,11 +47,7 @@ async function runPrototypePreflight() {
 }
 
 continueButton.addEventListener("click", () => {
-  preflightDialog.showModal();
-});
-
-preflightDialog.addEventListener("click", (event) => {
-  if (event.target === preflightDialog) preflightDialog.close();
+  window.startechNavigate("sac-components.html");
 });
 
 ["pointerdown", "keydown"].forEach((eventName) => {
