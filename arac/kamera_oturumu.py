@@ -22,15 +22,26 @@ import statistics
 from typing import Any, Protocol
 import uuid
 
-from goz import (
-    CameraError,
-    CameraExhausted,
-    CameraSource,
-    CameraStatus,
-    FramePacket,
-    InvalidFrame,
-    _frame_dimensions,
-)
+if __package__ in {None, ""}:
+    from goz import (
+        CameraError,
+        CameraExhausted,
+        CameraSource,
+        CameraStatus,
+        FramePacket,
+        InvalidFrame,
+        _frame_dimensions,
+    )
+else:
+    from .goz import (
+        CameraError,
+        CameraExhausted,
+        CameraSource,
+        CameraStatus,
+        FramePacket,
+        InvalidFrame,
+        _frame_dimensions,
+    )
 
 
 SCHEMA_VERSION = 1
