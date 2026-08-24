@@ -1,4 +1,4 @@
-"""Validation and persistence tests for the KADER/BLAIR scaffold."""
+"""Validation and persistence tests for KADER."""
 
 from __future__ import annotations
 

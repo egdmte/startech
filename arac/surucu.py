@@ -1,4 +1,4 @@
-"""STARTECH-OSMAN (MATT): lane control and the physical motor boundary.
+"""STARTECH-OSMAN: lane control and the physical motor boundary.
 
 The BCM defaults and inverted L298N direction are the wiring recorded by the
 working LEGACY car.  Controller requests and the final trim/dead-zone-adjusted

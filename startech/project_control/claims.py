@@ -15,7 +15,6 @@ IGNORED_CONSTANT_WORDS = {
     "JSON",
     "HTTP",
     "HTTPS",
-    "SUBIRU",
     "LEGACY",
     "PLAN",
     "UYARI",
@@ -52,7 +51,7 @@ def check_file_names(
 
     findings = []
     pattern = re.compile(
-        r"\b([\w-]+\.(?:py|cs|js|json|md|txt|sh|service|csproj|html))\b"
+        r"\b([\w-]+\.(?:py|cs|js|json|md|pdf|txt|sh|service|csproj|html))\b"
     )
     for document in document_names:
         path = document_path(document)
@@ -85,6 +84,12 @@ def check_constants(
                 for name in pattern.findall(line):
                     if name in IGNORED_CONSTANT_WORDS or name in allowed:
                         continue
+                    if re.search(
+                        r"\b%s\.(?:py|cs|js|json|md|pdf|txt|sh|service|csproj|html)\b"
+                        % re.escape(name),
+                        line,
+                    ):
+                        continue
                     if re.search(r"\b%s\b" % re.escape(name), source) and source.count(
                         name
                     ) > line.count(name):
@@ -97,7 +102,7 @@ def check_section_references(plan_path: str | None) -> list[str]:
     """Require PLAN section references to point at a real heading."""
 
     if plan_path is None:
-        return ["PLAN_New.md bulunamadi"]
+        return ["PLAN.md bulunamadi"]
     with open(plan_path, encoding="utf-8") as handle:
         text = handle.read()
 
@@ -112,8 +117,8 @@ def check_section_references(plan_path: str | None) -> list[str]:
         for reference in re.findall(r"§(\d+(?:\.\d+[a-z]?)?)", line):
             root_number = reference.split(".")[0]
             if reference not in headings and root_number not in headings:
-                findings.append("PLAN_New.md:%d  §%s" % (number, reference))
+                findings.append("PLAN.md:%d  §%s" % (number, reference))
         for reference in re.findall(r"[Ss]ection (\d+)", line):
             if reference not in headings:
-                findings.append("PLAN_New.md:%d  section %s" % (number, reference))
+                findings.append("PLAN.md:%d  section %s" % (number, reference))
     return findings

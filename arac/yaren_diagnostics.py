@@ -17,7 +17,7 @@ from typing import Any
 
 from startech.configuration.profiles import ProfileStore
 
-from . import tawnt
+import tawnt
 from .durum import EventType, StateEvent, StateMachine
 from .goruntu import LaneVisionAnalyzer
 from .goz import (
