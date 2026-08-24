@@ -73,7 +73,12 @@ class CamInterfaceTest(unittest.TestCase):
         match = DRAFT_LOCATION.search(response.location)
         self.assertIsNotNone(match)
         draft_id = match.group(1)
-        token = self.token(response.location)
+        preflight = self.client.get(response.location)
+        self.assertEqual(200, preflight.status_code)
+        self.assertIn(b"cam-frame--preflight", preflight.data)
+        token_match = TOKEN.search(preflight.data)
+        self.assertIsNotNone(token_match)
+        token = token_match.group(1).decode("ascii")
         response = self.client.post(
             response.location, data={"csrf_token": token}
         )
@@ -128,6 +133,15 @@ class CamInterfaceTest(unittest.TestCase):
             b'/static/sac.css?v=' + version.group(1),
             source.data,
         )
+        sac_styles = self.client.get("/static/sac.css")
+        self.assertEqual(200, sac_styles.status_code)
+        self.assertIn(b"grid-template-rows: minmax(0, 1fr) auto", sac_styles.data)
+        self.assertIn(b"overflow-y: auto", sac_styles.data)
+        self.assertIn(
+            b".cam-frame--preflight .cam-workflow-footer",
+            sac_styles.data,
+        )
+        sac_styles.close()
         for asset in (b"updatecar.png", b"default.png"):
             self.assertIn(asset, source.data)
 
