@@ -1,0 +1,193 @@
+"""End-to-end configuration behaviour tests for production CAM."""
+
+from __future__ import annotations
+
+import json
+import re
+import tempfile
+import unittest
+from pathlib import Path
+
+from startech.configuration.combined import combined_config_errors
+from startech.configuration.validation import kisa_ozet_hesapla
+from startech_cam import create_app
+from startech_cam.repository import get_draft
+
+
+TOKEN = re.compile(rb'name="csrf_token" value="([^"]+)"')
+DRAFT_LOCATION = re.compile(r"/(sac|mac)/([0-9a-f]{32})/([^/]+)$")
+
+
+class CamWorkflowTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.app = create_app(
+            {
+                "TESTING": True,
+                "DATABASE": str(Path(self.temporary.name) / "cam.sqlite3"),
+                "SECRET_KEY": "workflow-secret-that-is-long-enough-for-tests",
+                "CAM_PASSWORD": "school-password",
+                "CAM_PASSWORD_HASH": "",
+                "SESSION_COOKIE_SECURE": False,
+            }
+        )
+        self.client = self.app.test_client()
+        response = self.client.get("/login")
+        token = TOKEN.search(response.data).group(1).decode("ascii")
+        self.client.post(
+            "/login",
+            data={"csrf_token": token, "legal_name": "Egemen Yusuf Kayra", "password": "school-password"},
+        )
+        response = self.client.get("/access")
+        token = TOKEN.search(response.data).group(1).decode("ascii")
+        self.client.post("/access/offline", data={"csrf_token": token})
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def page_token(self, path: str) -> str:
+        response = self.client.get(path)
+        self.assertEqual(200, response.status_code, path)
+        match = TOKEN.search(response.data)
+        self.assertIsNotNone(match, path)
+        return match.group(1).decode("ascii")
+
+    def post_section(self, path: str, values: dict[str, object]):
+        token = self.page_token(path)
+        data = {"csrf_token": token, **values}
+        response = self.client.post(path, data=data)
+        self.assertEqual(302, response.status_code, response.get_data(as_text=True))
+        return response
+
+    def test_sac_persists_each_step_then_publishes_downloadable_v2(self):
+        token = self.page_token("/new/SAC")
+        response = self.client.post(
+            "/new/SAC",
+            data={"csrf_token": token, "name": "School bench", "source": "DEFAULT"},
+        )
+        self.assertEqual(302, response.status_code)
+        match = DRAFT_LOCATION.search(response.location)
+        self.assertIsNotNone(match)
+        draft_id = match.group(2)
+        base = f"/sac/{draft_id}"
+
+        self.post_section(
+            f"{base}/camera",
+            {
+                "sac_niyeti.kamera.yon_derecesi": "180",
+                "sac_niyeti.kamera.yakalama_profili": "640x480",
+                "sac_niyeti.kamera.tanima_hassasiyeti": "conservative",
+            },
+        )
+        self.post_section(
+            f"{base}/power",
+            {
+                "sac_niyeti.guc.minimum_hiz_yuzde": "30",
+                "sac_niyeti.guc.maksimum_hiz_yuzde": "60",
+            },
+        )
+        self.post_section(
+            f"{base}/compute",
+            {
+                "sac_niyeti.hesaplama.baslangic_onlemi": "individual-buttons",
+                "sac_niyeti.hesaplama.servis_durumu": "on",
+                "sac_niyeti.hesaplama.m3th_sikiligi": "full",
+                "sac_niyeti.hesaplama.etkin_moduller": ["yaren", "arda", "kasim", "m3th"],
+            },
+        )
+        self.post_section(
+            f"{base}/drive",
+            {
+                "sac_niyeti.surus.komut_kaybi_eylemi": "disarm-wait",
+                "sac_niyeti.surus.surucu_cikis_modu": "off",
+                "sac_niyeti.surus.direksiyon_merkez_yuzde": "0",
+                "sac_niyeti.surus.direksiyon_azami_hareket_yuzde": "40",
+            },
+        )
+        response = self.post_section(
+            f"{base}/wheel",
+            {
+                "sac_niyeti.tekerlek.sol_duzeltme_yuzde": "0",
+                "sac_niyeti.tekerlek.sag_duzeltme_yuzde": "0",
+                "sac_niyeti.tekerlek.sol_yon": "normal",
+                "sac_niyeti.tekerlek.sag_yon": "normal",
+            },
+        )
+        self.assertTrue(response.location.endswith(f"/sac/{draft_id}/summary"))
+
+        summary = self.client.get(response.location)
+        self.assertIn(b"Create", summary.data)
+        self.assertIn(b"camera, power, compute, drive, wheel", summary.data)
+        token = TOKEN.search(summary.data).group(1).decode("ascii")
+        created = self.client.post(
+            f"/sac/{draft_id}/publish",
+            data={"csrf_token": token},
+        )
+        self.assertEqual(302, created.status_code)
+        tag = created.location.rsplit("/", 1)[-1]
+
+        downloaded = self.client.get(f"/calibrations/{tag}/download")
+        self.assertEqual(200, downloaded.status_code)
+        self.assertIn("attachment", downloaded.headers["Content-Disposition"])
+        document = json.loads(downloaded.get_data(as_text=True))
+        self.assertEqual([], combined_config_errors(document))
+        self.assertEqual(30, document["ayarlar"]["hiz"]["min"])
+        self.assertEqual(60, document["ayarlar"]["hiz"]["max"])
+        self.assertEqual(tag, document["profil"]["kimlik"])
+
+        created_page = self.client.get(created.location)
+        token = TOKEN.search(created_page.data).group(1).decode("ascii")
+        mac = self.client.post(
+            f"/calibrations/{tag}/edit-mac",
+            data={"csrf_token": token},
+        )
+        self.assertEqual(302, mac.status_code)
+        self.assertIn("/mac/", mac.location)
+        self.assertTrue(mac.location.endswith("/overview"))
+        mac_draft_id = DRAFT_LOCATION.search(mac.location).group(2)
+        self.post_section(
+            f"/mac/{mac_draft_id}/motors",
+            {
+                "kalibrasyon.motor.olculdu": "null",
+                "kalibrasyon.motor.sol_trim_dusuk": "0.98",
+                "kalibrasyon.motor.sol_trim_yuksek": "1.0",
+                "kalibrasyon.motor.sag_trim_dusuk": "1.0",
+                "kalibrasyon.motor.sag_trim_yuksek": "1.0",
+                "kalibrasyon.motor.olu_bolge_min_pwm": "30",
+                "kalibrasyon.motor.olu_bolge_yuzde": "20",
+            },
+        )
+        with self.app.app_context():
+            mac_document, touched, workflow = get_draft(
+                mac_draft_id, "Egemen Yusuf Kayra"
+            )
+        self.assertEqual("MAC", workflow)
+        self.assertIn("motors", touched)
+        self.assertIsNotNone(mac_document["sac_niyeti"])
+        self.assertEqual("CAM MAC v0.1", mac_document["kalibrasyon"]["damga"]["olusturan"])
+        self.assertEqual(
+            kisa_ozet_hesapla(mac_document["kalibrasyon"]),
+            mac_document["kalibrasyon"]["damga"]["ozet"],
+        )
+
+    def test_variable_manager_rejects_invalid_document_without_replacing_draft(self):
+        token = self.page_token("/new/MAC")
+        response = self.client.post(
+            "/new/MAC",
+            data={"csrf_token": token, "name": "Manual", "source": "DEFAULT"},
+        )
+        draft_id = DRAFT_LOCATION.search(response.location).group(2)
+        path = f"/mac/{draft_id}/variables"
+        token = self.page_token(path)
+        rejected = self.client.post(
+            path,
+            data={"csrf_token": token, "document_json": '{"sema_surumu": 2, "unknown": true}'},
+        )
+        self.assertEqual(400, rejected.status_code)
+        current = self.client.get(path)
+        self.assertIn(b'&#34;profil&#34;', current.data)
+        self.assertNotIn(b'&#34;unknown&#34;: true', current.data)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
