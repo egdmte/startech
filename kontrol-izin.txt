@@ -39,6 +39,10 @@ error_log.csv
 # §19: silindi, CLAUDE.md tek kural dosyası olsun diye. Belge bunu anlatıyor.
 AGENTS.md
 
+# HATA_DEFTERI, artık güncel depoda bulunmayan başarısız tarihsel ölçüm aracının
+# adını olay kaydı olarak koruyor; dosyanın bugün var olduğunu iddia etmiyor.
+motor_balance.py
+
 # --- §21'de KASTEN alıntılanan uydurma adlar ---------------------------------
 # Olduğu düşünülen olmayan belgeler
 FINAL_DELIVERY.md

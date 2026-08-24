@@ -282,7 +282,49 @@ py -3.13 -m arac.ayar_cli settings <ebeveyn-kimligi> `
 
 Bu komut ebeveyn profilini değiştirmez ve yeni profili otomatik seçmez.
 
-## 7. Bugün bilerek çözülmeyen farklılıklar
+## 7. CAM geçici cihaz bağlantısı ve birleşik v2 aktarımı
+
+CAM'e araç erişimi veren sekiz karakterli kod sabit bir parola değildir. YAREN action
+10, daha önce kaydedilmiş Ed25519 cihaz kimliğiyle imzalı bir istek gönderir. CAM her
+istek için rastgele, tek kullanımlık bir kod ve yalnız YAREN'in bildiği ayrı bir bağlantı
+belirteci üretir. Kullanıcı kodu tarayıcıya girince oturum aynı araç bağlantısına
+bağlanır. Kod ikinci kez kullanılamaz; süre dolması, çıkış, YAREN'in kapanması veya
+Ctrl+C bağlantıyı iptal eder.
+
+Bu bağlantının kapalı işlem kümesi şudur:
+
+- `REQUEST_ACTIVE_CONFIGURATION`: etkin profilin salt okunur kopyasını bildirir.
+- `REQUEST_CAPABILITY_REPORT`: sınırlı ve dürüst yazılım/donanım yoklamalarını bildirir.
+- `INSTALL_INACTIVE_CONFIGURATION`: birleşik v2 dosyasını doğrulayıp etkin olmayan,
+  değiştirilemez yeni bir YAREN profili olarak kurar.
+
+Bağlantıda motor, direksiyon, arm etme, çalıştırma veya profili etkinleştirme komutu
+yoktur. OSMAN sürücüsü içe aktarılmaz. Yeni profil ancak daha sonra insan incelemesi ve
+normal YAREN seçim akışıyla etkinleştirilebilir.
+
+CAM aktarımı tek bir birleşik v2 belgesi kullanabilir; çalışma zamanı kayıt yapısı yine
+`kalibrasyon.json`, `ayarlar.json` ve `profil.json` olarak kalır. YAREN v2 belgeyi önce
+doğrular, iki v1 alt belgeye ayırır ve tam özetlerle arşivler. Aynı aktarım kimliği aynı
+içerikle tekrar gelirse mevcut profili döndürür; farklı içerikle gelirse çakışmayı
+reddeder. v1 `damga.ozet` hesabı nesne alanlarının sırasına duyarlı olduğu için bağlantı
+katmanı JSON anahtarlarını alfabetik olarak yeniden sıralamaz.
+
+Tanılama sonuçları yalnız şu durumları kullanır:
+
+- `LIVE`: gerçek kaynak açıldı ve sınırlı okuma başarıyla tamamlandı.
+- `RESPONDED`: yazılım bileşeni güvenli, salt okunur isteğe yanıt verdi.
+- `SIMULATED`: sonuç gerçek donanımdan değil sahte sürücü veya örnek veriden geldi.
+- `BLOCKED_BY_POLICY`: bu web bağlantısında özellikle yasaklanan sınırdır.
+- `UNAVAILABLE`: kaynak bulunamadı veya bu makinede kullanılamıyor.
+- `FAILED`: kaynak bulundu fakat yoklama hata verdi.
+- `UNVERIFIED`: fiziksel doğrulama yapılmadı.
+
+KASIM yoklaması USB kamerayı önce, Raspberry Pi kamerasını ikinci sırada dener ve tam
+bir kare okur. KEREM ile motor sürücüsü simülasyon olarak, OSMAN politika gereği engelli
+ve direksiyon fiziksel olarak doğrulanmamış raporlanır. Bu raporların hiçbiri aracın
+sürüşe güvenli olduğunu kanıtlamaz.
+
+## 8. Bugün bilerek çözülmeyen farklılıklar
 
 İnceleme sırasında iki ayar grubu görüldü:
 
@@ -296,7 +338,7 @@ Ayrıca 960×540 ve 840×630 kalibrasyon çıktıları görüldü. İki çözün
 olarak geçerli olabilir; fakat bir çözünürlüğün perspektif noktaları diğerinde
 kullanılamaz.
 
-## 8. v1 dosyalarında bulunmayan kaynak bilgileri
+## 9. v1 dosyalarında bulunmayan kaynak bilgileri
 
 Mevcut `kalibrasyon.json` ve `ayarlar.json` v1 dosyalarında şunlar yoktur:
 
@@ -309,7 +351,7 @@ Mevcut `kalibrasyon.json` ve `ayarlar.json` v1 dosyalarında şunlar yoktur:
 Şema bunları varmış gibi göstermez. Eklenmeleri istenirse `sema_surumu: 2` için ayrı
 bir plan, göç yöntemi, araç güncellemesi ve test gerekir.
 
-## 9. Sürüm değiştirme kuralları
+## 10. Sürüm değiştirme kuralları
 
 1. Bilinmeyen şema sürümü sessizce v1 olarak okunmaz.
 2. Alan adı değiştirilirse eski alan sessizce kaybedilmez.
@@ -318,22 +360,24 @@ bir plan, göç yöntemi, araç güncellemesi ve test gerekir.
 5. Eski ve yeni dosya aynı testlerden geçirilir.
 6. İnsan incelemesi yapılmadan yeni dosya araca yüklenmez.
 
-## 10. Testi çalıştırma
+## 11. Testi çalıştırma
 
 Geliştirme bağımlılığı kurulduktan sonra depo kökünde:
 
 ```powershell
-py -3.13 -m unittest -v tests.test_configuration tests.test_profiles tests.test_ayar tests.test_ayar_cli
+py -3.13 -m unittest -v tests.test_configuration tests.test_profiles tests.test_ayar tests.test_ayar_cli tests.test_cam_device_api tests.test_cam_auth tests.test_yaren_link tests.test_yaren_diagnostics
 ```
 
 Testler gerçek motorları çalıştırmaz. Geçerli örnekleri yükler, kasıtlı bozuk kopyalar
 oluşturur ve bunların reddedildiğini doğrular.
 
-## 11. Sık sorulan sorular
+## 12. Sık sorulan sorular
 
 ### İki JSON aynı dosyada olmak zorunda mı?
 
-Hayır. Bilerek ayrıdırlar. StarTechConfig ikisini aynı klasöre birlikte kaydeder.
+Çalışma zamanı ve profil arşivinde bilerek ayrıdırlar. StarTechConfig ikisini aynı
+klasöre birlikte kaydeder. CAM taşıması tek birleşik v2 dosyası kullanabilir; YAREN bu
+dosyayı doğruladıktan sonra iki v1 dosyaya ayırır.
 
 ### İki dosyanın birbirine ait olduğu nasıl anlaşılır?
 
@@ -362,7 +406,7 @@ kullanmadığı için saldırıya dayanıklı imza değildir.
 Örnekler testin her bilgisayarda tekrar çalışabilmesi içindir. Canlı kalibrasyonlar
 araç, kamera ve ölçüm oturumuna aittir; örnekle karışmaları tehlikelidir.
 
-## 12. Mevcut araçta görülen doğrulama boşluğu
+## 13. Mevcut araçta görülen doğrulama boşluğu
 
 StarTechConfig, `kalibrasyon.json` yüklerken şema sürümünü kontrol eder. Mevcut
 `AyarlariUygula` yolu ise `ayarlar.json` içindeki `sema_surumu` alanını aynı kesinlikle

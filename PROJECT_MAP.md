@@ -21,7 +21,8 @@ Use this page when the repository starts feeling larger than the car.
 | `tests/` | Automated proof for the current Python behavior | Changing anything in `arac/`, TAWNT, configuration or project checks |
 | `startech/` | Shared implementation packages used by public entry points | Maintaining TAWNT internals, configuration validation or document checks |
 | `config/` | Versioned JSON schemas and examples | Working on calibration/configuration file structure |
-| `examples/prototypes/` | Experimental calibration website screens | Continuing the Figma-to-web calibration tool |
+| `startech_cam/` | Production CAM web application, device link API and SAC/MAC UI | Working on browser authentication, calibration creation or YAREN communication |
+| `examples/prototypes/` | Historical design references for the production CAM UI | Comparing the implemented interface with the approved Figma-derived screens |
 | `examples/tawnt_demo/` | Small, fake TAWNT demonstrations | Learning or testing the safety API without the car |
 | `Markdown/` | Detailed plans, evidence and school handoff documents | Understanding decisions or preparing a supervised school session |
 | `subiru/` | Separate team task/evidence dashboard | Working specifically on ŞUBİRU project tracking |
@@ -34,6 +35,9 @@ arac/main.py       ARDA / ADAM    command-line entry and orchestration
     |
     +-- arac/ayar.py       YAREN / CLARA   fail-closed active profile loader
     +-- arac/ayar_cli.py   YAREN / CLARA   calibration/settings registry menu
+    +-- arac/yaren_web.py                  signed device identity and web-code bootstrap
+    +-- arac/yaren_link.py                 temporary outbound configuration-only link
+    +-- arac/yaren_diagnostics.py          bounded, read-only capability probes
     +-- arac/goz.py        KASIM / CAMILA   camera acquisition
     +-- arac/kamera_oturumu.py             finite record/replay sessions
     +-- arac/goruntu.py    KEREM / CORA     cautious vision observations
@@ -72,6 +76,35 @@ py -3.13 -m arac.main --auto --configuration --language en
 Installing, validating or selecting a profile never arms TAWNT or a motor driver and
 never grants a "safe to drive" state. See `Markdown/YAPILANDIRMA_SOZLESMESI.md` for
 the registry layout, warning review and settings-revision rules.
+
+## Temporary CAM connection
+
+YAREN action 10 requests a random, one-use eight-character code from CAM using its
+registered Ed25519 device identity. Entering that code in the browser binds the
+browser session to the same temporary outbound device link. The code is not a fixed
+password, and CAM does not accept an anonymous request to mint one.
+
+```text
+YAREN --signed request--> CAM --random one-use code--> operator
+   |                                                |
+   +-- outbound bearer link <--- browser consumes --+
+              |
+              +-- active configuration snapshot
+              +-- truthful capability report
+              +-- validated inactive profile import
+```
+
+The link understands only `REQUEST_ACTIVE_CONFIGURATION`,
+`REQUEST_CAPABILITY_REPORT` and `INSTALL_INACTIVE_CONFIGURATION`. It has no motor,
+steering, arming or profile-activation operation. Imported combined v2 files are
+validated, separated into their v1 runtime documents and stored as immutable inactive
+profiles for human review. Logout, expiry, YAREN shutdown or Ctrl+C revokes the link.
+
+Capability states are deliberately precise: `LIVE`, `RESPONDED`, `SIMULATED`,
+`BLOCKED_BY_POLICY`, `UNAVAILABLE`, `FAILED` and `UNVERIFIED`. In particular, KEREM's
+fake vision and motor-driver checks are reported as simulated, OSMAN is blocked by
+policy, and steering remains unverified. A successful report is not evidence that the
+physical vehicle is safe.
 
 TAWNT keeps every accepted motion request behind a validation gate:
 
@@ -164,7 +197,8 @@ one command must not be described as success in another.
 ## Things to ignore during ordinary car work
 
 - Generated PDFs unless the task is specifically about document export.
-- Web prototypes while changing Python vehicle behavior.
+- Historical web prototypes while changing production behavior; production CAM lives
+  under `startech_cam/`.
 - `subiru/` unless the task concerns the team dashboard.
 - `LEGACY/` unless the task explicitly asks for historical comparison.
 - Untracked files whose ownership or purpose has not been confirmed.

@@ -164,6 +164,13 @@ sudo systemd-run --pipe --wait --collect --quiet \
 kodun düz metni veritabanında tutulmaz. İnternet uç noktası anonim kod üretmez;
 yalnız önceden kaydedilmiş ve devre dışı olmayan YAREN anahtarları kabul edilir.
 
+Kod üretildikten sonra YAREN aynı komut içinde dışarı doğru geçici bir HTTPS bağlantısı
+açar ve kodun kalan süresi boyunca güvenli yapılandırma işlerini bekler. Terminali açık
+tutun. Ctrl+C bağlantıyı CAM tarafında iptal eder. Bu kanal yalnız etkin yapılandırmayı
+okuma, sınırlı yetenek raporu ve doğrulanmış yapılandırmayı **etkin olmayan** profil
+olarak kurma işlemlerini kabul eder; motor, direksiyon, arm etme veya profil etkinleştirme
+işlemi kabul etmez.
+
 ## 7. Güncelleme ve geri alma
 
 Her güncellemeden önce paylaşılan veritabanını yedekleyin. Uygulama dizininde
