@@ -436,3 +436,50 @@
 2026-08-22T19:01:30  RESET  Egemen
 2026-08-22T19:01:30  KILIT  Öğretici eski API kilidi  
 2026-08-22T19:01:30  RESET  Egemen
+2026-08-24T21:46:37  EVRE  None -> BENCH_OUTPUT
+2026-08-24T21:46:37  ARM  Ada Lovelace  profil=BENCH
+2026-08-24T21:46:37  DISARM  bench duration ended
+2026-08-24T21:46:37  EVRE  None -> LANE_FOLLOW
+2026-08-24T21:46:37  ARM  Ada Lovelace  profil=LIVE
+2026-08-24T21:46:37  DISARM  drive loop ended
+2026-08-24T21:46:37  EVRE  None -> LANE_FOLLOW
+2026-08-24T21:46:37  ARM  Ada Lovelace  profil=LIVE
+2026-08-24T21:46:37  DISARM  drive loop ended
+2026-08-24T21:46:37  EVRE  None -> LANE_FOLLOW
+2026-08-24T21:46:37  ARM  Ada Lovelace  profil=LIVE
+2026-08-24T21:46:37  DISARM  drive loop ended
+2026-08-24T21:46:44  EVRE  None -> WEBOTS_VISUAL
+2026-08-24T21:46:44  ARM  visual simulation unit test  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> WEBOTS_VISUAL
+2026-08-24T21:46:44  ARM  visual simulation unit test  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> WEBOTS_VISUAL
+2026-08-24T21:46:44  ARM  visual simulation unit test  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> WEBOTS_VISUAL
+2026-08-24T21:46:44  ARM  visual simulation unit test  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> WEBOTS_VISUAL
+2026-08-24T21:46:44  ARM  visual simulation unit test  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> WEBOTS_VISUAL
+2026-08-24T21:46:44  ARM  visual simulation unit test  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> WEBOTS_VISUAL
+2026-08-24T21:46:44  ARM  visual simulation unit test  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> LANE_FOLLOW
+2026-08-24T21:46:44  ARM  OSMAN unit proof  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> LANE_FOLLOW
+2026-08-24T21:46:44  ARM  OSMAN unit proof  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> LANE_FOLLOW
+2026-08-24T21:46:44  ARM  OSMAN unit proof  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> LANE_FOLLOW
+2026-08-24T21:46:44  ARM  OSMAN unit proof  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> LANE_FOLLOW
+2026-08-24T21:46:44  ARM  OSMAN unit proof  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> LANE_FOLLOW
+2026-08-24T21:46:44  ARM  OSMAN unit proof  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> LANE_FOLLOW
+2026-08-24T21:46:44  ARM  OSMAN unit proof  profil=OFFLINE
+2026-08-24T21:46:44  STOP  PWM evre tavanini asiyor.
+2026-08-24T21:46:44  EVRE  None -> LANE_FOLLOW
+2026-08-24T21:46:44  ARM  OSMAN unit proof  profil=OFFLINE
+2026-08-24T21:46:44  EVRE  None -> LANE_FOLLOW
+2026-08-24T21:46:44  ARM  OSMAN unit proof  profil=OFFLINE
+2026-08-24T21:46:44  STOP  Komut evresi guncel evreyle ayni degil.
+2026-08-24T21:46:44  KILIT  output watchdog expired  control loop silent for more than 0.020 s
