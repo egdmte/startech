@@ -9,6 +9,8 @@ from pathlib import Path
 
 from startech_cam import create_app
 from startech_cam.db import get_db
+from startech_cam.device_link import create_device_link
+from startech_cam.repository import create_draft, publish_draft
 from startech_cam.security import issue_access_code, revoke_access_code
 
 
@@ -82,6 +84,68 @@ class CamAuthTest(unittest.TestCase):
         )
         self.assertEqual(400, reused.status_code)
         self.assertIn(b"already used", reused.data)
+
+    def test_linked_code_binds_browser_session_and_logout_revokes_link(self):
+        self.login()
+        with self.app.app_context():
+            connection = get_db()
+            connection.execute(
+                """
+                INSERT INTO registered_devices(
+                    device_id, algorithm, public_key_b64, created_at, created_by
+                ) VALUES (?, 'Ed25519', ?, 1, 'test')
+                """,
+                ("YAREN-linked", "A" * 43),
+            )
+            connection.commit()
+            link = create_device_link("YAREN-linked")
+            code = issue_access_code("YAREN-linked", link_id=link.link_id)
+
+        token = self.csrf("/access")
+        accepted = self.client.post(
+            "/access", data={"csrf_token": token, "access_code": code}
+        )
+        self.assertEqual(302, accepted.status_code)
+        with self.client.session_transaction() as browser_session:
+            self.assertEqual(link.link_id, browser_session["device_link_id"])
+            self.assertEqual("YAREN-linked", browser_session["device_id"])
+
+        with self.app.app_context():
+            draft_id = create_draft(
+                owner="Egemen Yusuf Kayra",
+                workflow="MAC",
+                name="Linked sideload test",
+            )
+            tag = publish_draft(draft_id, "Egemen Yusuf Kayra")
+        token = self.csrf(f"/created/{tag}")
+        queued = self.client.post(
+            f"/calibrations/{tag}/sideload", data={"csrf_token": token}
+        )
+        self.assertEqual(302, queued.status_code)
+        self.assertIn(f"/created/{tag}?job=", queued.location)
+        with self.app.app_context():
+            job = get_db().execute(
+                "SELECT operation, status FROM device_jobs WHERE link_id = ?",
+                (link.link_id,),
+            ).fetchone()
+            self.assertEqual("INSTALL_INACTIVE_CONFIGURATION", job["operation"])
+            self.assertEqual("PENDING", job["status"])
+
+        token = self.csrf("/dashboard")
+        logged_out = self.client.post("/logout", data={"csrf_token": token})
+        self.assertEqual(302, logged_out.status_code)
+        with self.app.app_context():
+            row = get_db().execute(
+                "SELECT revoked_at FROM device_links WHERE link_id = ?",
+                (link.link_id,),
+            ).fetchone()
+            self.assertIsNotNone(row["revoked_at"])
+            self.assertEqual(
+                "EXPIRED",
+                get_db().execute(
+                    "SELECT status FROM device_jobs WHERE link_id = ?", (link.link_id,)
+                ).fetchone()["status"],
+            )
 
     def test_five_failures_rate_limit_the_remote_address(self):
         for _attempt in range(5):

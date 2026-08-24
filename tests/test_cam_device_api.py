@@ -19,6 +19,9 @@ from startech_cam.device_security import (
     disable_device,
     register_device,
 )
+from startech_cam.device_link import queue_device_job
+from startech_cam.repository import DEFAULT_DOCUMENT
+from startech_cam.security import consume_access_code_grant
 
 
 def b64url(value: bytes) -> str:
@@ -86,6 +89,14 @@ class CamDeviceApiTest(unittest.TestCase):
             headers={"X-STARTECH-Signature": signature},
         )
 
+    def link_post(self, path: str, payload: dict[str, object], token: str):
+        return self.client.post(
+            path,
+            data=json.dumps(payload, separators=(",", ":")).encode("utf-8"),
+            content_type="application/json",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
     def test_registered_device_receives_one_single_use_code(self):
         challenge_response = self.challenge()
         self.assertEqual(200, challenge_response.status_code)
@@ -96,16 +107,120 @@ class CamDeviceApiTest(unittest.TestCase):
         self.assertRegex(payload["access_code"], r"^[A-Z0-9]{8}$")
         self.assertEqual(self.device_id, payload["device_id"])
         self.assertTrue(payload["single_use"])
+        self.assertRegex(payload["link_id"], r"^[0-9a-f]{32}$")
+        self.assertGreaterEqual(len(payload["link_token"]), 32)
         with self.app.app_context():
             self.assertEqual(
                 1, get_db().execute("SELECT COUNT(*) FROM access_codes").fetchone()[0]
             )
+            stored = get_db().execute(
+                "SELECT token_digest FROM device_links WHERE link_id = ?",
+                (payload["link_id"],),
+            ).fetchone()["token_digest"]
+            self.assertNotEqual(payload["link_token"], stored)
 
         replay = self.signed_access(challenge)
         self.assertEqual(401, replay.status_code)
         with self.app.app_context():
             self.assertEqual(
                 1, get_db().execute("SELECT COUNT(*) FROM access_codes").fetchone()[0]
+            )
+
+    def test_code_activates_closed_configuration_link_and_close_revokes_it(self):
+        challenge = self.challenge().get_json()["challenge"]
+        issued = self.signed_access(challenge).get_json()
+        base = {"device_id": self.device_id, "link_id": issued["link_id"]}
+        pending = self.link_post(
+            "/api/device/v1/link/poll", base, issued["link_token"]
+        )
+        self.assertEqual({"state": "PENDING", "job": None}, pending.get_json())
+
+        with self.app.app_context():
+            grant = consume_access_code_grant(issued["access_code"], "student")
+            self.assertEqual(issued["link_id"], grant.link_id)
+
+        active = self.link_post(
+            "/api/device/v1/link/poll", base, issued["link_token"]
+        )
+        self.assertEqual({"state": "ACTIVE", "job": None}, active.get_json())
+
+        document = json.loads(DEFAULT_DOCUMENT.read_text(encoding="utf-8"))
+        snapshot = self.link_post(
+            "/api/device/v1/link/snapshot",
+            {**base, "captured_at": 1_800_000_000, "document": document},
+            issued["link_token"],
+        )
+        self.assertEqual(200, snapshot.status_code, snapshot.get_data(as_text=True))
+        report = {
+            "version": 1,
+            "device_id": self.device_id,
+            "checked_at": 1_800_000_001,
+            "results": [
+                {
+                    "module": "OSMAN",
+                    "name": "Motor driver",
+                    "status": "BLOCKED_BY_POLICY",
+                    "scope": "Not imported",
+                    "detail": "No motor command was sent.",
+                    "duration_ms": 0,
+                    "facts": {"tested": False},
+                }
+            ],
+        }
+        capabilities = self.link_post(
+            "/api/device/v1/link/capabilities",
+            {**base, "report": report},
+            issued["link_token"],
+        )
+        self.assertEqual(200, capabilities.status_code)
+
+        with self.app.app_context():
+            job_id = queue_device_job(
+                issued["link_id"],
+                self.device_id,
+                "INSTALL_INACTIVE_CONFIGURATION",
+                {"deployment_id": "c7a2ee", "configuration": document},
+            )
+        claimed = self.link_post(
+            "/api/device/v1/link/poll", base, issued["link_token"]
+        ).get_json()["job"]
+        self.assertEqual(job_id, claimed["job_id"])
+        self.assertEqual("INSTALL_INACTIVE_CONFIGURATION", claimed["operation"])
+        receipt = self.link_post(
+            "/api/device/v1/link/receipt",
+            {
+                **base,
+                "job_id": job_id,
+                "accepted": True,
+                "receipt": {"installed": True, "active": False},
+            },
+            issued["link_token"],
+        )
+        self.assertEqual(200, receipt.status_code)
+
+        closed = self.link_post(
+            "/api/device/v1/link/close", base, issued["link_token"]
+        )
+        self.assertEqual(200, closed.status_code)
+        rejected = self.link_post(
+            "/api/device/v1/link/poll", base, issued["link_token"]
+        )
+        self.assertEqual(401, rejected.status_code)
+
+        with self.app.app_context():
+            connection = get_db()
+            self.assertEqual(
+                1,
+                connection.execute(
+                    "SELECT COUNT(*) FROM device_snapshots WHERE link_id = ?",
+                    (issued["link_id"],),
+                ).fetchone()[0],
+            )
+            self.assertEqual(
+                "ACCEPTED",
+                connection.execute(
+                    "SELECT status FROM device_jobs WHERE job_id = ?", (job_id,)
+                ).fetchone()["status"],
             )
 
     def test_changed_body_and_wrong_key_fail_without_consuming_challenge(self):

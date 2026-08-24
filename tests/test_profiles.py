@@ -27,6 +27,7 @@ from startech.configuration.profiles import (
     profile_schema_errors,
 )
 from startech.configuration.validation import json_oku
+from startech.configuration.combined import combined_config_errors
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -121,6 +122,27 @@ class ProfileStoreTest(unittest.TestCase):
             text = (profile.directory / filename).read_text(encoding="utf-8")
             self.assertTrue(text.endswith("\n"))
             self.assertEqual(json.loads(text), json.loads(text, object_pairs_hook=dict))
+
+    def test_combined_import_is_idempotent_and_never_changes_active_selection(self):
+        active = self.import_example(name="Active baseline")
+        selection = self.store.activate_profile(
+            active.manifest.profile_id,
+            warning_digest=active.manifest.warning_digest,
+            reviewer="student",
+        )
+        document = json_oku(EXAMPLES / "yapilandirma-v2.ornek.json")
+        self.assertFalse(combined_config_errors(document))
+        installed = self.store.import_combined(document, deployment_id="cam:c7a2ee")
+        repeated = self.store.import_combined(document, deployment_id="cam:c7a2ee")
+
+        self.assertEqual(installed.manifest.profile_id, repeated.manifest.profile_id)
+        self.assertEqual(selection, self.store.load_active_selection())
+        self.assertNotEqual(active.manifest.profile_id, installed.manifest.profile_id)
+
+        changed = copy.deepcopy(document)
+        changed["ayarlar"]["hiz"]["hedef"] += 1
+        with self.assertRaises(ProfileIntegrityError):
+            self.store.import_combined(changed, deployment_id="cam:c7a2ee")
 
     def test_malformed_duplicate_and_non_object_json_are_rejected(self):
         bad = Path(self.temporary.name) / "bad.json"

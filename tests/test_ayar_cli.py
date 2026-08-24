@@ -10,6 +10,7 @@ import unittest
 from unittest.mock import patch
 
 from arac import ayar_cli
+from arac.yaren_link import LinkRunResult
 from arac.yaren_web import WebAccessCode
 from startech.configuration.profiles import ProfileStore
 
@@ -158,8 +159,17 @@ class YarenCliTest(unittest.TestCase):
         self.assertNotIn("private_key", public_path.read_text(encoding="utf-8"))
 
     def test_web_code_command_and_interactive_action_never_claim_arming(self):
-        access = WebAccessCode("AB12CD34", "YAREN-school-car", 1_800_000_000)
-        with patch("arac.ayar_cli.request_web_code", return_value=access):
+        access = WebAccessCode(
+            "AB12CD34",
+            "YAREN-school-car",
+            1_800_000_000,
+            "1" * 32,
+            "test-link-token-that-is-long-enough",
+        )
+        finished = LinkRunResult("EXPIRED", 0, 0)
+        with patch("arac.ayar_cli.request_web_code", return_value=access), patch(
+            "arac.ayar_cli.run_temporary_link", return_value=finished
+        ):
             result, output = self.run_cli(
                 [
                     "web-code",
@@ -174,7 +184,9 @@ class YarenCliTest(unittest.TestCase):
         self.assertIn("NOT ARMED", output)
 
         values = iter(("10", "0"))
-        with patch("arac.ayar_cli.request_web_code", return_value=access):
+        with patch("arac.ayar_cli.request_web_code", return_value=access), patch(
+            "arac.ayar_cli.run_temporary_link", return_value=finished
+        ):
             result, output = self.run_cli(
                 ["interactive"], input_fn=lambda _prompt: next(values)
             )
