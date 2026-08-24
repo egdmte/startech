@@ -130,7 +130,7 @@ class YarenCliTest(unittest.TestCase):
 
     def test_interactive_warning_selection_requires_literal_ack(self):
         profile = self.import_profile()
-        values = iter(("5", profile.manifest.profile_id, "no", "0"))
+        values = iter(("2", profile.manifest.profile_id, "no", "0"))
         result, output = self.run_cli(
             ["interactive"], input_fn=lambda _prompt: next(values)
         )
@@ -183,7 +183,7 @@ class YarenCliTest(unittest.TestCase):
         self.assertIn("AB12CD34", output)
         self.assertIn("NOT ARMED", output)
 
-        values = iter(("10", "0"))
+        values = iter(("1", "0"))
         with patch("arac.ayar_cli.request_web_code", return_value=access), patch(
             "arac.ayar_cli.run_temporary_link", return_value=finished
         ):
@@ -193,6 +193,57 @@ class YarenCliTest(unittest.TestCase):
         self.assertEqual(ayar_cli.EXIT_OK, result, output)
         self.assertIn("AB12CD34", output)
         self.assertIn("vehicle remains unarmed", output)
+
+    def test_guided_navigation_selects_profile_and_runs_diagnosis(self):
+        profile = self.import_profile()
+        keys = iter(("down", "enter", "enter", "enter", "back"))
+        values = iter(("ACK", "school team"))
+        output = io.StringIO()
+
+        result = ayar_cli.run(
+            ["--profile-root", str(self.root), "interactive"],
+            input_fn=lambda _prompt: next(values),
+            output=output,
+            key_reader=lambda: next(keys),
+        )
+
+        rendered = output.getvalue()
+        self.assertEqual(ayar_cli.EXIT_OK, result, rendered)
+        self.assertEqual(
+            profile.manifest.profile_id,
+            self.store.load_active_selection().profile_id,
+        )
+        self.assertIn("ACTIVE PROFILE INTEGRITY", rendered)
+        self.assertIn("PASS", rendered)
+        self.assertIn("vehicle remains unarmed", rendered)
+
+    def test_cam_navigation_returns_with_profile_review_preselected(self):
+        access = WebAccessCode(
+            "AB12CD34",
+            "YAREN-school-car",
+            1_800_000_000,
+            "1" * 32,
+            "test-link-token-that-is-long-enough",
+        )
+        finished = LinkRunResult("EXPIRED", 0, 0)
+        keys = iter(("enter", "enter", "back"))
+        output = io.StringIO()
+
+        with patch("arac.ayar_cli.request_web_code", return_value=access), patch(
+            "arac.ayar_cli.run_temporary_link", return_value=finished
+        ):
+            result = ayar_cli.run(
+                ["--profile-root", str(self.root), "interactive"],
+                input_fn=lambda _prompt: "",
+                output=output,
+                key_reader=lambda: next(keys),
+            )
+
+        rendered = output.getvalue()
+        self.assertEqual(ayar_cli.EXIT_OK, result, rendered)
+        self.assertIn("AB12CD34", rendered)
+        self.assertIn("> Review and select a profile", rendered)
+        self.assertIn("vehicle remains unarmed", rendered)
 
 
 if __name__ == "__main__":

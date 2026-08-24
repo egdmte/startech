@@ -19,7 +19,12 @@ if __package__ in {None, ""}:
     repository_root = str(Path(__file__).resolve().parent.parent)
     if repository_root not in sys.path:
         sys.path.insert(0, repository_root)
-    from arac.cli_ui import MenuOption, TerminalUI
+    from arac.cli_ui import (
+        MenuOption,
+        TerminalUI,
+        read_navigation_key,
+        supports_live_navigation,
+    )
     from arac.yaren_web import (
         create_device_identity,
         default_identity_path,
@@ -28,7 +33,12 @@ if __package__ in {None, ""}:
     )
     from arac.yaren_link import close_temporary_link, run_temporary_link
 else:
-    from .cli_ui import MenuOption, TerminalUI
+    from .cli_ui import (
+        MenuOption,
+        TerminalUI,
+        read_navigation_key,
+        supports_live_navigation,
+    )
     from .yaren_web import (
         create_device_identity,
         default_identity_path,
@@ -429,148 +439,386 @@ def _ask(console: TerminalUI, input_fn: Callable[[str], str], prompt: str) -> st
     )
 
 
+def _choose_menu(
+    console: TerminalUI,
+    title: str,
+    options: Sequence[MenuOption],
+    *,
+    input_fn: Callable[[str], str],
+    key_reader: Callable[[], str] | None,
+    initial_key: str | None = None,
+    back_key: str | None = None,
+    prompt: str = "Choose an option: ",
+) -> str:
+    return console.choose(
+        title,
+        options,
+        input_fn=input_fn,
+        prompt=prompt,
+        invalid_message="Choose one of the displayed options.",
+        key_reader=key_reader,
+        initial_key=initial_key,
+        back_key=back_key,
+    )
+
+
+def _start_action(console: TerminalUI, key_reader: Callable[[], str] | None) -> None:
+    if key_reader is not None:
+        console.clear()
+
+
+def _show_active_diagnosis(console: TerminalUI, store: ProfileStore) -> None:
+    _show_active(console, store)
+    diagnosis = store.diagnose_active()
+    console.summary(
+        "ACTIVE PROFILE INTEGRITY",
+        (
+            ("result", "PASS" if diagnosis.valid else "FAIL"),
+            ("errors", len(diagnosis.errors)),
+            ("warnings", len(diagnosis.warnings)),
+            ("vehicle", "NOT ARMED"),
+        ),
+        style=TerminalUI.GREEN if diagnosis.valid else TerminalUI.RED,
+    )
+    for error in diagnosis.errors:
+        console.write(f"  ERROR: {error}", style=TerminalUI.RED)
+    for warning in diagnosis.warnings:
+        console.write(f"  WARNING: {warning}", style=TerminalUI.YELLOW)
+
+
+def _review_and_select_profile(
+    console: TerminalUI,
+    store: ProfileStore,
+    input_fn: Callable[[str], str],
+    key_reader: Callable[[], str] | None,
+) -> bool:
+    profiles = tuple(
+        item
+        for item in store.list_profiles(include_archived=False)
+        if item.location is ProfileLocation.INSTALLED
+    )
+    if not profiles:
+        console.write("No installed profiles are available for review.", style=TerminalUI.YELLOW)
+        return False
+
+    active_id = None
+    try:
+        active_id = store.load_active_selection().profile_id
+    except ProfileError:
+        pass
+    choices = tuple(
+        MenuOption(
+            item.profile_id,
+            f"{'ACTIVE  ' if item.profile_id == active_id else ''}{item.name}  "
+            f"[{item.profile_id[:8]}]",
+            f"{item.width}x{item.height} · warnings={item.warning_count} · "
+            "selection does not arm the vehicle",
+        )
+        for item in profiles
+    ) + (MenuOption("0", "Go back", "Return without changing the selection."),)
+    profile_id = _choose_menu(
+        console,
+        "YAREN // REVIEW AND SELECT",
+        choices,
+        input_fn=input_fn,
+        key_reader=key_reader,
+        initial_key=active_id if active_id in {item.profile_id for item in profiles} else None,
+        back_key="0",
+        prompt="Profile ID or 0 to go back: ",
+    )
+    if profile_id == "0":
+        return False
+
+    _start_action(console, key_reader)
+    profile = store.load_profile(profile_id, include_archived=False)
+    _show_profile(console, profile)
+    reviewer = None
+    digest = None
+    if profile.manifest.warnings:
+        console.write(
+            "Type ACK only after reviewing every warning. "
+            "Selection still does not arm the vehicle.",
+            style=TerminalUI.YELLOW,
+        )
+        if input_fn("Acknowledgement: ").strip() != "ACK":
+            console.write("Selection cancelled.", style=TerminalUI.YELLOW)
+            return False
+        reviewer = _ask(console, input_fn, "Reviewer name: ")
+        digest = profile.manifest.warning_digest
+    selection = store.activate_profile(
+        profile_id,
+        reviewer=reviewer,
+        warning_digest=digest,
+    )
+    console.write(
+        f"Selected {selection.profile_id}; vehicle remains unarmed.",
+        style=TerminalUI.GREEN,
+    )
+    _show_active_diagnosis(console, store)
+    return True
+
+
+def _import_profile_interactively(
+    console: TerminalUI,
+    store: ProfileStore,
+    input_fn: Callable[[str], str],
+) -> None:
+    calibration = Path(_ask(console, input_fn, "kalibrasyon.json path: "))
+    settings = Path(_ask(console, input_fn, "ayarlar.json path: "))
+    name = _ask(console, input_fn, "Profile name: ")
+    profile = store.import_pair(calibration, settings, name=name)
+    _show_profile(console, profile)
+    console.write("Installed for review; it was not selected.")
+
+
+def _create_revision_interactively(
+    console: TerminalUI,
+    store: ProfileStore,
+    input_fn: Callable[[str], str],
+) -> None:
+    parent_id = _ask(console, input_fn, "Parent profile ID: ")
+    parent = store.load_profile(parent_id, include_archived=False)
+    name = _ask(console, input_fn, "New revision name: ")
+    console.write("Editable fields:")
+    for path in EDITABLE_SETTINGS:
+        console.write(f"  {path}")
+    console.write("Enter path=value edits. Submit a blank line when finished.")
+    assignments: list[str] = []
+    while True:
+        assignment = input_fn("setting> ").strip()
+        if not assignment:
+            break
+        parse_setting_assignment(assignment)
+        assignments.append(assignment)
+    settings = apply_setting_assignments(parent.settings, assignments)
+    profile = store.create_settings_variant(
+        parent.manifest.profile_id,
+        settings,
+        name=name,
+    )
+    _show_profile(console, profile)
+    console.write("New revision installed; parent unchanged.")
+
+
+def _creation_menu(
+    console: TerminalUI,
+    store: ProfileStore,
+    input_fn: Callable[[str], str],
+    key_reader: Callable[[], str] | None,
+) -> None:
+    initial_key = "1"
+    while True:
+        choice = _choose_menu(
+            console,
+            "YAREN // IMPORT OR REVISE",
+            (
+                MenuOption(
+                    "1",
+                    "Import calibration.json + ayarlar.json",
+                    "Install a JSON pair for review without selecting it.",
+                ),
+                MenuOption(
+                    "2",
+                    "Create a settings revision",
+                    "Create a child revision while leaving its parent unchanged.",
+                ),
+                MenuOption("0", "Go back", "Return to the main YAREN menu."),
+            ),
+            input_fn=input_fn,
+            key_reader=key_reader,
+            initial_key=initial_key,
+            back_key="0",
+            prompt="Choose 0-2: ",
+        )
+        if choice == "0":
+            return
+        _start_action(console, key_reader)
+        try:
+            if choice == "1":
+                _import_profile_interactively(console, store, input_fn)
+            else:
+                _create_revision_interactively(console, store, input_fn)
+        except (ProfileError, ValueError, OSError) as exc:
+            console.write(f"YAREN refused the operation: {exc}", style=TerminalUI.RED)
+        console.pause(key_reader)
+        initial_key = choice
+
+
+def _compare_profiles_interactively(
+    console: TerminalUI,
+    store: ProfileStore,
+    input_fn: Callable[[str], str],
+) -> None:
+    left = _ask(console, input_fn, "First profile ID: ")
+    right = _ask(console, input_fn, "Second profile ID: ")
+    differences = store.compare_profiles(left, right)
+    console.section("YAREN COMPARISON")
+    for item in differences:
+        console.panel_line(f"{item.path}: {item.left!r} -> {item.right!r}")
+    if not differences:
+        console.panel_line("No differences.")
+    console.rule()
+
+
+def _storage_menu(
+    console: TerminalUI,
+    store: ProfileStore,
+    input_fn: Callable[[str], str],
+    key_reader: Callable[[], str] | None,
+) -> None:
+    initial_key = "1"
+    while True:
+        choice = _choose_menu(
+            console,
+            "YAREN // PROFILE STORAGE",
+            (
+                MenuOption("1", "Archive an inactive profile"),
+                MenuOption("2", "Restore an archived profile"),
+                MenuOption("3", "Export a verified profile"),
+                MenuOption("0", "Go back", "Return to the main YAREN menu."),
+            ),
+            input_fn=input_fn,
+            key_reader=key_reader,
+            initial_key=initial_key,
+            back_key="0",
+            prompt="Choose 0-3: ",
+        )
+        if choice == "0":
+            return
+        _start_action(console, key_reader)
+        try:
+            profile_id = _ask(
+                console,
+                input_fn,
+                "Inactive profile ID: " if choice == "1" else "Profile ID: ",
+            )
+            if choice == "1":
+                store.archive_profile(profile_id)
+                console.write(f"Archived {profile_id}.")
+            elif choice == "2":
+                store.restore_profile(profile_id)
+                console.write(f"Restored {profile_id}.")
+            else:
+                destination = Path(_ask(console, input_fn, "New export directory: "))
+                store.export_profile(profile_id, destination)
+                console.write(f"Exported to {destination}.")
+        except (ProfileError, ValueError, OSError) as exc:
+            console.write(f"YAREN refused the operation: {exc}", style=TerminalUI.RED)
+        console.pause(key_reader)
+        initial_key = choice
+
+
+def _connect_to_cam(console: TerminalUI, store: ProfileStore) -> None:
+    console.write(f"CAM server: {default_server_url()}", style=TerminalUI.MUTED)
+    console.write(
+        f"Private identity: {default_identity_path()}",
+        style=TerminalUI.MUTED,
+    )
+    code = request_web_code()
+    console.summary(
+        "CAM WEB ACCESS CODE",
+        (
+            ("device", code.device_id),
+            ("code", code.access_code),
+            ("expires at", code.expires_at),
+            ("vehicle", "NOT ARMED"),
+        ),
+        style=TerminalUI.GREEN,
+    )
+    try:
+        run_temporary_link(
+            code,
+            profile_root=store.root,
+            status=lambda message: console.write(message, style=TerminalUI.MUTED),
+        )
+    except KeyboardInterrupt:
+        close_temporary_link(code)
+        raise
+
+
 def _interactive(
     console: TerminalUI,
     store: ProfileStore,
     input_fn: Callable[[str], str],
+    key_reader: Callable[[], str] | None = None,
 ) -> int:
+    initial_key = "1"
+    options = (
+        MenuOption(
+            "1",
+            "Connect to CAM",
+            "Request a single-use web code and accept inactive configuration jobs.",
+        ),
+        MenuOption(
+            "2",
+            "Review and select a profile",
+            "Browse installed profiles, acknowledge warnings and run diagnosis.",
+        ),
+        MenuOption(
+            "3",
+            "Inspect active profile and diagnosis",
+            "Review the selected profile without changing or arming the vehicle.",
+        ),
+        MenuOption(
+            "4",
+            "Import or create a settings revision",
+            "Open the guided import and revision submenu.",
+        ),
+        MenuOption("5", "Compare two profiles"),
+        MenuOption(
+            "6",
+            "Archive, restore or export",
+            "Open profile storage and export tools.",
+        ),
+        MenuOption("0", "Exit", "Close YAREN without arming the vehicle."),
+    )
     while True:
-        choice = console.choose(
-            "STARTECH-YAREN // CONFIGURATION",
-            (
-                MenuOption("1", "List profiles"),
-                MenuOption("2", "Show active profile and diagnosis"),
-                MenuOption("3", "Import calibration.json + ayarlar.json"),
-                MenuOption("4", "Create a settings revision"),
-                MenuOption("5", "Select an installed profile"),
-                MenuOption("6", "Compare two profiles"),
-                MenuOption("7", "Archive an inactive profile"),
-                MenuOption("8", "Restore an archived profile"),
-                MenuOption("9", "Export a verified profile"),
-                MenuOption("10", "Request a temporary CAM web code"),
-                MenuOption("0", "Exit without arming the vehicle"),
-            ),
+        choice = _choose_menu(
+            console,
+            "STARTECH-YAREN // CONFIGURATION · VEHICLE UNARMED",
+            options,
             input_fn=input_fn,
-            prompt="Choose 0-10: ",
-            invalid_message="Choose one of the displayed numbers.",
+            key_reader=key_reader,
+            initial_key=initial_key,
+            back_key="0",
+            prompt="Choose 0-6: ",
         )
+        if choice == "0":
+            _start_action(console, key_reader)
+            console.write("YAREN closed; the vehicle remains unarmed.")
+            return EXIT_OK
+        if choice == "4":
+            _creation_menu(console, store, input_fn, key_reader)
+            initial_key = choice
+            continue
+        if choice == "6":
+            _storage_menu(console, store, input_fn, key_reader)
+            initial_key = choice
+            continue
+
+        _start_action(console, key_reader)
         try:
-            if choice == "0":
-                console.write("YAREN closed; the vehicle remains unarmed.")
-                return EXIT_OK
             if choice == "1":
-                _list_profiles(console, store)
+                _connect_to_cam(console, store)
+                initial_key = "2"
             elif choice == "2":
-                _show_active(console, store)
-                diagnosis = store.diagnose_active()
-                console.write(f"  integrity diagnosis: {'PASS' if diagnosis.valid else 'FAIL'}")
+                selected = _review_and_select_profile(
+                    console,
+                    store,
+                    input_fn,
+                    key_reader,
+                )
+                initial_key = "3" if selected else "2"
             elif choice == "3":
-                calibration = Path(_ask(console, input_fn, "kalibrasyon.json path: "))
-                settings = Path(_ask(console, input_fn, "ayarlar.json path: "))
-                name = _ask(console, input_fn, "Profile name: ")
-                profile = store.import_pair(calibration, settings, name=name)
-                _show_profile(console, profile)
-                console.write("Installed for review; it was not selected.")
-            elif choice == "4":
-                parent_id = _ask(console, input_fn, "Parent profile ID: ")
-                parent = store.load_profile(parent_id, include_archived=False)
-                name = _ask(console, input_fn, "New revision name: ")
-                console.write("Editable fields:")
-                for path in EDITABLE_SETTINGS:
-                    console.write(f"  {path}")
-                console.write("Enter path=value edits. Submit a blank line when finished.")
-                assignments: list[str] = []
-                while True:
-                    assignment = input_fn("setting> ").strip()
-                    if not assignment:
-                        break
-                    parse_setting_assignment(assignment)
-                    assignments.append(assignment)
-                settings = apply_setting_assignments(parent.settings, assignments)
-                profile = store.create_settings_variant(
-                    parent.manifest.profile_id, settings, name=name
-                )
-                _show_profile(console, profile)
-                console.write("New revision installed; parent unchanged.")
-            elif choice == "5":
-                profile_id = _ask(console, input_fn, "Installed profile ID: ")
-                profile = store.load_profile(profile_id, include_archived=False)
-                reviewer = None
-                digest = None
-                if profile.manifest.warnings:
-                    _show_profile(console, profile)
-                    console.write(
-                        "Type ACK only after reviewing every warning. "
-                        "Selection still does not arm the vehicle.",
-                        style=TerminalUI.YELLOW,
-                    )
-                    if input_fn("Acknowledgement: ").strip() != "ACK":
-                        console.write("Selection cancelled.", style=TerminalUI.YELLOW)
-                        continue
-                    reviewer = _ask(console, input_fn, "Reviewer name: ")
-                    digest = profile.manifest.warning_digest
-                selection = store.activate_profile(
-                    profile_id, reviewer=reviewer, warning_digest=digest
-                )
-                console.write(
-                    f"Selected {selection.profile_id}; vehicle remains unarmed.",
-                    style=TerminalUI.GREEN,
-                )
-            elif choice == "6":
-                left = _ask(console, input_fn, "First profile ID: ")
-                right = _ask(console, input_fn, "Second profile ID: ")
-                differences = store.compare_profiles(left, right)
-                console.section("YAREN COMPARISON")
-                for item in differences:
-                    console.panel_line(f"{item.path}: {item.left!r} -> {item.right!r}")
-                if not differences:
-                    console.panel_line("No differences.")
-                console.rule()
-            elif choice == "7":
-                profile_id = _ask(console, input_fn, "Inactive profile ID: ")
-                store.archive_profile(profile_id)
-                console.write(f"Archived {profile_id}.")
-            elif choice == "8":
-                profile_id = _ask(console, input_fn, "Archived profile ID: ")
-                store.restore_profile(profile_id)
-                console.write(f"Restored {profile_id}.")
-            elif choice == "9":
-                profile_id = _ask(console, input_fn, "Profile ID: ")
-                destination = Path(_ask(console, input_fn, "New export directory: "))
-                store.export_profile(profile_id, destination)
-                console.write(f"Exported to {destination}.")
-            elif choice == "10":
-                console.write(
-                    f"CAM server: {default_server_url()}", style=TerminalUI.MUTED
-                )
-                console.write(
-                    f"Private identity: {default_identity_path()}",
-                    style=TerminalUI.MUTED,
-                )
-                code = request_web_code()
-                console.summary(
-                    "CAM WEB ACCESS CODE",
-                    (
-                        ("device", code.device_id),
-                        ("code", code.access_code),
-                        ("expires at", code.expires_at),
-                        ("vehicle", "NOT ARMED"),
-                    ),
-                    style=TerminalUI.GREEN,
-                )
-                try:
-                    run_temporary_link(
-                        code,
-                        profile_root=store.root,
-                        status=lambda message: console.write(
-                            message, style=TerminalUI.MUTED
-                        ),
-                    )
-                except KeyboardInterrupt:
-                    close_temporary_link(code)
-                    raise
+                _show_active_diagnosis(console, store)
+                initial_key = choice
+            else:
+                _compare_profiles_interactively(console, store, input_fn)
+                initial_key = choice
         except (ProfileError, ValueError, OSError) as exc:
             console.write(f"YAREN refused the operation: {exc}", style=TerminalUI.RED)
+            initial_key = choice
+        console.pause(key_reader)
 
 
 def run(
@@ -578,6 +826,7 @@ def run(
     *,
     input_fn: Callable[[str], str] = input,
     output: TextIO = sys.stdout,
+    key_reader: Callable[[], str] | None = None,
 ) -> int:
     args = build_parser().parse_args(argv)
     console = TerminalUI(output, _supports_color(output, not args.no_color))
@@ -586,7 +835,13 @@ def run(
     args.command = command
     try:
         if command == "interactive":
-            return _interactive(console, store, input_fn)
+            if (
+                key_reader is None
+                and input_fn is input
+                and supports_live_navigation(output)
+            ):
+                key_reader = read_navigation_key
+            return _interactive(console, store, input_fn, key_reader)
         return _run_command(args, console, store)
     except KeyboardInterrupt:
         console.write(
