@@ -19,13 +19,24 @@ CREATE TABLE IF NOT EXISTS login_attempts (
 CREATE INDEX IF NOT EXISTS login_attempts_remote_time
     ON login_attempts(remote_address, attempted_at);
 
+CREATE TABLE IF NOT EXISTS access_code_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    remote_address TEXT NOT NULL,
+    attempted_at INTEGER NOT NULL,
+    succeeded INTEGER NOT NULL CHECK (succeeded IN (0, 1))
+);
+CREATE INDEX IF NOT EXISTS access_code_attempts_remote_time
+    ON access_code_attempts(remote_address, attempted_at);
+
 CREATE TABLE IF NOT EXISTS access_codes (
     code_digest TEXT PRIMARY KEY,
     device_id TEXT NOT NULL,
     issued_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL,
     consumed_at INTEGER,
-    consumed_by TEXT
+    consumed_by TEXT,
+    revoked_at INTEGER,
+    revoked_by TEXT
 );
 CREATE INDEX IF NOT EXISTS access_codes_expiry ON access_codes(expires_at);
 
@@ -35,6 +46,7 @@ CREATE TABLE IF NOT EXISTS drafts (
     workflow TEXT NOT NULL CHECK (workflow IN ('SAC', 'MAC')),
     payload_json TEXT NOT NULL,
     touched_sections_json TEXT NOT NULL,
+    parent_tag TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
@@ -87,7 +99,29 @@ def close_db(_error: BaseException | None = None) -> None:
 def init_database() -> None:
     connection = get_db()
     connection.executescript(SCHEMA)
+    _migrate_existing_database(connection)
     connection.commit()
+
+
+def _column_names(connection: sqlite3.Connection, table: str) -> set[str]:
+    return {
+        str(row[1])
+        for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
+    }
+
+
+def _migrate_existing_database(connection: sqlite3.Connection) -> None:
+    """Apply additive migrations required by older CAM SQLite files."""
+
+    access_code_columns = _column_names(connection, "access_codes")
+    if "revoked_at" not in access_code_columns:
+        connection.execute("ALTER TABLE access_codes ADD COLUMN revoked_at INTEGER")
+    if "revoked_by" not in access_code_columns:
+        connection.execute("ALTER TABLE access_codes ADD COLUMN revoked_by TEXT")
+
+    draft_columns = _column_names(connection, "drafts")
+    if "parent_tag" not in draft_columns:
+        connection.execute("ALTER TABLE drafts ADD COLUMN parent_tag TEXT")
 
 
 def init_app(app: Flask) -> None:

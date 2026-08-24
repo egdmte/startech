@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from functools import wraps
 from typing import Any, Callable, TypeVar, cast
+from urllib.parse import unquote, urlsplit
 
 from flask import (
     Blueprint,
     abort,
+    current_app,
     flash,
     redirect,
     render_template,
@@ -17,11 +19,13 @@ from flask import (
 )
 
 from .security import (
+    access_code_remote_is_limited,
     audit,
     consume_access_code,
     csrf_matches,
     csrf_token,
     now_epoch,
+    record_access_code_attempt,
     record_login,
     remote_is_limited,
     verify_password,
@@ -35,7 +39,12 @@ F = TypeVar("F", bound=Callable[..., Any])
 def login_required(view: F) -> F:
     @wraps(view)
     def wrapped(*args: Any, **kwargs: Any) -> Any:
-        if not session.get("authenticated"):
+        if not session_is_active():
+            expired = bool(session.get("authenticated"))
+            actor = current_actor()
+            if expired:
+                audit(actor, "SESSION_EXPIRED", "session", {})
+                session.clear()
             return redirect(url_for("auth.login", next=request.path))
         return view(*args, **kwargs)
 
@@ -47,9 +56,37 @@ def current_actor() -> str:
     return str(value) if isinstance(value, str) and value else "anonymous"
 
 
+def session_is_active() -> bool:
+    expires_at = session.get("session_expires_at", 0)
+    return (
+        bool(session.get("authenticated"))
+        and isinstance(expires_at, int)
+        and expires_at > now_epoch()
+    )
+
+
 def has_car_access() -> bool:
     expires_at = session.get("car_access_expires_at", 0)
-    return isinstance(expires_at, int) and expires_at >= now_epoch()
+    return (
+        session_is_active()
+        and isinstance(expires_at, int)
+        and expires_at > now_epoch()
+    )
+
+
+def _safe_local_target(value: str) -> str:
+    decoded = unquote(value)
+    parsed = urlsplit(decoded)
+    if (
+        not decoded.startswith("/")
+        or decoded.startswith("//")
+        or "\\" in decoded
+        or parsed.scheme
+        or parsed.netloc
+        or any(ord(character) < 32 for character in decoded)
+    ):
+        return ""
+    return value
 
 
 @auth_blueprint.app_context_processor
@@ -58,6 +95,7 @@ def inject_auth_context() -> dict[str, Any]:
         "csrf_token": csrf_token,
         "current_actor": current_actor(),
         "has_car_access": has_car_access(),
+        "session_expires_at": session.get("session_expires_at", 0),
     }
 
 
@@ -70,8 +108,11 @@ def protect_unsafe_requests() -> None:
 
 @auth_blueprint.route("/login", methods=["GET", "POST"])
 def login() -> Any:
-    if session.get("authenticated"):
+    if session_is_active():
         return redirect(url_for("cam.dashboard"))
+    if session.get("authenticated"):
+        audit(current_actor(), "SESSION_EXPIRED", "session", {})
+        session.clear()
     if request.method == "GET":
         return render_template("login.html")
 
@@ -90,10 +131,13 @@ def login() -> Any:
     session.permanent = True
     session["authenticated"] = True
     session["legal_name"] = name
+    session["session_expires_at"] = now_epoch() + int(
+        current_app.config["CAM_SESSION_LIFETIME_SECONDS"]
+    )
     csrf_token()
     audit(name, "LOGIN", remote, {})
-    next_url = request.args.get("next", "")
-    if next_url.startswith("/") and not next_url.startswith("//"):
+    next_url = _safe_local_target(request.args.get("next", ""))
+    if next_url:
         return redirect(next_url)
     return redirect(url_for("auth.access"))
 
@@ -112,13 +156,21 @@ def logout() -> Any:
 def access() -> Any:
     if request.method == "GET":
         return render_template("access.html")
+    remote = request.remote_addr or "unknown"
+    if access_code_remote_is_limited(remote):
+        abort(429, "Too many invalid YAREN codes. Wait fifteen minutes.")
     code = request.form.get("access_code", "")
     device_id = consume_access_code(code, current_actor())
+    record_access_code_attempt(remote, succeeded=device_id is not None)
     if device_id is None:
         flash("That YAREN code is invalid, expired, or already used.", "error")
         return render_template("access.html"), 400
     session["device_id"] = device_id
-    session["car_access_expires_at"] = now_epoch() + 15 * 60
+    session_deadline = int(session["session_expires_at"])
+    access_deadline = now_epoch() + int(
+        current_app.config["CAM_CAR_ACCESS_LIFETIME_SECONDS"]
+    )
+    session["car_access_expires_at"] = min(session_deadline, access_deadline)
     flash(f"Connected to {device_id} for this session.", "success")
     return redirect(url_for("cam.dashboard"))
 
@@ -137,4 +189,5 @@ __all__ = [
     "current_actor",
     "has_car_access",
     "login_required",
+    "session_is_active",
 ]

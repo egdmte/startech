@@ -44,7 +44,7 @@
 
     {% if session.get('authenticated') %}
       <footer class="session-footer">
-        <span>Your session will expire in <strong data-session-clock>15:00</strong></span>
+        <span>Your session will expire in <strong data-session-clock data-session-expires-at="{{ session_expires_at }}">15:00</strong></span>
         <div class="session-track" aria-hidden="true"><span data-session-progress></span></div>
       </footer>
     {% endif %}

@@ -4,15 +4,17 @@
   const clock = document.querySelector("[data-session-clock]");
   const progress = document.querySelector("[data-session-progress]");
   if (clock && progress) {
-    const total = 15 * 60;
-    const started = Date.now();
+    const expiresAt = Number(clock.dataset.sessionExpiresAt) * 1000;
+    const initialRemaining = Math.max(1, Math.ceil((expiresAt - Date.now()) / 1000));
     const updateClock = () => {
-      const elapsed = Math.floor((Date.now() - started) / 1000);
-      const remaining = Math.max(0, total - elapsed);
+      const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
       const minutes = String(Math.floor(remaining / 60)).padStart(2, "0");
       const seconds = String(remaining % 60).padStart(2, "0");
       clock.textContent = `${minutes}:${seconds}`;
-      progress.style.transform = `scaleX(${remaining / total})`;
+      progress.style.transform = `scaleX(${Math.min(1, remaining / initialRemaining)})`;
+      if (remaining === 0) {
+        window.location.replace("/login?expired=1");
+      }
     };
     updateClock();
     window.setInterval(updateClock, 1000);

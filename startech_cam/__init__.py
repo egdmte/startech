@@ -21,10 +21,22 @@ def _environment(name: str, default: str = "") -> str:
     return os.environ.get(name, default).strip()
 
 
+def _positive_integer(name: str, default: int) -> int:
+    raw = _environment(name, str(default))
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be a positive integer") from exc
+    if value <= 0:
+        raise RuntimeError(f"{name} must be a positive integer")
+    return value
+
+
 def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     """Create CAM with explicit, fail-closed production configuration."""
 
     app = Flask(__name__, instance_relative_config=True)
+    session_lifetime = _positive_integer("CAM_SESSION_LIFETIME_SECONDS", 15 * 60)
     app.config.from_mapping(
         DATABASE=_environment(
             "CAM_DATABASE", str(Path(app.instance_path) / "cam.sqlite3")
@@ -33,11 +45,16 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         CAM_PASSWORD=_environment("CAM_PASSWORD"),
         CAM_PASSWORD_HASH=_environment("CAM_PASSWORD_HASH"),
         CAM_CODE_LIFETIME_SECONDS=15 * 60,
+        CAM_CAR_ACCESS_LIFETIME_SECONDS=15 * 60,
         CAM_LOGIN_LIMIT=5,
         CAM_LOGIN_WINDOW_SECONDS=15 * 60,
+        CAM_ACCESS_CODE_LIMIT=8,
+        CAM_ACCESS_CODE_WINDOW_SECONDS=15 * 60,
+        CAM_SESSION_LIFETIME_SECONDS=session_lifetime,
         CAM_TRUST_PROXY=_environment("CAM_TRUST_PROXY", "0") == "1",
         MAX_CONTENT_LENGTH=1_000_000,
-        PERMANENT_SESSION_LIFETIME=timedelta(minutes=15),
+        PERMANENT_SESSION_LIFETIME=timedelta(seconds=session_lifetime),
+        SESSION_REFRESH_EACH_REQUEST=False,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=_environment("CAM_COOKIE_SECURE", "1") != "0",
