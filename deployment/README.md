@@ -87,10 +87,68 @@ Son doğrulama:
 curl --fail --silent https://dymtal.avartech.net/health
 ```
 
-## 5. YAREN erişim kodu üret
+## 5. YAREN cihaz kimliğini bir kez oluştur ve kaydet
 
-İlk sürümde kod üretimi yalnız yetkili VPS kabuğundan yapılır. Bu, kimlik
-doğrulaması olmayan bir internet uç noktası açılmasını engeller:
+Özel anahtar araçta kalır. YAREN bilgisayarında veya Raspberry Pi üzerinde şu
+komutu çalıştırın:
+
+```bash
+python3 -m arac.ayar_cli web-key --device school-car
+```
+
+Komut iki dosya üretir:
+
+- `~/.startech/yaren-device.json`: özel kimlik; yalnız araçta kalır ve hiçbir
+  zaman CAM'e, Git'e, e-postaya veya sohbete yüklenmez.
+- `~/.startech/yaren-device.pub.json`: paylaşılabilir açık kimlik.
+
+Yalnız `.pub.json` dosyasını VPS'e kopyalayın. Örneğin YAREN bilgisayarından:
+
+```bash
+scp ~/.startech/yaren-device.pub.json startech-vps:/tmp/school-car.pub.json
+```
+
+VPS'te açık kimliği CAM veritabanına kaydedin:
+
+```bash
+cd /srv/startech-cam/app
+sudo systemd-run --pipe --wait --collect --quiet \
+  --uid=egemen --gid=egemen \
+  --working-directory=/srv/startech-cam/app \
+  --property=EnvironmentFile=/etc/startech-cam.env \
+  /srv/startech-cam/venv/bin/flask --app wsgi:app \
+  register-yaren-device --identity /tmp/school-car.pub.json --actor Egemen
+rm /tmp/school-car.pub.json
+```
+
+`list-yaren-devices` komutu açık anahtarları göstermeden kayıt ve devre dışı
+durumunu listeler. Anahtarın sızdığından şüphelenilirse araçta `web-key
+--replace` ile yeni çift oluşturun ve VPS'te `rotate-yaren-device-key` kullanın.
+Kayıp veya emekli bir cihaz için:
+
+```bash
+sudo systemd-run --pipe --wait --collect --quiet \
+  --uid=egemen --gid=egemen \
+  --working-directory=/srv/startech-cam/app \
+  --property=EnvironmentFile=/etc/startech-cam.env \
+  /srv/startech-cam/venv/bin/flask --app wsgi:app \
+  disable-yaren-device --device school-car --actor Egemen
+```
+
+## 6. YAREN'den geçici web kodu iste
+
+Kayıt tamamlandıktan sonra araçtaki YAREN tek kullanımlık kodu doğrudan ister:
+
+```bash
+python3 -m arac.ayar_cli web-code --server https://dymtal.avartech.net
+```
+
+İstek iki adımdır. CAM önce iki dakika geçerli tek kullanımlık bir rastgele değer
+üretir. YAREN istek gövdesini Ed25519 özel anahtarıyla imzalar. CAM imzayı kayıtlı
+açık anahtarla doğrular, rastgele değeri tüketir ve yalnız bundan sonra sekiz
+karakterli erişim kodu üretir. Aynı imza veya rastgele değer tekrar kullanılamaz.
+
+VPS kabuğundan elle kod üretme yolu acil yönetim seçeneği olarak kalır:
 
 ```bash
 cd /srv/startech-cam/app
@@ -103,5 +161,27 @@ sudo systemd-run --pipe --wait --collect --quiet \
 ```
 
 Çıktı sekiz karakterli, tek kullanımlık ve 15 dakika geçerli koddur. Uzun
-vadede YAREN entegrasyonu ayrı, kimliği doğrulanmış bir protokol olarak
-planlanmalıdır; genel internete anonim kod üretme uç noktası açılmamalıdır.
+kodun düz metni veritabanında tutulmaz. İnternet uç noktası anonim kod üretmez;
+yalnız önceden kaydedilmiş ve devre dışı olmayan YAREN anahtarları kabul edilir.
+
+## 7. Güncelleme ve geri alma
+
+Her güncellemeden önce paylaşılan veritabanını yedekleyin. Uygulama dizininde
+yalnız doğrulanmış commit'i alın, bağımlılıkları eşitleyin ve hizmeti yeniden
+başlatın:
+
+```bash
+sudo systemctl stop startech-cam.service
+cp -a /srv/startech-cam/shared/cam.sqlite3 \
+  "/srv/startech-cam/shared/cam.sqlite3.$(date -u +%Y%m%dT%H%M%SZ).bak"
+cd /srv/startech-cam/app
+git pull --ff-only origin master
+/srv/startech-cam/venv/bin/pip install -r requirements.txt
+sudo systemctl start startech-cam.service
+curl --fail --silent http://127.0.0.1:8765/health
+```
+
+Başlatma sırasında SQLite'a yalnız eklemeli tablolar uygulanır; mevcut SAC/MAC
+kalibrasyonları silinmez. Geri almak gerekirse hizmeti durdurun, önceki commit'e
+ayrı bir doğrulanmış çalışma ağacı kurun ve yedek veritabanını kullanın. Çalışan
+paylaşılan veritabanını körlemesine eski şemaya açmayın.
