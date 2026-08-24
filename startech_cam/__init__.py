@@ -50,6 +50,13 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         CAM_LOGIN_WINDOW_SECONDS=15 * 60,
         CAM_ACCESS_CODE_LIMIT=8,
         CAM_ACCESS_CODE_WINDOW_SECONDS=15 * 60,
+        CAM_DEVICE_NONCE_LIFETIME_SECONDS=_positive_integer(
+            "CAM_DEVICE_NONCE_LIFETIME_SECONDS", 2 * 60
+        ),
+        CAM_DEVICE_REQUEST_LIMIT=_positive_integer("CAM_DEVICE_REQUEST_LIMIT", 20),
+        CAM_DEVICE_REQUEST_WINDOW_SECONDS=_positive_integer(
+            "CAM_DEVICE_REQUEST_WINDOW_SECONDS", 15 * 60
+        ),
         CAM_SESSION_LIFETIME_SECONDS=session_lifetime,
         CAM_TRUST_PROXY=_environment("CAM_TRUST_PROXY", "0") == "1",
         MAX_CONTENT_LENGTH=1_000_000,
@@ -73,9 +80,11 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     db.init_app(app)
 
     from .auth import auth_blueprint
+    from .device_api import device_api_blueprint
     from .routes import cam_blueprint
 
     app.register_blueprint(auth_blueprint)
+    app.register_blueprint(device_api_blueprint)
     app.register_blueprint(cam_blueprint)
 
     @app.after_request

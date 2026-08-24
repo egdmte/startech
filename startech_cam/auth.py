@@ -101,6 +101,10 @@ def inject_auth_context() -> dict[str, Any]:
 
 @auth_blueprint.before_app_request
 def protect_unsafe_requests() -> None:
+    # The device API has no browser session.  Its unsafe endpoint is protected by
+    # an Ed25519 signature over a single-use server nonce instead of form CSRF.
+    if request.blueprint == "device_api":
+        return
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
         if not csrf_matches(request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")):
             abort(400, "The form expired or its CSRF token is invalid.")

@@ -20,8 +20,20 @@ if __package__ in {None, ""}:
     if repository_root not in sys.path:
         sys.path.insert(0, repository_root)
     from arac.cli_ui import MenuOption, TerminalUI
+    from arac.yaren_web import (
+        create_device_identity,
+        default_identity_path,
+        default_server_url,
+        request_web_code,
+    )
 else:
     from .cli_ui import MenuOption, TerminalUI
+    from .yaren_web import (
+        create_device_identity,
+        default_identity_path,
+        default_server_url,
+        request_web_code,
+    )
 
 from startech.configuration.profiles import (
     ProfileError,
@@ -172,6 +184,25 @@ def build_parser() -> argparse.ArgumentParser:
     export = commands.add_parser("export", help="export a verified profile directory")
     export.add_argument("profile")
     export.add_argument("destination", type=Path)
+
+    web_key = commands.add_parser(
+        "web-key", help="create the private YAREN identity used to authenticate to CAM"
+    )
+    web_key.add_argument("--device", required=True, help="stable registered device ID")
+    web_key.add_argument("--identity-file", type=Path)
+    web_key.add_argument("--public-output", type=Path)
+    web_key.add_argument(
+        "--replace",
+        action="store_true",
+        help="replace both identity files for an intentional key rotation",
+    )
+
+    web_code = commands.add_parser(
+        "web-code", help="request one single-use CAM access code"
+    )
+    web_code.add_argument("--server", default=None)
+    web_code.add_argument("--identity-file", type=Path)
+    web_code.add_argument("--timeout", type=float, default=10.0)
     return parser
 
 
@@ -326,6 +357,46 @@ def _run_command(args, console: TerminalUI, store: ProfileStore) -> int:
     elif args.command == "export":
         destination = store.export_profile(args.profile, args.destination)
         console.write(f"Exported verified profile to {destination}.", style=TerminalUI.GREEN)
+    elif args.command == "web-key":
+        private_path = args.identity_file or default_identity_path()
+        identity, public_path = create_device_identity(
+            args.device,
+            private_path,
+            args.public_output,
+            replace=args.replace,
+        )
+        console.summary(
+            "YAREN WEB IDENTITY CREATED",
+            (
+                ("device", identity.device_id),
+                ("algorithm", "Ed25519"),
+                ("private", private_path.expanduser().resolve()),
+                ("public", public_path),
+                ("vehicle", "NOT ARMED"),
+            ),
+            style=TerminalUI.GREEN,
+        )
+        console.write(
+            "Register only the public JSON on CAM. Never copy or upload the private file.",
+            style=TerminalUI.YELLOW,
+        )
+    elif args.command == "web-code":
+        code = request_web_code(
+            args.server,
+            args.identity_file,
+            timeout=args.timeout,
+        )
+        console.summary(
+            "CAM WEB ACCESS CODE",
+            (
+                ("device", code.device_id),
+                ("code", code.access_code),
+                ("expires at", code.expires_at),
+                ("use", "single use"),
+                ("vehicle", "NOT ARMED"),
+            ),
+            style=TerminalUI.GREEN,
+        )
     else:
         raise ValueError("a YAREN command is required")
     return EXIT_OK
@@ -357,10 +428,11 @@ def _interactive(
                 MenuOption("7", "Archive an inactive profile"),
                 MenuOption("8", "Restore an archived profile"),
                 MenuOption("9", "Export a verified profile"),
+                MenuOption("10", "Request a temporary CAM web code"),
                 MenuOption("0", "Exit without arming the vehicle"),
             ),
             input_fn=input_fn,
-            prompt="Choose 0-9: ",
+            prompt="Choose 0-10: ",
             invalid_message="Choose one of the displayed numbers.",
         )
         try:
@@ -448,6 +520,25 @@ def _interactive(
                 destination = Path(_ask(console, input_fn, "New export directory: "))
                 store.export_profile(profile_id, destination)
                 console.write(f"Exported to {destination}.")
+            elif choice == "10":
+                console.write(
+                    f"CAM server: {default_server_url()}", style=TerminalUI.MUTED
+                )
+                console.write(
+                    f"Private identity: {default_identity_path()}",
+                    style=TerminalUI.MUTED,
+                )
+                code = request_web_code()
+                console.summary(
+                    "CAM WEB ACCESS CODE",
+                    (
+                        ("device", code.device_id),
+                        ("code", code.access_code),
+                        ("expires at", code.expires_at),
+                        ("vehicle", "NOT ARMED"),
+                    ),
+                    style=TerminalUI.GREEN,
+                )
         except (ProfileError, ValueError, OSError) as exc:
             console.write(f"YAREN refused the operation: {exc}", style=TerminalUI.RED)
 

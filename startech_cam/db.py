@@ -40,6 +40,39 @@ CREATE TABLE IF NOT EXISTS access_codes (
 );
 CREATE INDEX IF NOT EXISTS access_codes_expiry ON access_codes(expires_at);
 
+CREATE TABLE IF NOT EXISTS registered_devices (
+    device_id TEXT PRIMARY KEY,
+    algorithm TEXT NOT NULL CHECK (algorithm = 'Ed25519'),
+    public_key_b64 TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    created_by TEXT NOT NULL,
+    rotated_at INTEGER,
+    rotated_by TEXT,
+    disabled_at INTEGER,
+    disabled_by TEXT
+);
+
+CREATE TABLE IF NOT EXISTS device_nonces (
+    nonce_digest TEXT PRIMARY KEY,
+    device_id TEXT NOT NULL,
+    issued_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    consumed_at INTEGER,
+    FOREIGN KEY (device_id) REFERENCES registered_devices(device_id)
+);
+CREATE INDEX IF NOT EXISTS device_nonces_device_expiry
+    ON device_nonces(device_id, expires_at);
+
+CREATE TABLE IF NOT EXISTS device_api_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    remote_address TEXT NOT NULL,
+    action TEXT NOT NULL,
+    attempted_at INTEGER NOT NULL,
+    succeeded INTEGER NOT NULL CHECK (succeeded IN (0, 1))
+);
+CREATE INDEX IF NOT EXISTS device_api_attempts_remote_time
+    ON device_api_attempts(remote_address, attempted_at);
+
 CREATE TABLE IF NOT EXISTS drafts (
     draft_id TEXT PRIMARY KEY,
     owner TEXT NOT NULL,

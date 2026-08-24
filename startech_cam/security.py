@@ -237,6 +237,12 @@ def prune_security_records(*, retain_seconds: int = 7 * 24 * 60 * 60) -> dict[st
             """,
             (cutoff,),
         ).rowcount,
+        "device_nonces": connection.execute(
+            "DELETE FROM device_nonces WHERE expires_at < ?", (cutoff,)
+        ).rowcount,
+        "device_api_attempts": connection.execute(
+            "DELETE FROM device_api_attempts WHERE attempted_at < ?", (cutoff,)
+        ).rowcount,
     }
     connection.commit()
     return deleted
