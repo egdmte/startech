@@ -29,6 +29,7 @@ if (calibration?.tag) {
 editWithMacButton.addEventListener("click", () => {
   if (!calibration?.tag) return;
   sessionStorage.setItem("startech-mac-source-tag", calibration.tag);
+  sessionStorage.setItem("startech-mac-source-config", JSON.stringify(calibration.configuration));
   window.startechNavigate(
     `mac-source.html?source=${encodeURIComponent(calibration.tag)}`
   );

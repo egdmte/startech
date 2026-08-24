@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="sac-source.css">
   <link rel="stylesheet" href="shared/motion.css">
   <script src="shared/motion.js" defer></script>
+  <script src="shared/sac-config-v2.js" defer></script>
   <script src="sac-source.js" defer></script>
 </head>
 <body>
@@ -30,6 +31,7 @@
         </header>
 
         <div class="cam-action-stack" aria-label="Calibration starting points">
+          <input id="previous-config-file" type="file" accept=".json,application/json" hidden>
           <button
             class="cam-action cam-action--primary source-action"
             type="button"
