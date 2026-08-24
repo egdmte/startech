@@ -57,6 +57,8 @@ class WebAccessCode:
     access_code: str
     device_id: str
     expires_at: int
+    link_id: str
+    link_token: str
 
 
 PostJson = Callable[[str, bytes, Mapping[str, str], float], dict[str, Any]]
@@ -324,6 +326,8 @@ def request_web_code(
     code = response.get("access_code")
     returned_device = response.get("device_id")
     expires_at = response.get("expires_at")
+    link_id = response.get("link_id")
+    link_token = response.get("link_token")
     if (
         not isinstance(code, str)
         or len(code) != 8
@@ -331,9 +335,17 @@ def request_web_code(
         or not code.isalnum()
         or returned_device != identity.device_id
         or not isinstance(expires_at, int)
+        or not isinstance(link_id, str)
+        or len(link_id) != 32
+        or any(character not in "0123456789abcdef" for character in link_id)
+        or not isinstance(link_token, str)
+        or len(link_token) < 32
+        or not link_token.isascii()
     ):
         raise WebAccessError("CAM access-code response is incomplete")
-    return WebAccessCode(code.upper(), identity.device_id, expires_at)
+    return WebAccessCode(
+        code.upper(), identity.device_id, expires_at, link_id, link_token
+    )
 
 
 __all__ = [

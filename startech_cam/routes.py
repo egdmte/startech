@@ -23,6 +23,13 @@ from startech.configuration.combined import combined_config_errors
 
 from .auth import current_actor, has_car_access, login_required
 from .db import get_db
+from .device_link import (
+    DeviceLinkError,
+    get_capability_report,
+    get_device_job,
+    get_device_snapshot,
+    queue_device_job,
+)
 from .fields import Field, MAC_SECTIONS, SAC_STEPS
 from .repository import (
     CalibrationNotFound,
@@ -46,6 +53,23 @@ from .repository import (
 
 
 cam_blueprint = Blueprint("cam", __name__)
+
+
+def _session_device_link() -> tuple[str, str] | None:
+    link_id = session.get("device_link_id")
+    device_id = session.get("device_id")
+    if (
+        not has_car_access()
+        or not isinstance(link_id, str)
+        or not isinstance(device_id, str)
+    ):
+        return None
+    return link_id, device_id
+
+
+def _current_device_snapshot() -> dict[str, Any] | None:
+    selected = _session_device_link()
+    return None if selected is None else get_device_snapshot(*selected)
 
 
 @cam_blueprint.get("/health")
@@ -81,7 +105,7 @@ def dashboard() -> str:
 def _sac_pending_source() -> tuple[str, str | None]:
     source = session.get("sac_pending_source")
     previous_tag = session.get("sac_pending_previous_tag")
-    if source not in {"DEFAULT", "PREVIOUS"}:
+    if source not in {"DEFAULT", "PREVIOUS", "CAR"}:
         return "", None
     if previous_tag is not None and not isinstance(previous_tag, str):
         return "", None
@@ -102,13 +126,15 @@ def sac_source() -> Any:
                 "A current YAREN code is required before CAM can contact the car.",
                 "error",
             )
-        else:
+            return render_template("sac_source.html", calibrations=calibrations), 400
+        if _current_device_snapshot() is None:
             flash(
-                "YAREN access is active, but downloading a configuration from the car is not connected yet.",
+                "YAREN is connected, but it has not reported an active configuration yet.",
                 "error",
             )
-        return render_template("sac_source.html", calibrations=calibrations), 400
-    if source == "PREVIOUS":
+            return render_template("sac_source.html", calibrations=calibrations), 409
+        session.pop("sac_pending_previous_tag", None)
+    elif source == "PREVIOUS":
         previous_tag = request.form.get("previous_tag", "")
         try:
             get_calibration(previous_tag)
@@ -142,6 +168,12 @@ def sac_name() -> Any:
             if previous_tag is None:
                 raise InvalidDocument("the selected previous calibration is unavailable")
             source_document = get_calibration(previous_tag)
+        elif source == "CAR":
+            source_document = _current_device_snapshot()
+            if source_document is None:
+                raise InvalidDocument(
+                    "the linked car configuration is no longer available"
+                )
         draft_id = create_draft(
             owner=current_actor(),
             workflow="SAC",
@@ -169,11 +201,23 @@ def sac_preflight(draft_id: str) -> Any:
         abort(404)
     if request.method == "POST":
         return redirect(url_for("cam.sac_components", draft_id=draft_id))
-    checks = (
+    selected = _session_device_link()
+    report = None if selected is None else get_capability_report(*selected)
+    if report is not None:
+        checks = tuple(
+            (
+                f"{item['module']} — {item['name']}",
+                str(item["status"]).lower().replace("_", "-"),
+                f"{item['scope']} — {item['detail']}",
+            )
+            for item in report["results"]
+        )
+    else:
+        checks = (
         (
             "YAREN session",
-            "available" if has_car_access() else "offline",
-            "CAM has a current signed device session."
+            "responded" if has_car_access() else "unavailable",
+            "CAM has a current device-bound session; capability results are pending."
             if has_car_access()
             else "Continuing without live car access.",
         ),
@@ -187,7 +231,7 @@ def sac_preflight(draft_id: str) -> Any:
             "configured",
             "KASIM settings can be edited; no frame has been physically tested.",
         ),
-        ("Motor driver", "unavailable", "No motor command is sent from this page."),
+        ("Motor driver", "blocked-by-policy", "No motor command is sent from this page."),
         (
             "Steering system",
             "unavailable",
@@ -198,8 +242,10 @@ def sac_preflight(draft_id: str) -> Any:
             "configured",
             "Validation policy is available; hardware behaviour remains unverified.",
         ),
+        )
+    return render_template(
+        "sac_preflight.html", draft_id=draft_id, checks=checks, report=report
     )
-    return render_template("sac_preflight.html", draft_id=draft_id, checks=checks)
 
 
 @cam_blueprint.get("/sac/<draft_id>/components")
@@ -266,7 +312,11 @@ def new_configuration(workflow: str) -> Any:
         elif source == "CAR":
             if not has_car_access():
                 raise InvalidDocument("a current YAREN code is required for car access")
-            raise InvalidDocument("car download is not connected yet; use an exported merged v2 file")
+            source_document = _current_device_snapshot()
+            if source_document is None:
+                raise InvalidDocument(
+                    "YAREN has not reported an active configuration yet"
+                )
         elif source != "DEFAULT":
             raise InvalidDocument("unknown source")
         draft_id = create_draft(
@@ -486,13 +536,43 @@ def publish(workflow: str, draft_id: str) -> Any:
 @login_required
 def created(tag: str) -> str:
     document = get_calibration(tag)
+    job = None
+    job_id = request.args.get("job", "")
+    selected = _session_device_link()
+    if job_id and selected is not None:
+        job = get_device_job(job_id, *selected)
     return render_template(
         "sac_created.html"
         if document["profil"]["is_akisi"] == "SAC"
         else "created.html",
         tag=tag,
         document=document,
+        device_job=job,
     )
+
+
+@cam_blueprint.post("/calibrations/<tag>/sideload")
+@login_required
+def sideload(tag: str) -> Any:
+    document = get_calibration(tag)
+    selected = _session_device_link()
+    if selected is None:
+        flash("A current YAREN device link is required for sideloading.", "error")
+        return redirect(url_for("cam.created", tag=tag))
+    try:
+        job_id = queue_device_job(
+            *selected,
+            "INSTALL_INACTIVE_CONFIGURATION",
+            {"deployment_id": tag, "configuration": document},
+        )
+    except DeviceLinkError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("cam.created", tag=tag))
+    flash(
+        "Queued for inactive installation. YAREN will not select or activate it.",
+        "success",
+    )
+    return redirect(url_for("cam.created", tag=tag, job=job_id))
 
 
 @cam_blueprint.post("/calibrations/<tag>/edit-mac")

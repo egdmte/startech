@@ -21,7 +21,7 @@ from flask import (
 from .security import (
     access_code_remote_is_limited,
     audit,
-    consume_access_code,
+    consume_access_code_grant,
     csrf_matches,
     csrf_token,
     now_epoch,
@@ -43,6 +43,7 @@ def login_required(view: F) -> F:
             expired = bool(session.get("authenticated"))
             actor = current_actor()
             if expired:
+                _revoke_session_link(actor)
                 audit(actor, "SESSION_EXPIRED", "session", {})
                 session.clear()
             return redirect(url_for("auth.login", next=request.path))
@@ -67,11 +68,26 @@ def session_is_active() -> bool:
 
 def has_car_access() -> bool:
     expires_at = session.get("car_access_expires_at", 0)
-    return (
+    session_valid = (
         session_is_active()
         and isinstance(expires_at, int)
         and expires_at > now_epoch()
     )
+    link_id = session.get("device_link_id")
+    device_id = session.get("device_id")
+    if not session_valid or not isinstance(link_id, str) or not isinstance(device_id, str):
+        return False
+    from .device_link import browser_link_is_active
+
+    return browser_link_is_active(link_id, device_id)
+
+
+def _revoke_session_link(actor: str) -> None:
+    link_id = session.get("device_link_id")
+    if isinstance(link_id, str):
+        from .device_link import revoke_device_link
+
+        revoke_device_link(link_id, actor=actor)
 
 
 def _safe_local_target(value: str) -> str:
@@ -101,8 +117,8 @@ def inject_auth_context() -> dict[str, Any]:
 
 @auth_blueprint.before_app_request
 def protect_unsafe_requests() -> None:
-    # The device API has no browser session.  Its unsafe endpoint is protected by
-    # an Ed25519 signature over a single-use server nonce instead of form CSRF.
+    # The device API has no browser session.  Bootstrap uses Ed25519 over a
+    # single-use nonce; the resulting short-lived link uses its bearer token.
     if request.blueprint == "device_api":
         return
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
@@ -115,6 +131,7 @@ def login() -> Any:
     if session_is_active():
         return redirect(url_for("cam.dashboard"))
     if session.get("authenticated"):
+        _revoke_session_link(current_actor())
         audit(current_actor(), "SESSION_EXPIRED", "session", {})
         session.clear()
     if request.method == "GET":
@@ -150,6 +167,7 @@ def login() -> Any:
 @login_required
 def logout() -> Any:
     actor = current_actor()
+    _revoke_session_link(actor)
     audit(actor, "LOGOUT", "session", {})
     session.clear()
     return redirect(url_for("auth.login"))
@@ -164,25 +182,38 @@ def access() -> Any:
     if access_code_remote_is_limited(remote):
         abort(429, "Too many invalid YAREN codes. Wait fifteen minutes.")
     code = request.form.get("access_code", "")
-    device_id = consume_access_code(code, current_actor())
-    record_access_code_attempt(remote, succeeded=device_id is not None)
-    if device_id is None:
+    grant = consume_access_code_grant(code, current_actor())
+    record_access_code_attempt(remote, succeeded=grant is not None)
+    if grant is None:
         flash("That YAREN code is invalid, expired, or already used.", "error")
         return render_template("access.html"), 400
-    session["device_id"] = device_id
+    _revoke_session_link(current_actor())
+    session["device_id"] = grant.device_id
+    if grant.link_id is not None:
+        session["device_link_id"] = grant.link_id
+    else:
+        session.pop("device_link_id", None)
     session_deadline = int(session["session_expires_at"])
     access_deadline = now_epoch() + int(
         current_app.config["CAM_CAR_ACCESS_LIFETIME_SECONDS"]
     )
     session["car_access_expires_at"] = min(session_deadline, access_deadline)
-    flash(f"Connected to {device_id} for this session.", "success")
+    if grant.link_id is None:
+        flash(
+            f"Code accepted for {grant.device_id}, but it did not include a live YAREN link.",
+            "success",
+        )
+    else:
+        flash(f"Connected to {grant.device_id} for this session.", "success")
     return redirect(url_for("cam.dashboard"))
 
 
 @auth_blueprint.post("/access/offline")
 @login_required
 def continue_offline() -> Any:
+    _revoke_session_link(current_actor())
     session.pop("device_id", None)
+    session.pop("device_link_id", None)
     session.pop("car_access_expires_at", None)
     audit(current_actor(), "OFFLINE_MODE", "session", {})
     return redirect(url_for("cam.dashboard"))

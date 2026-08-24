@@ -58,8 +58,13 @@
 .preflight-item > span:nth-child(2) { display: grid; }
 .preflight-item small { margin-top: 2px; color: #757575; }
 .preflight-item em { color: #858585; font-size: 13px; font-style: normal; text-transform: uppercase; }
-.preflight-item--available .preflight-state, .preflight-item--available em { color: var(--cam-success); }
+.preflight-item--live .preflight-state, .preflight-item--live em,
+.preflight-item--responded .preflight-state, .preflight-item--responded em { color: var(--cam-success); }
 .preflight-item--configured .preflight-state, .preflight-item--configured em { color: #075dff; }
+.preflight-item--simulated .preflight-state, .preflight-item--simulated em { color: #075dff; }
+.preflight-item--blocked-by-policy .preflight-state, .preflight-item--blocked-by-policy em,
+.preflight-item--failed .preflight-state, .preflight-item--failed em { color: var(--cam-danger); }
+.preflight-item--unverified .preflight-state, .preflight-item--unverified em { color: #9b7100; }
 .preflight-note { margin: 28px 0 12px; color: var(--cam-muted); text-align: center; }
 .preflight-continue { width: 100%; }
 
@@ -217,6 +222,7 @@
 .finish-warning ul, .finish-warning p { margin-bottom: 0; }
 .finish-summary-actions, .finish-result-actions { display: grid; gap: 10px; }
 .finish-summary-actions form, .finish-result-actions form { display: grid; margin: 0; }
+.device-job-status { margin: 2px 0; color: var(--cam-muted); font-size: 14px; }
 
 @media (max-width: 900px) {
   .components-workspace { grid-template-columns: 1fr; gap: 30px; }

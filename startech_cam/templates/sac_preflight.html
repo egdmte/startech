@@ -5,18 +5,23 @@
 <section class="preflight-panel" aria-labelledby="preflight-title">
   <header class="preflight-heading" data-motion data-motion-delay="1">
     <h1 id="preflight-title">Please wait while we check your car’s integrity.</h1>
+    {% if report %}
+    <p>YAREN reported bounded checks for this temporary link. These results do not prove driving safety.</p>
+    {% else %}
     <p>CAM can verify the configuration session. Physical hardware remains unavailable until YAREN reports it.</p>
+    {% endif %}
   </header>
   <ol class="preflight-list" data-motion data-motion-delay="2">
+    {% set symbols = {'live': '✓', 'responded': '✓', 'simulated': '◇', 'blocked-by-policy': '×', 'unavailable': '—', 'failed': '!', 'unverified': '?', 'configured': '→'} %}
     {% for label, state, detail in checks %}
     <li class="preflight-item preflight-item--{{ state }}">
-      <span class="preflight-state" aria-hidden="true">{{ '✓' if state == 'available' else '→' if state == 'configured' else '—' }}</span>
+      <span class="preflight-state" aria-hidden="true">{{ symbols.get(state, '—') }}</span>
       <span><strong>{{ label }}</strong><small>{{ detail }}</small></span>
       <em>{{ state }}</em>
     </li>
     {% endfor %}
   </ol>
-  <p class="preflight-note">CAM will not arm, move, steer, or test the car from this screen.</p>
+  <p class="preflight-note">CAM will not arm, move, steer, or test the car from this screen. “Simulated” and “unverified” are not hardware passes.</p>
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="cam-action cam-action--primary preflight-continue" type="submit">Continue</button>

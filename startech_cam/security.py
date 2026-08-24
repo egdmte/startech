@@ -9,6 +9,7 @@ import secrets
 import sqlite3
 import string
 import time
+from dataclasses import dataclass
 from typing import Any
 
 from flask import current_app, session
@@ -18,6 +19,12 @@ from .db import get_db
 
 
 CODE_ALPHABET = string.ascii_uppercase + string.digits
+
+
+@dataclass(frozen=True)
+class AccessGrant:
+    device_id: str
+    link_id: str | None
 
 
 def now_epoch() -> int:
@@ -125,7 +132,7 @@ def _normalize_code(code: str) -> str | None:
     return normalized
 
 
-def issue_access_code(device_id: str) -> str:
+def issue_access_code(device_id: str, *, link_id: str | None = None) -> str:
     """Create a single-use code.  The plaintext is returned exactly once."""
 
     normalized_device = device_id.strip()
@@ -134,15 +141,32 @@ def issue_access_code(device_id: str) -> str:
     issued_at = now_epoch()
     expires_at = issued_at + int(current_app.config["CAM_CODE_LIFETIME_SECONDS"])
     connection = get_db()
+    if link_id is not None:
+        linked = connection.execute(
+            """
+            SELECT 1 FROM device_links
+            WHERE link_id = ? AND device_id = ? AND revoked_at IS NULL AND expires_at > ?
+            """,
+            (link_id, normalized_device, issued_at),
+        ).fetchone()
+        if linked is None:
+            raise ValueError("access code link is unavailable")
     for _attempt in range(10):
         code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(8))
         try:
             connection.execute(
                 """
-                INSERT INTO access_codes(code_digest, device_id, issued_at, expires_at)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO access_codes(
+                    code_digest, device_id, link_id, issued_at, expires_at
+                ) VALUES (?, ?, ?, ?, ?)
                 """,
-                (_code_digest(code), normalized_device, issued_at, expires_at),
+                (
+                    _code_digest(code),
+                    normalized_device,
+                    link_id,
+                    issued_at,
+                    expires_at,
+                ),
             )
             connection.commit()
             audit("system", "ACCESS_CODE_ISSUED", normalized_device, {"expires_at": expires_at})
@@ -152,7 +176,7 @@ def issue_access_code(device_id: str) -> str:
     raise RuntimeError("could not generate a unique access code")
 
 
-def consume_access_code(code: str, actor: str) -> str | None:
+def consume_access_code_grant(code: str, actor: str) -> AccessGrant | None:
     normalized = _normalize_code(code)
     if normalized is None:
         return None
@@ -160,7 +184,7 @@ def consume_access_code(code: str, actor: str) -> str | None:
     current = now_epoch()
     row = connection.execute(
         """
-        SELECT device_id FROM access_codes
+        SELECT device_id, link_id FROM access_codes
         WHERE code_digest = ?
           AND consumed_at IS NULL
           AND revoked_at IS NULL
@@ -170,6 +194,18 @@ def consume_access_code(code: str, actor: str) -> str | None:
     ).fetchone()
     if row is None:
         return None
+    link_id = None if row["link_id"] is None else str(row["link_id"])
+    if link_id is not None:
+        link = connection.execute(
+            """
+            SELECT 1 FROM device_links
+            WHERE link_id = ? AND device_id = ? AND activated_at IS NULL
+              AND revoked_at IS NULL AND expires_at > ?
+            """,
+            (link_id, row["device_id"], current),
+        ).fetchone()
+        if link is None:
+            return None
     changed = connection.execute(
         """
         UPDATE access_codes SET consumed_at = ?, consumed_by = ?
@@ -177,12 +213,34 @@ def consume_access_code(code: str, actor: str) -> str | None:
         """,
         (current, actor, _code_digest(normalized)),
     ).rowcount
-    connection.commit()
     if changed != 1:
+        connection.rollback()
         return None
     device_id = str(row["device_id"])
+    if link_id is not None:
+        activated = connection.execute(
+            """
+            UPDATE device_links SET activated_at = ?, activated_by = ?
+            WHERE link_id = ? AND device_id = ? AND activated_at IS NULL
+              AND revoked_at IS NULL AND expires_at > ?
+            """,
+            (current, actor[:120], link_id, device_id, current),
+        ).rowcount
+        if activated != 1:
+            connection.rollback()
+            return None
+    connection.commit()
     audit(actor, "ACCESS_CODE_CONSUMED", device_id, {})
-    return device_id
+    if link_id is not None:
+        audit(actor, "DEVICE_LINK_ACTIVATED", device_id, {"link_id": link_id})
+    return AccessGrant(device_id, link_id)
+
+
+def consume_access_code(code: str, actor: str) -> str | None:
+    """Compatibility wrapper returning only the device identifier."""
+
+    grant = consume_access_code_grant(code, actor)
+    return None if grant is None else grant.device_id
 
 
 def revoke_access_code(code: str, actor: str) -> bool:
@@ -243,6 +301,28 @@ def prune_security_records(*, retain_seconds: int = 7 * 24 * 60 * 60) -> dict[st
         "device_api_attempts": connection.execute(
             "DELETE FROM device_api_attempts WHERE attempted_at < ?", (cutoff,)
         ).rowcount,
+        "device_jobs": connection.execute(
+            "DELETE FROM device_jobs WHERE expires_at < ?", (cutoff,)
+        ).rowcount,
+        "device_snapshots": connection.execute(
+            """
+            DELETE FROM device_snapshots WHERE link_id IN (
+                SELECT link_id FROM device_links WHERE expires_at < ?
+            )
+            """,
+            (cutoff,),
+        ).rowcount,
+        "device_capability_reports": connection.execute(
+            """
+            DELETE FROM device_capability_reports WHERE link_id IN (
+                SELECT link_id FROM device_links WHERE expires_at < ?
+            )
+            """,
+            (cutoff,),
+        ).rowcount,
+        "device_links": connection.execute(
+            "DELETE FROM device_links WHERE expires_at < ?", (cutoff,)
+        ).rowcount,
     }
     connection.commit()
     return deleted
@@ -268,8 +348,10 @@ def audit(actor: str, event_type: str, subject: str, detail: dict[str, Any]) -> 
 
 __all__ = [
     "access_code_remote_is_limited",
+    "AccessGrant",
     "audit",
     "consume_access_code",
+    "consume_access_code_grant",
     "csrf_matches",
     "csrf_token",
     "issue_access_code",

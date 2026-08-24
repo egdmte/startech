@@ -23,6 +23,15 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="cam-action cam-action--primary" type="submit">Edit {{ tag }} with MAC</button>
         </form>
+        {% if has_car_access %}
+        <form method="post" action="{{ url_for('cam.sideload', tag=tag) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="cam-action cam-action--secondary" type="submit">Sideload inactive profile to Pi</button>
+        </form>
+        {% endif %}
+        {% if device_job %}
+        <p class="device-job-status" role="status">Sideload job <strong>{{ device_job.status }}</strong>. The profile is not active.</p>
+        {% endif %}
         <a class="cam-action cam-action--secondary" href="{{ url_for('cam.download', tag=tag) }}">Download merged JSON</a>
         <a class="cam-action cam-action--secondary" href="{{ url_for('cam.dashboard') }}">Main Menu</a>
       </div>

@@ -31,6 +31,7 @@ CREATE INDEX IF NOT EXISTS access_code_attempts_remote_time
 CREATE TABLE IF NOT EXISTS access_codes (
     code_digest TEXT PRIMARY KEY,
     device_id TEXT NOT NULL,
+    link_id TEXT,
     issued_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL,
     consumed_at INTEGER,
@@ -72,6 +73,66 @@ CREATE TABLE IF NOT EXISTS device_api_attempts (
 );
 CREATE INDEX IF NOT EXISTS device_api_attempts_remote_time
     ON device_api_attempts(remote_address, attempted_at);
+
+CREATE TABLE IF NOT EXISTS device_links (
+    link_id TEXT PRIMARY KEY,
+    token_digest TEXT NOT NULL UNIQUE,
+    device_id TEXT NOT NULL,
+    issued_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    activated_at INTEGER,
+    activated_by TEXT,
+    last_seen_at INTEGER,
+    revoked_at INTEGER,
+    revoked_by TEXT,
+    FOREIGN KEY (device_id) REFERENCES registered_devices(device_id)
+);
+CREATE INDEX IF NOT EXISTS device_links_device_expiry
+    ON device_links(device_id, expires_at);
+
+CREATE TABLE IF NOT EXISTS device_snapshots (
+    link_id TEXT PRIMARY KEY,
+    device_id TEXT NOT NULL,
+    captured_at INTEGER NOT NULL,
+    received_at INTEGER NOT NULL,
+    payload_json TEXT NOT NULL,
+    FOREIGN KEY (link_id) REFERENCES device_links(link_id),
+    FOREIGN KEY (device_id) REFERENCES registered_devices(device_id)
+);
+
+CREATE TABLE IF NOT EXISTS device_capability_reports (
+    link_id TEXT PRIMARY KEY,
+    device_id TEXT NOT NULL,
+    checked_at INTEGER NOT NULL,
+    received_at INTEGER NOT NULL,
+    payload_json TEXT NOT NULL,
+    FOREIGN KEY (link_id) REFERENCES device_links(link_id),
+    FOREIGN KEY (device_id) REFERENCES registered_devices(device_id)
+);
+
+CREATE TABLE IF NOT EXISTS device_jobs (
+    job_id TEXT PRIMARY KEY,
+    link_id TEXT NOT NULL,
+    device_id TEXT NOT NULL,
+    operation TEXT NOT NULL CHECK (operation IN (
+        'REQUEST_ACTIVE_CONFIGURATION',
+        'REQUEST_CAPABILITY_REPORT',
+        'INSTALL_INACTIVE_CONFIGURATION'
+    )),
+    payload_json TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    claimed_at INTEGER,
+    completed_at INTEGER,
+    status TEXT NOT NULL CHECK (status IN (
+        'PENDING', 'CLAIMED', 'ACCEPTED', 'REJECTED', 'EXPIRED'
+    )),
+    receipt_json TEXT,
+    FOREIGN KEY (link_id) REFERENCES device_links(link_id),
+    FOREIGN KEY (device_id) REFERENCES registered_devices(device_id)
+);
+CREATE INDEX IF NOT EXISTS device_jobs_link_status
+    ON device_jobs(link_id, status, created_at);
 
 CREATE TABLE IF NOT EXISTS drafts (
     draft_id TEXT PRIMARY KEY,
@@ -151,6 +212,8 @@ def _migrate_existing_database(connection: sqlite3.Connection) -> None:
         connection.execute("ALTER TABLE access_codes ADD COLUMN revoked_at INTEGER")
     if "revoked_by" not in access_code_columns:
         connection.execute("ALTER TABLE access_codes ADD COLUMN revoked_by TEXT")
+    if "link_id" not in access_code_columns:
+        connection.execute("ALTER TABLE access_codes ADD COLUMN link_id TEXT")
 
     draft_columns = _column_names(connection, "drafts")
     if "parent_tag" not in draft_columns:

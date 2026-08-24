@@ -13,6 +13,16 @@ from .device_security import (
     record_device_attempt,
     verify_and_consume_request,
 )
+from .device_link import (
+    DeviceLinkError,
+    authenticate_device_link,
+    claim_next_device_job,
+    complete_device_job,
+    create_device_link,
+    revoke_device_link,
+    store_capability_report,
+    store_device_snapshot,
+)
 from .security import issue_access_code, now_epoch
 
 
@@ -32,6 +42,31 @@ def _object_with_exact_fields(fields: set[str]) -> dict[str, Any] | None:
     if not isinstance(payload, dict) or set(payload) != fields:
         return None
     return payload
+
+
+def _bearer_token() -> str:
+    authorization = request.headers.get("Authorization", "")
+    if not authorization.startswith("Bearer "):
+        return ""
+    return authorization[7:]
+
+
+def _authenticate_link_payload(
+    payload: dict[str, Any] | None, *, require_active: bool
+) -> tuple[str, str, str]:
+    if payload is None:
+        raise DeviceLinkError("link request has unexpected fields")
+    token = _bearer_token()
+    if not token:
+        raise DeviceLinkError("device link bearer token is required")
+    device_id = payload.get("device_id")
+    link_id = payload.get("link_id")
+    if not isinstance(device_id, str) or not isinstance(link_id, str):
+        raise DeviceLinkError("device_id and link_id must be text")
+    state = authenticate_device_link(
+        link_id, device_id, token, require_active=require_active
+    )
+    return device_id, link_id, state
 
 
 @device_api_blueprint.post("/challenge")
@@ -76,7 +111,12 @@ def access_code():
     except DeviceAuthenticationError:
         record_device_attempt(remote, "access-code", succeeded=False)
         return _error("authentication_failed", "The device request was not accepted.", 401)
-    code = issue_access_code(device_id)
+    link = create_device_link(device_id)
+    try:
+        code = issue_access_code(device_id, link_id=link.link_id)
+    except Exception:
+        revoke_device_link(link.link_id, actor="access-code-failure")
+        raise
     record_device_attempt(remote, "access-code", succeeded=True)
     return jsonify(
         {
@@ -84,9 +124,108 @@ def access_code():
             "device_id": device_id,
             "expires_at": now_epoch()
             + int(current_app.config["CAM_CODE_LIFETIME_SECONDS"]),
+            "link_id": link.link_id,
+            "link_token": link.link_token,
             "single_use": True,
         }
     )
+
+
+@device_api_blueprint.post("/link/poll")
+def link_poll():
+    remote = _remote()
+    payload = _object_with_exact_fields({"device_id", "link_id"})
+    try:
+        device_id, link_id, state = _authenticate_link_payload(
+            payload, require_active=False
+        )
+        job = None if state != "ACTIVE" else claim_next_device_job(link_id, device_id)
+    except DeviceLinkError:
+        record_device_attempt(remote, "link-poll", succeeded=False)
+        return _error("link_rejected", "The temporary device link was not accepted.", 401)
+    return jsonify({"state": state, "job": job})
+
+
+@device_api_blueprint.post("/link/snapshot")
+def link_snapshot():
+    remote = _remote()
+    payload = _object_with_exact_fields(
+        {"device_id", "link_id", "captured_at", "document"}
+    )
+    try:
+        device_id, link_id, _state = _authenticate_link_payload(
+            payload, require_active=True
+        )
+        store_device_snapshot(
+            link_id,
+            device_id,
+            captured_at=payload["captured_at"],
+            document=payload["document"],
+        )
+    except DeviceLinkError as exc:
+        record_device_attempt(remote, "link-snapshot", succeeded=False)
+        return _error("snapshot_rejected", str(exc), 400)
+    return jsonify({"accepted": True})
+
+
+@device_api_blueprint.post("/link/capabilities")
+def link_capabilities():
+    remote = _remote()
+    payload = _object_with_exact_fields({"device_id", "link_id", "report"})
+    try:
+        device_id, link_id, _state = _authenticate_link_payload(
+            payload, require_active=True
+        )
+        store_capability_report(link_id, device_id, payload["report"])
+    except DeviceLinkError as exc:
+        record_device_attempt(remote, "link-capabilities", succeeded=False)
+        return _error("capabilities_rejected", str(exc), 400)
+    return jsonify({"accepted": True})
+
+
+@device_api_blueprint.post("/link/receipt")
+def link_receipt():
+    remote = _remote()
+    payload = _object_with_exact_fields(
+        {"device_id", "link_id", "job_id", "accepted", "receipt"}
+    )
+    try:
+        device_id, link_id, _state = _authenticate_link_payload(
+            payload, require_active=True
+        )
+        if not isinstance(payload["job_id"], str) or not isinstance(
+            payload["accepted"], bool
+        ) or not isinstance(payload["receipt"], dict):
+            raise DeviceLinkError("job receipt fields are invalid")
+        changed = complete_device_job(
+            link_id,
+            device_id,
+            payload["job_id"],
+            accepted=payload["accepted"],
+            receipt=payload["receipt"],
+        )
+        if not changed:
+            raise DeviceLinkError("job is unavailable or already completed")
+    except DeviceLinkError as exc:
+        record_device_attempt(remote, "link-receipt", succeeded=False)
+        return _error("receipt_rejected", str(exc), 400)
+    return jsonify({"accepted": True})
+
+
+@device_api_blueprint.post("/link/close")
+def link_close():
+    remote = _remote()
+    payload = _object_with_exact_fields({"device_id", "link_id"})
+    try:
+        device_id, link_id, _state = _authenticate_link_payload(
+            payload, require_active=False
+        )
+        if not revoke_device_link(link_id, actor=device_id):
+            raise DeviceLinkError("device link was already unavailable")
+    except DeviceLinkError:
+        record_device_attempt(remote, "link-close", succeeded=False)
+        return _error("link_rejected", "The temporary device link was not accepted.", 401)
+    return jsonify({"closed": True})
 
 
 __all__ = ["device_api_blueprint"]

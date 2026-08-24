@@ -24,6 +24,7 @@ import uuid
 
 from jsonschema import Draft202012Validator
 
+from .combined import combined_config_errors, split_v2
 from .validation import (
     ayarlar_uyarilari,
     ayarlari_dogrula,
@@ -695,6 +696,52 @@ class ProfileStore:
             source_type="IMPORT",
             parent_profile_id=None,
             camera_session_id=camera_session_id,
+        )
+
+    def import_combined(
+        self,
+        document: dict[str, Any],
+        *,
+        deployment_id: str,
+    ) -> LoadedProfile:
+        """Install one valid merged v2 document without selecting it.
+
+        Repeating the same deployment is idempotent.  Reusing its identifier for
+        different bytes fails closed instead of silently replacing a profile.
+        """
+
+        if (
+            not isinstance(deployment_id, str)
+            or not re.fullmatch(r"[A-Za-z0-9._:-]{1,80}", deployment_id)
+        ):
+            raise InvalidProfile("deployment id is malformed")
+        errors = combined_config_errors(document)
+        if errors:
+            raise InvalidProfile("; ".join(errors))
+        calibration, settings = split_v2(document)
+        calibration_hash = _sha256(_storage_bytes(calibration))
+        settings_hash = _sha256(_storage_bytes(settings))
+        note = f"CAM deployment {deployment_id}"
+        for summary in self.list_profiles(include_archived=False):
+            loaded = self.load_profile(summary.profile_id, include_archived=False)
+            if loaded.manifest.note != note:
+                continue
+            if (
+                loaded.manifest.calibration_sha256 != calibration_hash
+                or loaded.manifest.settings_sha256 != settings_hash
+            ):
+                raise ProfileIntegrityError(
+                    "deployment id already belongs to different configuration bytes"
+                )
+            return loaded
+        return self._install_values(
+            calibration,
+            settings,
+            name=str(document["profil"]["ad"]),
+            note=note,
+            source_type="IMPORT",
+            parent_profile_id=None,
+            camera_session_id=None,
         )
 
     def create_settings_variant(

@@ -26,6 +26,7 @@ if __package__ in {None, ""}:
         default_server_url,
         request_web_code,
     )
+    from arac.yaren_link import close_temporary_link, run_temporary_link
 else:
     from .cli_ui import MenuOption, TerminalUI
     from .yaren_web import (
@@ -34,6 +35,7 @@ else:
         default_server_url,
         request_web_code,
     )
+    from .yaren_link import close_temporary_link, run_temporary_link
 
 from startech.configuration.profiles import (
     ProfileError,
@@ -203,6 +205,7 @@ def build_parser() -> argparse.ArgumentParser:
     web_code.add_argument("--server", default=None)
     web_code.add_argument("--identity-file", type=Path)
     web_code.add_argument("--timeout", type=float, default=10.0)
+    web_code.add_argument("--poll-interval", type=float, default=2.0)
     return parser
 
 
@@ -397,6 +400,22 @@ def _run_command(args, console: TerminalUI, store: ProfileStore) -> int:
             ),
             style=TerminalUI.GREEN,
         )
+        try:
+            run_temporary_link(
+                code,
+                profile_root=store.root,
+                server_url=args.server,
+                timeout=args.timeout,
+                poll_interval=args.poll_interval,
+                status=lambda message: console.write(message, style=TerminalUI.MUTED),
+            )
+        except KeyboardInterrupt:
+            close_temporary_link(
+                code,
+                server_url=args.server,
+                timeout=min(args.timeout, 5.0),
+            )
+            raise
     else:
         raise ValueError("a YAREN command is required")
     return EXIT_OK
@@ -539,6 +558,17 @@ def _interactive(
                     ),
                     style=TerminalUI.GREEN,
                 )
+                try:
+                    run_temporary_link(
+                        code,
+                        profile_root=store.root,
+                        status=lambda message: console.write(
+                            message, style=TerminalUI.MUTED
+                        ),
+                    )
+                except KeyboardInterrupt:
+                    close_temporary_link(code)
+                    raise
         except (ProfileError, ValueError, OSError) as exc:
             console.write(f"YAREN refused the operation: {exc}", style=TerminalUI.RED)
 
