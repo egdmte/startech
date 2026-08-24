@@ -28,10 +28,16 @@
   {% if errors %}
     <div class="validation-errors"><strong>Creation blocked</strong><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div>
   {% endif %}
+  {% if missing_sections %}
+    <div class="validation-errors">
+      <strong>Review required</strong>
+      <p>SAC records an explicit review of every assisted section. Still missing: {{ missing_sections|join(', ') }}.</p>
+    </div>
+  {% endif %}
   <div class="button-stack summary-buttons">
     <form method="post" action="{{ url_for('cam.publish', workflow=workflow.lower(), draft_id=draft_id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="primary-button" type="submit" {% if errors %}disabled{% endif %}>Create</button>
+      <button class="primary-button" type="submit" {% if errors or missing_sections %}disabled{% endif %}>Create</button>
     </form>
     <a class="secondary-button" href="{{ url_for('cam.edit_section', workflow=workflow.lower(), draft_id=draft_id, section=(definitions|list|last)) }}">Go back</a>
   </div>

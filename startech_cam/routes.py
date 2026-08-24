@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 from typing import Any
 
 from flask import (
@@ -33,6 +34,7 @@ from .repository import (
     nested_get,
     nested_set,
     parse_document_text,
+    parse_json_value,
     project_sac_speed,
     refresh_calibration_stamp,
     publish_draft,
@@ -105,10 +107,12 @@ def new_configuration(workflow: str) -> Any:
     name = request.form.get("name", "").strip()
     source = request.form.get("source", "DEFAULT")
     source_document: dict[str, Any] | None = None
+    parent_tag: str | None = None
     try:
         if source == "PREVIOUS":
             tag = request.form.get("previous_tag", "")
             source_document = get_calibration(tag)
+            parent_tag = tag
         elif source == "UPLOAD":
             if workflow != "MAC":
                 raise InvalidDocument("uploads are available in MAC only")
@@ -128,6 +132,7 @@ def new_configuration(workflow: str) -> Any:
             name=name,
             source=source,
             source_document=source_document,
+            parent_tag=parent_tag,
         )
     except (ValueError, InvalidDocument) as exc:
         flash(str(exc), "error")
@@ -176,9 +181,9 @@ def _coerce_field(field: Field) -> Any:
             raise ValueError(f"{field.label}: enter a number") from exc
     elif field.kind == "json":
         try:
-            value = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"{field.label}: invalid JSON ({exc.msg})") from exc
+            value = parse_json_value(raw)
+        except InvalidDocument as exc:
+            raise ValueError(f"{field.label}: {exc}") from exc
     else:
         value = raw
         if not value:
@@ -188,6 +193,11 @@ def _coerce_field(field: Field) -> Any:
             raise ValueError(f"{field.label}: minimum is {field.minimum:g}")
         if field.maximum is not None and value > field.maximum:
             raise ValueError(f"{field.label}: maximum is {field.maximum:g}")
+        if field.step is not None:
+            origin = field.minimum or 0
+            steps = (value - origin) / field.step
+            if not math.isclose(steps, round(steps), abs_tol=1e-9):
+                raise ValueError(f"{field.label}: increment must be {field.step:g}")
     return value
 
 
@@ -294,6 +304,12 @@ def summary(workflow: str, draft_id: str) -> str:
     if workflow.upper() != stored_workflow:
         abort(404)
     errors = combined_config_errors(document)
+    definitions = SAC_STEPS if stored_workflow == "SAC" else MAC_SECTIONS
+    missing_sections = (
+        [section for section in definitions if section not in touched]
+        if stored_workflow == "SAC"
+        else []
+    )
     return render_template(
         "summary.html",
         workflow=stored_workflow,
@@ -302,7 +318,8 @@ def summary(workflow: str, draft_id: str) -> str:
         document_json=serialize_document(document),
         touched=touched,
         errors=errors,
-        definitions=SAC_STEPS if stored_workflow == "SAC" else MAC_SECTIONS,
+        missing_sections=missing_sections,
+        definitions=definitions,
     )
 
 
@@ -337,6 +354,7 @@ def edit_with_mac(tag: str) -> Any:
         name=f"{source['profil']['ad']} MAC",
         source="PREVIOUS",
         source_document=source,
+        parent_tag=tag,
     )
     return redirect(url_for("cam.edit_section", workflow="mac", draft_id=draft_id, section="overview"))
 

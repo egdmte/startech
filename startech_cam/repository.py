@@ -18,6 +18,7 @@ from startech.configuration.combined import (
 from startech.configuration.validation import kisa_ozet_hesapla
 
 from .db import get_db
+from .fields import SAC_STEPS
 from .security import audit, now_epoch
 
 
@@ -58,18 +59,7 @@ def _reject_constant(value: str) -> None:
 def parse_document_text(
     text: str, *, refresh_calibration_digest: bool = False
 ) -> dict[str, Any]:
-    if len(text.encode("utf-8")) > MAX_JSON_BYTES:
-        raise InvalidDocument("configuration exceeds the one-megabyte limit")
-    try:
-        value = json.loads(
-            text,
-            object_pairs_hook=_duplicate_guard,
-            parse_constant=_reject_constant,
-        )
-    except InvalidDocument:
-        raise
-    except json.JSONDecodeError as exc:
-        raise InvalidDocument(f"invalid JSON at line {exc.lineno}: {exc.msg}") from exc
+    value = parse_json_value(text)
     if not isinstance(value, dict):
         raise InvalidDocument("configuration root must be an object")
     if refresh_calibration_digest:
@@ -80,6 +70,24 @@ def parse_document_text(
     errors = combined_config_errors(value)
     if errors:
         raise InvalidDocument("; ".join(errors))
+    return value
+
+
+def parse_json_value(text: str) -> Any:
+    """Parse a strict JSON value for both full documents and MAC fragments."""
+
+    if len(text.encode("utf-8")) > MAX_JSON_BYTES:
+        raise InvalidDocument("JSON exceeds the one-megabyte limit")
+    try:
+        value = json.loads(
+            text,
+            object_pairs_hook=_duplicate_guard,
+            parse_constant=_reject_constant,
+        )
+    except InvalidDocument:
+        raise
+    except json.JSONDecodeError as exc:
+        raise InvalidDocument(f"invalid JSON at line {exc.lineno}: {exc.msg}") from exc
     return value
 
 
@@ -139,12 +147,18 @@ def create_draft(
     name: str,
     source: str = "DEFAULT",
     source_document: dict[str, Any] | None = None,
+    parent_tag: str | None = None,
 ) -> str:
     if workflow not in {"SAC", "MAC"}:
         raise ValueError("workflow must be SAC or MAC")
     normalized_name = name.strip()
     if not normalized_name or len(normalized_name) > 80:
         raise ValueError("configuration name must contain between 1 and 80 characters")
+    if parent_tag is not None and (
+        len(parent_tag) != 6
+        or any(character not in "0123456789abcdef" for character in parent_tag)
+    ):
+        raise ValueError("parent calibration tag is invalid")
     document = copy.deepcopy(source_document) if source_document is not None else _default_document()
     _prepare_profile(
         document,
@@ -162,13 +176,26 @@ def create_draft(
         """
         INSERT INTO drafts(
             draft_id, owner, workflow, payload_json, touched_sections_json,
-            created_at, updated_at
-        ) VALUES (?, ?, ?, ?, '[]', ?, ?)
+            parent_tag, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, '[]', ?, ?, ?)
         """,
-        (draft_id, owner, workflow, serialize_document(document), current, current),
+        (
+            draft_id,
+            owner,
+            workflow,
+            serialize_document(document),
+            parent_tag,
+            current,
+            current,
+        ),
     )
     get_db().commit()
-    audit(owner, "DRAFT_CREATED", draft_id, {"workflow": workflow, "source": source})
+    audit(
+        owner,
+        "DRAFT_CREATED",
+        draft_id,
+        {"workflow": workflow, "source": source, "parent_tag": parent_tag},
+    )
     return draft_id
 
 
@@ -249,47 +276,76 @@ def get_calibration(tag: str) -> dict[str, Any]:
 
 
 def publish_draft(draft_id: str, owner: str) -> str:
-    document, _touched, workflow = get_draft(draft_id, owner)
-    errors = combined_config_errors(document)
-    if errors:
-        raise InvalidDocument("; ".join(errors))
-    parent_tag = None
-    source = document["profil"]["kaynak"]
-    if source == "PREVIOUS":
-        parent_tag = document["profil"].get("kimlik")
     connection = get_db()
-    for _attempt in range(10):
-        tag = secrets.token_hex(3)
-        document["profil"]["kimlik"] = tag
-        document["profil"]["olusturuldu_utc"] = _utc_now()
-        try:
-            connection.execute("BEGIN IMMEDIATE")
-            connection.execute(
-                """
-                INSERT INTO calibrations(
-                    tag, name, workflow, owner, payload_json, created_at, parent_tag
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    tag,
-                    document["profil"]["ad"],
-                    workflow,
-                    owner,
-                    serialize_document(document),
-                    now_epoch(),
-                    parent_tag,
-                ),
-            )
-            connection.execute(
-                "DELETE FROM drafts WHERE draft_id = ? AND owner = ?",
-                (draft_id, owner),
-            )
-            connection.commit()
-            audit(owner, "CALIBRATION_CREATED", tag, {"workflow": workflow})
-            return tag
-        except sqlite3.IntegrityError:
-            connection.rollback()
-    raise RuntimeError("could not allocate a unique calibration tag")
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            """
+            SELECT payload_json, touched_sections_json, workflow, parent_tag
+            FROM drafts WHERE draft_id = ? AND owner = ?
+            """,
+            (draft_id, owner),
+        ).fetchone()
+        if row is None:
+            raise DraftNotFound(draft_id)
+        document = parse_document_text(str(row["payload_json"]))
+        touched = set(json.loads(str(row["touched_sections_json"])))
+        workflow = str(row["workflow"])
+        if workflow == "SAC":
+            missing = [section for section in SAC_STEPS if section not in touched]
+            if missing:
+                raise InvalidDocument(
+                    "review every SAC section before creation; missing: "
+                    + ", ".join(missing)
+                )
+        errors = combined_config_errors(document)
+        if errors:
+            raise InvalidDocument("; ".join(errors))
+
+        for _attempt in range(10):
+            tag = secrets.token_hex(3)
+            document["profil"]["kimlik"] = tag
+            document["profil"]["olusturuldu_utc"] = _utc_now()
+            try:
+                connection.execute(
+                    """
+                    INSERT INTO calibrations(
+                        tag, name, workflow, owner, payload_json, created_at, parent_tag
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        tag,
+                        document["profil"]["ad"],
+                        workflow,
+                        owner,
+                        serialize_document(document),
+                        now_epoch(),
+                        row["parent_tag"],
+                    ),
+                )
+                break
+            except sqlite3.IntegrityError:
+                continue
+        else:
+            raise RuntimeError("could not allocate a unique calibration tag")
+
+        deleted = connection.execute(
+            "DELETE FROM drafts WHERE draft_id = ? AND owner = ?",
+            (draft_id, owner),
+        ).rowcount
+        if deleted != 1:
+            raise DraftNotFound(draft_id)
+        connection.commit()
+    except BaseException:
+        connection.rollback()
+        raise
+    audit(
+        owner,
+        "CALIBRATION_CREATED",
+        tag,
+        {"workflow": workflow, "parent_tag": row["parent_tag"]},
+    )
+    return tag
 
 
 def nested_get(document: dict[str, Any], path: str) -> Any:
@@ -346,6 +402,7 @@ __all__ = [
     "nested_get",
     "nested_set",
     "parse_document_text",
+    "parse_json_value",
     "publish_draft",
     "project_sac_speed",
     "refresh_calibration_stamp",

@@ -8,7 +8,8 @@
     {% for item in calibrations %}
     <article class="history-row">
       <div><strong>{{ item.tag }}</strong><span>{{ item.name }}</span></div>
-      <span>{{ item.workflow }}</span><span>{{ item.owner }}</span>
+      <span>{{ item.workflow }}</span>
+      <span>{{ item.owner }}{% if item.parent_tag %}<small>From {{ item.parent_tag }}</small>{% endif %}</span>
       <div class="row-actions">
         <a class="secondary-button compact" href="{{ url_for('cam.download', tag=item.tag) }}">Download</a>
         <form method="post" action="{{ url_for('cam.edit_with_mac', tag=item.tag) }}">
