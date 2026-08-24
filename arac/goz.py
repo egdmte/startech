@@ -1,5 +1,5 @@
 """
-STARTECH-KASIM (CAMILA)
+STARTECH-KASIM
 Kamera Akışı Sağlama ve İletim Modülü
 Camera Acquisition and Monitoring Interface Layer Adapter
 

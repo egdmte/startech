@@ -138,10 +138,10 @@ değiştirebilir.
 Bir tarih yazılması ölçümün gerçekten yapıldığını kanıtlamaz. İnsan ölçüm formu ve
 gözlemci kaydı yine gereklidir.
 
-Dört trim değeri motor PWM'ine uygulanan çarpanlardır. Mevcut StarTechConfig bunları
-`kalibrasyon.json` içine yazar. PLAN_New daha önce bu yerleşimi açık karar olarak
-kesinleştirmediği için v1 şeması yalnız **bugünkü gerçek biçimi** belgeler; gelecekteki
-v2 tasarım kararını kendiliğinden vermez.
+Dört trim değeri motor PWM'ine uygulanan çarpanlardır. Tarihsel StarTechConfig bunları
+`kalibrasyon.json` içine yazar; CAM ve YAREN mevcut v1 uyumluluğunu korur. v1 şeması
+yalnız **bugünkü gerçek biçimi** belgeler; gelecekteki bir biçim kararını kendiliğinden
+vermez. Güncel yön ve durum kökteki `PLAN.md` içindedir.
 
 0,5–1,5 dışındaki trimler şema tarafından otomatik silinmez; güçlü bir insan uyarısı
 üretir. `olculdu` tarihliyken dört trim de 1,0 ise ölçümün gerçekten yapılıp yapılmadığı
@@ -207,7 +207,7 @@ cevabı olmadığını belirtir.
 
 ## 6. YAREN profil zarfı ve durumları
 
-STARTECH-YAREN (CLARA), mevcut v1 dosyalarını değiştirmeden bir
+STARTECH-YAREN, mevcut v1 dosyalarını değiştirmeden bir
 `kalibrasyon.json` + `ayarlar.json` çiftini dış bir `profil.json` ile eşler. Tam adları:
 
 - **Yapılandırma Arşivleme, Revizyon ve Etkinleştirme Noktası**

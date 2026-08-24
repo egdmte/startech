@@ -24,15 +24,15 @@ There is no production “pretend car” mode.
 
 | Part | Current real responsibility | Physical status |
 |---|---|---|
-| YAREN | Selects immutable calibration/settings profiles and provides the CAM gateway | Software verified; school profile must be reviewed |
-| KASIM | Opens a Windows/Linux OpenCV USB camera, with Picamera2 fallback on the Pi | USB path software verified; mounting/Pi camera unverified |
-| KEREM | Runs lane detection on actual RGB frames using the active calibration | Software verified on controlled images; school scene unverified |
-| DORA | Maintains vehicle state transitions | Software verified |
-| KADER | Writes structured run/workshop records | Software verified; storage durability on the Pi unverified |
-| TAWNT | Validates phases, arming, values, watchdogs and every motor request | Software verified; cannot observe physical motion |
-| OSMAN | Writes the existing car's L298N channels through gpiozero | Wiring is implemented from LEGACY; physical output unverified this summer |
-| ARDA | Offers observation, autonomous driving, bounded workshop output and YAREN/CAM access | Real execution paths exist |
-| CAM/SAC | Runs real linked-car camera/lane checks and one bounded workshop command | Server/browser path software verified; physical result needs a human observation |
+| YAREN | Selects immutable calibration/settings profiles and provides the CAM gateway | `IMPLEMENTED`; school profile values are `PHYSICALLY UNVERIFIED` |
+| KASIM | Opens a Windows/Linux OpenCV USB camera, with Picamera2 fallback on the Pi | `IMPLEMENTED`; mounting/Pi camera is `PHYSICALLY UNVERIFIED` |
+| KEREM | Runs lane detection on actual RGB frames using the active calibration | `IMPLEMENTED`; school scene is `PHYSICALLY UNVERIFIED` |
+| DORA | Maintains vehicle state transitions | `IMPLEMENTED`; state does not prove motion |
+| KADER | Writes structured run/workshop records | `IMPLEMENTED`; Pi storage durability is `PHYSICALLY UNVERIFIED` |
+| TAWNT | Validates phases, arming, values, watchdogs and every motor request | `IMPLEMENTED`; cannot observe physical motion |
+| OSMAN | Writes the existing car's L298N channels through gpiozero | `IMPLEMENTED` from LEGACY wiring; physical output is `PHYSICALLY UNVERIFIED` |
+| ARDA | Offers observation, autonomous driving, bounded workshop output and YAREN/CAM access | Real execution paths are `IMPLEMENTED`; driving is `PHYSICALLY UNVERIFIED` |
+| CAM/SAC | Runs real linked-car camera/lane checks and one bounded workshop command | `IMPLEMENTED`; physical result needs a separate human observation |
 
 ## Existing vehicle wiring
 
@@ -89,7 +89,7 @@ The signed, temporary link exposes only four operations:
 4. run one bounded SAC workshop motor command.
 
 The motor form requires the operator's CAM-session legal name, CAM server time, an
-unexpired job, the complete physical checklist and a five-second browser countdown.
+unexpired job, the complete physical checklist and a seven-second browser countdown.
 `Start now` may skip the remaining countdown; `Cancel` sends nothing.
 
 The server bounds each side to ±35% and duration to 0.05–3 seconds. YAREN revalidates
@@ -140,16 +140,16 @@ the operator, location, car state and intended run.
 
 Use these phrases literally:
 
-- `SOFTWARE VERIFIED`: the current automated check passed.
-- `LIVE CAMERA OBSERVED`: a physical camera returned a new frame in a dated session.
-- `COMMAND EXECUTED`: software reached the real driver and requested stop.
-- `PHYSICALLY OBSERVED`: a named human watched the stated hardware result.
+- `IMPLEMENTED`: a real code path exists and its stated contract is checked.
 - `PHYSICALLY UNVERIFIED`: implementation exists but the needed car-side observation has
   not happened.
+- `PHYSICALLY VERIFIED`: dated physical evidence demonstrates the exact stated behavior.
 - `NOT IMPLEMENTED`: there is no real path yet; document the missing dependency instead
   of constructing a result.
+- `VALIDATED`: TAWNT accepted one specific command, profile, value, or relationship.
 
-Never convert `SOFTWARE VERIFIED` or `COMMAND EXECUTED` into `PHYSICALLY OBSERVED`.
+Never convert a test result, `VALIDATED` command, receipt, or stop request into physical
+movement or braking evidence.
 
 ## What to read beside the car
 
@@ -161,6 +161,6 @@ Never convert `SOFTWARE VERIFIED` or `COMMAND EXECUTED` into `PHYSICALLY OBSERVE
 - `TAWNT.md` for the safety contract.
 - `Markdown/HATA_DEFTERI.md` for historical failures, not current capability claims.
 
-`Markdown/PLAN_New.md` and `AGENTS_READ_ME.txt` are pending a separate Q&A-led rewrite.
-Until that happens, prefer current source plus this dated handoff when an old statement
+`PLAN.md` is the current state and roadmap. Retired plans remain only in Git history and
+the retained PDFs are historical snapshots. Prefer current source when any document
 contradicts implemented behavior.

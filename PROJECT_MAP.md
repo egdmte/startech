@@ -1,57 +1,90 @@
 # STARTECH project map
 
-Use this page when the repository starts feeling larger than the car.
+Source review: 24 August 2026.
 
-## Start here
+Use this page to find the current implementation. Read `AGENTS_READ_ME.txt` before
+editing and `PLAN.md` for status and future direction.
 
-1. Read `AGENTS_READ_ME.txt` before changing anything.
-2. Run `git status --short` and preserve changes that are already present.
-3. Choose one area from the table below. Do not follow similarly named files into
-   unrelated folders.
-4. Read the production file and its matching test together.
-5. For work beside the physical car, also read
-   `Markdown/OKULDA_LLM_DEVAM_REHBERI.md`.
+## Repository areas
 
-## The repository in one table
+| Path | Current purpose |
+|---|---|
+| `arac/` | Real vehicle application: configuration, camera, perception, state, logging, workshop execution, orchestration, and GPIO boundary |
+| `startech/tawnt/` | TAWNT implementation behind the public root `tawnt.py` API |
+| `startech/configuration/` | Configuration validation, immutable profiles, and combined-document conversion |
+| `startech/project_control/` | Checks that current governing documents still agree with the repository |
+| `startech_cam/` | Production CAM application, SAC/MAC workflows, signed YAREN link, and bounded workshop UI |
+| `config/` | Current schemas and visibly inactive example configuration documents |
+| `tests/` | Software contract and regression checks; fixtures here are not vehicle evidence |
+| `sim/` | Isolated Webots visual environment; never physical-car evidence |
+| `Markdown/` | Current detailed contracts/handoffs plus explicitly historical records |
+| `examples/prototypes/` | Historical CAM design references, not production behavior |
+| `LEGACY/` | Previous moving-car implementation and rule snapshot; migration/history reference only |
 
-| Path | What it is | Use it when |
-|---|---|---|
-| `arac/` | Current autonomous-car application contracts | Working on camera, configuration, vision, state, logs, orchestration or motor requests |
-| `sim/` | Explicitly Webots-only visual car driven through TAWNT | Inspecting the Webots world; its output is never car evidence |
-| `tests/` | Automated proof for the current Python behavior | Changing anything in `arac/`, TAWNT, configuration or project checks |
-| `startech/` | Shared implementation packages used by public entry points | Maintaining TAWNT internals, configuration validation or document checks |
-| `config/` | Versioned JSON schemas and examples | Working on calibration/configuration file structure |
-| `startech_cam/` | Production CAM web application, device link API and SAC/MAC UI | Working on browser authentication, calibration creation or YAREN communication |
-| `examples/prototypes/` | Historical design references for the production CAM UI | Comparing the implemented interface with the approved Figma-derived screens |
-| `Markdown/` | Detailed plans, evidence and school handoff documents | Understanding decisions or preparing a supervised school session |
-| `subiru/` | Separate team task/evidence dashboard | Working specifically on ŞUBİRU project tracking |
-| `LEGACY/` | Historical code kept for reference | Comparing old behavior only; do not import it into current code |
-
-## Current car path
+## Real vehicle chain
 
 ```text
-arac/main.py       ARDA / ADAM    command-line entry and orchestration
+arac/main.py             ARDA operator surface and orchestration
     |
-    +-- arac/ayar.py       YAREN / CLARA   fail-closed active profile loader
-    +-- arac/ayar_cli.py   YAREN / CLARA   calibration/settings registry menu
-    +-- arac/yaren_web.py                  signed device identity and web-code bootstrap
-    +-- arac/yaren_link.py                 temporary outbound closed-operation link
-    +-- arac/yaren_diagnostics.py          real camera/lane capability probes
-    +-- arac/atolye.py                     shared bounded physical workshop execution
-    +-- arac/goz.py        KASIM / CAMILA   camera acquisition
-    +-- arac/kamera_oturumu.py             finite record/replay sessions
-    +-- arac/goruntu.py    KEREM / CORA     cautious vision observations
-    +-- arac/durum.py      DORA / SARA      state transitions
-    +-- arac/kayit.py      KADER / BLAIR    black-box software records
-    +-- arac/surucu.py     OSMAN / MATT     real GPIO motor-output boundary
-    +-- arac/simulasyon.py                 explicitly Webots-only bridge
-    +-- arac/cli_ui.py                     shared dependency-free terminal widgets
+    +-- arac/ayar.py              YAREN-selected immutable runtime profile
+    +-- arac/ayar_cli.py          YAREN profile registry and CAM gateway menu
+    +-- arac/goz.py               KASIM physical USB/Picamera2 acquisition
+    +-- arac/kamera_oturumu.py    finite real-camera record/replay
+    +-- arac/goruntu.py           KEREM lane perception
+    +-- arac/durum.py             DORA state transitions
+    +-- arac/kayit.py             KADER ordered memory/JSONL evidence
+    +-- root tawnt.py             TAWNT public validation API
+    +-- arac/surucu.py            controller, watchdog, OSMAN GPIO boundary
+    +-- arac/atolye.py            shared bounded physical workshop executor
+    +-- arac/yaren_web.py         signed CAM device identity/code request
+    +-- arac/yaren_link.py        closed temporary CAM operation link
+    +-- arac/yaren_diagnostics.py bounded real capability report
 ```
 
-## Calibration and settings registry
+ARDA's live drive composes:
 
-YAREN joins, versions and selects existing v1 calibration/settings pairs without
-changing their schemas:
+```text
+YAREN profile -> KASIM frame -> KEREM observation -> lane controller
+      -> TAWNT-validated request -> OSMAN gpiozero/L298N output
+
+DORA supplies explicit state transitions.
+KADER records the software timeline.
+```
+
+OSMAN is the only production motor driver. Controlled driver doubles live under
+`tests/`; they cannot be selected as a real vehicle mode.
+
+## Operator commands
+
+Open the small ARDA menu:
+
+```powershell
+py -m arac.main --interactive
+```
+
+Inspect the exact current interface:
+
+```powershell
+py -m arac.main --help
+```
+
+The important real paths are:
+
+```powershell
+py -m arac.main --observe --operator "Legal Name"
+py -m arac.main --drive --operator "Legal Name" --confirm-output
+py -m arac.main --bench --operator "Legal Name" --confirm-output --left 10 --right 10 --seconds 0.25
+py -m arac.main --yaren
+```
+
+`--observe` does not create OSMAN. `--drive` and `--bench` can reach physical GPIO and
+must be treated as live output. Apply the legal-name, warning, seven-second cancellation,
+SIGINT, and physical-power rules in `AGENTS_READ_ME.txt`.
+
+## YAREN configuration
+
+YAREN joins, versions, and selects the current v1 calibration/settings pair without
+changing its schema:
 
 ```text
 kalibrasyon.json + ayarlar.json
@@ -59,154 +92,75 @@ kalibrasyon.json + ayarlar.json
              v
 startech/configuration/profiles.py
              |
-             +-- profil.json + full SHA-256 values
-             +-- selection history and archive
-             +-- arac/ayar.py (read-only runtime snapshot)
-             +-- arac/ayar_cli.py (human/automation interface)
+             +-- profil.json and full SHA-256 values
+             +-- immutable installed/archive directories
+             +-- explicit active selection and history
+             +-- arac/ayar.py read-only snapshot
 ```
 
-Profiles live outside the repository by default. Open the guided menu directly or
-through ARDA:
+Open the registry directly:
 
 ```powershell
-py -3.13 -m arac.ayar_cli
-py -3.13 -m arac.main --auto --configuration --language en
+py -m arac.ayar_cli interactive
 ```
 
-Installing, validating or selecting a profile never arms TAWNT or a motor driver and
-never grants a "safe to drive" state. See `Markdown/YAPILANDIRMA_SOZLESMESI.md` for
-the registry layout, warning review and settings-revision rules.
+Installing, validating, or selecting a profile never arms TAWNT and never proves the
+values were physically measured. See `Markdown/YAPILANDIRMA_SOZLESMESI.md`.
 
-## Temporary CAM connection
+## CAM and SAC
 
-YAREN action 10 requests a random, one-use eight-character code from CAM using its
-registered Ed25519 device identity. Entering that code in the browser binds the
-browser session to the same temporary outbound device link. The code is not a fixed
-password, and CAM does not accept an anonymous request to mint one.
+YAREN requests a one-use code with a registered Ed25519 device identity. The authenticated
+browser uses that code to bind to the same short-lived outbound link.
 
-```text
-YAREN --signed request--> CAM --random one-use code--> operator
-   |                                                |
-   +-- outbound bearer link <--- browser consumes --+
-              |
-              +-- active configuration snapshot
-              +-- physical camera + real lane-analysis report
-              +-- validated inactive profile import
-              +-- one short, explicit SAC workshop motor command
-```
+The link accepts only:
 
-The link has a closed operation list: `REQUEST_ACTIVE_CONFIGURATION`,
-`REQUEST_CAPABILITY_REPORT`, `INSTALL_INACTIVE_CONFIGURATION` and
-`RUN_BOUNDED_WORKSHOP_COMMAND`. The last operation is available only from an
-authenticated SAC session, carries CAM's legal-name/time record, expires in seconds and
-is limited to ±35% for at most three seconds. It executes on the car through the same
-ARDA → TAWNT → OSMAN path as the local bench command. It is not continuous remote
-control and cannot start autonomous driving or activate a profile. Imported combined v2
-files remain immutable inactive profiles for human review. Logout, expiry, YAREN shutdown
-or Ctrl+C revokes the link.
+- `REQUEST_ACTIVE_CONFIGURATION`
+- `REQUEST_CAPABILITY_REPORT`
+- `INSTALL_INACTIVE_CONFIGURATION`
+- `RUN_BOUNDED_WORKSHOP_COMMAND`
 
-The CAM capability report opens the physical camera twice: once for acquisition metadata
-and once for KEREM to run the active lane detector. OSMAN is not moved by automatic
-diagnostics; physical output requires the separate, explicit workshop form and countdown.
-Its software receipt records requested/applied values and a stop request. Only a separate
-human observation can record that a wheel physically moved as expected.
+Automatic capabilities may acquire a real camera frame and run KEREM, but do not import
+OSMAN. SAC's separate workshop form carries CAM's authenticated legal name and time,
+requires the physical checklist, shows a seven-second cancel warning, and queues one
+short bounded command through ARDA → TAWNT → OSMAN.
 
-TAWNT keeps every accepted motion request behind a validation gate:
+A receipt proves software execution and a stop request, not physical movement or braking.
+The supervising human records the physical observation separately. The link cannot start
+autonomous driving, activate a profile, open a shell, or become continuous remote control.
 
-```text
-MotorRequest -> tawnt.py -> ValidatedDriveRequest -> MotorDriver
-```
+## Camera sessions
 
-- Root `tawnt.py` is the public TAWNT entry point.
-- `startech/tawnt/` contains its implementation pieces.
-- `GpioZeroMotorDriver` is the only production motor-driver implementation.
-- Controlled call recorders live only in tests and are never accepted as vehicle evidence.
-- The Webots bridge is isolated under `arac/simulasyon.py` and cannot be selected by ARDA.
-- A log entry or requested stop is not proof that a real wheel moved or stopped.
+KASIM opens OpenCV USB first and Picamera2 second. If an opened source later fails to
+read, it fails explicitly instead of switching sources mid-run.
 
-## Camera state
+ARDA camera sessions contain actual numbered JPEG frames plus a strict manifest. Replay
+checks hashes, order, dimensions, and decoding. An interrupted session is marked
+incomplete and rejected. Recording replay is real recorded-data analysis; it is not
+current camera or movement evidence.
 
-KASIM currently tries an OpenCV USB camera first and Picamera2 second. Both failing
-raises an explicit error. A read failure after one source has opened does not silently
-switch cameras.
-
-The laptop USB camera has completed a finite three-frame acquisition check. The
-Raspberry Pi camera and its mounting remain physically unverified.
-
-```powershell
-py -3.13 -m arac.main --auto --check-camera --camera-frames 3 --language en --no-color
-```
-
-## Recorded camera sessions
-
-ARDA can store a finite USB-first/Pi-second camera session as numbered JPEG frames
-plus a strict `manifest.json`. It refuses to overwrite an existing directory. The
-completed manifest is written last; an interrupted capture instead leaves
-`incomplete.json`, which replay rejects.
-
-The numbered ARDA workbench works on Windows, Linux and Raspberry Pi without an extra
-UI package. It includes camera utilities and the YAREN configuration menu:
-
-```powershell
-py -3.13 -m arac.main --interactive --language en
-```
-
-The same operations remain scriptable. Keep large recordings outside the Git working
-tree unless US explicitly decides to version a small fixed test clip:
-
-```powershell
-py -3.13 -m arac.main --auto --record-camera ../startech-recordings/school-01 --record-frames 300 --language en
-py -3.13 -m arac.main --auto --replay-camera ../startech-recordings/school-01 --language en
-```
-
-Replay verifies the manifest, frame order, dimensions and SHA-256 value of every image,
-then decodes the complete session through the KASIM camera interface. It does not yet
-mean that KEREM can recognize lanes or tasks in those images. A recording is camera
-evidence, not proof that the car moved, steered or stopped.
-
-## Visual motor simulation
-
-Open `sim/worlds/startech.wbt` in Webots and press Run. The finite controller sends
-five TAWNT-validated requests through its Webots-specific command bridge, moves four
-Webots wheel devices, then requests zero output. See `sim/README.md` for the smoke check.
-
-The Webots result is a visualization, not a calibration of real motors, batteries,
-traction, braking or stopping distance.
-
-## Which document answers which question?
+## Current documents
 
 | Question | Read |
 |---|---|
-| What must an agent do before editing? | `AGENTS_READ_ME.txt` |
-| What order should the project work follow? | `SIRA.md` |
-| What is the complete phase-gated roadmap? | `ROADMAP.md` |
-| How should work continue at school? | `Markdown/OKULDA_LLM_DEVAM_REHBERI.md` |
-| What is the detailed historical plan? | `Markdown/PLAN_New.md` |
-| What failed before and what evidence exists? | `Markdown/HATA_DEFTERI.md` |
-| How do calibration JSON files work? | `Markdown/YAPILANDIRMA_SOZLESMESI.md` |
-| How does TAWNT work? | `TAWNT.md` |
+| How should an agent work here? | `AGENTS_READ_ME.txt` |
+| What exists and what comes next? | `PLAN.md` |
+| Where is a current implementation? | This file and the owning source |
+| How does TAWNT work now? | `TAWNT.md` |
+| How do configuration files work? | `Markdown/YAPILANDIRMA_SOZLESMESI.md` |
+| How should the first car-return session proceed? | `Markdown/OKULDA_LLM_DEVAM_REHBERI.md` and `PLAN.md` |
+| What failed in the earlier build? | `Markdown/HATA_DEFTERI.md` as a post-mortem |
 
-Plans describe intent; tests and current source describe implemented behavior. If they
-disagree, report the difference instead of silently rewriting either side.
+Retired plans remain available in Git history. The retained plan PDFs are read-only
+historical snapshots and must not direct current work.
 
 ## Normal verification
 
 ```powershell
-py -3.13 -m unittest discover -s tests -v
-py -3.13 -m compileall -q arac tests
-py -3.13 kontrol.py
+py -m pytest -q tests
+py -m compileall -q arac startech startech_cam tests
+node --check startech_cam/static/cam.js
+py kontrol.py
 ```
 
-`kontrol.py` checks documentation claims separately from the unit tests. A failure in
-one command must not be described as success in another.
-
-## Things to ignore during ordinary car work
-
-- Generated PDFs unless the task is specifically about document export.
-- Historical web prototypes while changing production behavior; production CAM lives
-  under `startech_cam/`.
-- `subiru/` unless the task concerns the team dashboard.
-- `LEGACY/` unless the task explicitly asks for historical comparison.
-- Untracked files whose ownership or purpose has not been confirmed.
-
-The safest way through this project is one path, one contract and one test at a time.
+Each command proves only its own checked boundary. None of them proves that the physical
+car moved or stopped.

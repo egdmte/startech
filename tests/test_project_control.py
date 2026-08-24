@@ -6,7 +6,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from startech.project_control.claims import check_file_names, check_section_references
+from startech.project_control.claims import (
+    check_constants,
+    check_file_names,
+    check_section_references,
+)
 from startech.project_control.measurements import check_measurements
 from startech.project_control.repository import missing_documents
 
@@ -29,26 +33,32 @@ class ProjectControlTest(unittest.TestCase):
         return path
 
     def test_missing_document_fails_closed(self):
-        self.write("PLAN_New.md", "## 1. Plan\n")
+        self.write("PLAN.md", "## 1. Plan\n")
         self.assertEqual(
             ["CLAUDE.md"],
-            missing_documents(("PLAN_New.md", "CLAUDE.md"), self.resolver),
+            missing_documents(("PLAN.md", "CLAUDE.md"), self.resolver),
         )
 
     def test_filename_must_exist_or_be_allowed(self):
-        self.write("PLAN_New.md", "Use missing.py and planned.py.\n")
+        self.write("PLAN.md", "Use missing.py and planned.py.\n")
         findings = check_file_names(
-            ("PLAN_New.md",),
+            ("PLAN.md",),
             self.resolver,
-            {"PLAN_New.md"},
+            {"PLAN.md"},
             {"planned.py"},
         )
-        self.assertEqual(["PLAN_New.md:1  missing.py"], findings)
+        self.assertEqual(["PLAN.md:1  missing.py"], findings)
 
     def test_section_reference_must_resolve(self):
-        plan = self.write("PLAN_New.md", "## 1. Start\nSee §1 and §9.\n")
+        plan = self.write("PLAN.md", "## 1. Start\nSee §1 and §9.\n")
         self.assertEqual(
-            ["PLAN_New.md:2  §9"], check_section_references(str(plan))
+            ["PLAN.md:2  §9"], check_section_references(str(plan))
+        )
+
+    def test_uppercase_pdf_filename_is_not_treated_as_a_source_constant(self):
+        self.write("PLAN.md", "Read HATA_DEFTERI_PAYLASIM.pdf as history.\n")
+        self.assertEqual(
+            [], check_constants(("PLAN.md",), self.resolver, "", set())
         )
 
     def test_measurement_needs_date_or_uncertainty(self):

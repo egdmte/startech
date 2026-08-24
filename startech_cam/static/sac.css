@@ -107,7 +107,9 @@
 .workshop-countdown { display: grid; gap: 12px; padding: 16px; border-left: 5px solid var(--cam-danger); background: #fff; text-align: center; }
 .workshop-countdown[hidden] { display: none; }
 .workshop-countdown > strong { font-size: 20px; }
+.workshop-countdown > p { margin: 0; color: var(--cam-danger); font-weight: 700; }
 .workshop-countdown > div, .observation-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.live-output-warning { margin: 12px 0; padding: 14px 16px; border-left: 5px solid var(--cam-danger); background: #fff0f0; color: #a40000; font-weight: 800; }
 .workshop-result { display: grid; gap: 10px; margin-top: 18px; padding: 14px; border: 1px solid #bbb; background: #fff; }
 .workshop-result h3, .workshop-result p { margin: 0; }
 .workshop-result dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin: 0; }

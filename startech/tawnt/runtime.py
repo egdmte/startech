@@ -1,4 +1,4 @@
-"""Single process-local state container shared by all 3awnt modules."""
+"""Single process-local state container shared by all TAWNT modules."""
 
 from __future__ import annotations
 

@@ -5,7 +5,8 @@ Bu dosya bir kural listesi değil, tek bir soruya indirgenebilir:
 > ## **Cevap yanlışsa, bunu nasıl anlarım?**
 
 Cevabı varsa — derleyici, bir test, bir multimetre, dört satırlık bir betik — soru
-güvenlidir. Cevabı yoksa, dikkatli ol; §21 tam olarak orada oldu.
+güvenlidir. Cevabı yoksa, dikkatli ol; tarihsel HATA DEFTERİ tam olarak bu tür bir
+sürüklenmenin neye mal olduğunu anlatır.
 
 ---
 
@@ -78,7 +79,7 @@ Bunlar okurken hata gibi görünmez. Cevap gibi görünür.
 
 | İşaret | Ne demek |
 |---|---|
-| Bir dosya, sabit veya metot adı verdi | `grep` at. §21'in tamamı bu |
+| Bir dosya, sabit veya metot adı verdi | Kaynakta ara. HATA DEFTERİ'ndeki sahte teslimatların ortak sorunu buydu |
 | Bir sayı verdi | Nereden geldiğini sor. Aritmetiği yeniden kuramıyorsan süstür |
 | Hiç "bilmiyorum" demiyor | Bir yerde tahmin ediyor demektir |
 | Her şeye katılıyor | Değerlendirmiyor, tekrarlıyor |
@@ -94,7 +95,8 @@ Bunlar okurken hata gibi görünmez. Cevap gibi görünür.
 "`lane.py:148`'de `error` neden `mid - near_c`?" ucuz ve kesin.
 
 **Bağlamı verdim mi?** Sıfırdan başlayan her oturum, seni yakalamakla bütçe harcar.
-`SIRA.md` ve §0.0 bunun için var — sürüklenmeyi önlemek kadar, parayı da korurlar.
+Kökteki `PLAN.md` güncel yönü ve durumu bunun için tek yerde tutar — sürüklenmeyi
+önlemek kadar, parayı da korur.
 
 **Bunu kendim çözebilir miyim?** Genelde evet, gerçekler için. Genelde hayır, tasarım için.
 

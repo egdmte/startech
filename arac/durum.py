@@ -1,5 +1,5 @@
 """
-STARTECH-DORA (SARA)
+STARTECH-DORA
 Durum Okuma ve Raporlama Algoritması
 State Analysis and Recognition Algorithm
 

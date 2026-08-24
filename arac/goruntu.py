@@ -1,4 +1,4 @@
-"""STARTECH-KEREM (CORA): live lane perception and YAREN diagnostics.
+"""STARTECH-KEREM: live lane perception and YAREN diagnostics.
 
 The production analyzer consumes RGB frames from KASIM and uses the active
 YAREN calibration. There is no generated-observation production path.

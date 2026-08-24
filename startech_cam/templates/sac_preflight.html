@@ -59,9 +59,10 @@
         <label><input type="checkbox" name="inspection" value="motors-mounted" required> The motors and wiring are mounted for this check.</label>
         <label><input type="checkbox" name="inspection" value="path-clear" required> The movement area and power switches are reachable.</label>
       </fieldset>
-      <button class="cam-action cam-action--danger workshop-submit" type="submit" {% if not car_linked %}disabled{% endif %}>Start 5-second countdown</button>
+      <button class="cam-action cam-action--danger workshop-submit" type="submit" {% if not car_linked %}disabled{% endif %}>Start 7-second countdown</button>
       <div class="workshop-countdown" data-workshop-countdown hidden role="status" aria-live="assertive">
-        <strong>Motor command queues in <span data-workshop-count>5</span></strong>
+        <strong>LIVE MOTOR OUTPUT may start in <span data-workshop-count>7</span> seconds</strong>
+        <p>Stay at the physical power cutoff. Cancel now if the car is not secured and clear.</p>
         <div>
           <button class="cam-action cam-action--danger" type="button" data-workshop-now>Start now</button>
           <button class="cam-action cam-action--secondary" type="button" data-workshop-cancel>Cancel</button>
@@ -73,6 +74,9 @@
     <div class="workshop-result" data-workshop-job data-status-url="{{ url_for('cam.sac_job_status', draft_id=draft_id, job_id=workshop_job.job_id) }}" data-job-status="{{ workshop_job.status }}">
       <h3>Command {{ workshop_job.job_id[:12] }}</h3>
       <p>Status: <strong data-workshop-job-status>{{ workshop_job.status }}</strong></p>
+      {% if workshop_job.status in ('PENDING', 'CLAIMED') %}
+      <p class="live-output-warning" role="alert">LIVE MOTOR OUTPUT IS QUEUED OR MAY BE ACTIVE. Stay at the physical power cutoff until execution ends.</p>
+      {% endif %}
       {% if workshop_job.receipt %}
       <dl>
         <div><dt>CAM issued</dt><dd>{{ workshop_job.receipt.cam_issued_at_utc or workshop_job.receipt.cam_issued_at }}</dd></div>

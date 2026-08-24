@@ -164,13 +164,13 @@ class ArdaTest(unittest.TestCase):
 
     def test_module_identities_remain_the_agreed_names(self):
         expected = {
-            main: "STARTECH-ARDA (ADAM)",
-            ayar: "STARTECH-YAREN (CLARA)",
-            durum: "STARTECH-DORA (SARA)",
-            goz: "STARTECH-KASIM (CAMILA)",
-            goruntu: "STARTECH-KEREM (CORA)",
-            kayit: "STARTECH-KADER (BLAIR)",
-            surucu: "STARTECH-OSMAN (MATT)",
+            main: "STARTECH-ARDA",
+            ayar: "STARTECH-YAREN",
+            durum: "STARTECH-DORA",
+            goz: "STARTECH-KASIM",
+            goruntu: "STARTECH-KEREM",
+            kayit: "STARTECH-KADER",
+            surucu: "STARTECH-OSMAN",
         }
         for module, identity in expected.items():
             with self.subTest(module=module.__name__):

@@ -187,13 +187,15 @@ class CamInterfaceTest(unittest.TestCase):
         preflight = self.client.get(f"/sac/{draft_id}/preflight")
         self.assertIn(b"Check the linked car for real", preflight.data)
         self.assertIn(b"data-workshop-form", preflight.data)
-        self.assertIn(b"Start 5-second countdown", preflight.data)
+        self.assertIn(b"Start 7-second countdown", preflight.data)
+        self.assertIn(b"LIVE MOTOR OUTPUT may start", preflight.data)
         self.assertIn(b"data-workshop-now", preflight.data)
         self.assertIn(b"data-workshop-cancel", preflight.data)
         self.assertIn(b"NOT RUN / NOT OBSERVED", preflight.data)
         script = self.client.get("/static/cam.js")
         self.assertIn(b"HTMLFormElement.prototype.submit.call(form)", script.data)
         self.assertIn(b"window.clearInterval", script.data)
+        self.assertIn(b"const workshopDelaySeconds = 7", script.data)
 
     def test_mac_editor_routes_remain_available(self):
         self.authenticate()

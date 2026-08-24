@@ -17,7 +17,7 @@ KOK = os.path.dirname(os.path.abspath(__file__))
 IZIN_DOSYASI = os.path.join(KOK, "kontrol-izin.txt")
 # DEĞİŞTİRME YASAĞI SONU
 
-BELGELER = ["PLAN_New.md", "HATA_DEFTERI.md", "CLAUDE.md"]
+BELGELER = ["AGENTS_READ_ME.txt", "PLAN.md", "CLAUDE.md", "PROJECT_MAP.md"]
 ATLA_KLASOR = {
     ".git",
     ".venv",
@@ -35,10 +35,8 @@ def belge_yolu(ad):
     """
     Belgeyi depoda NEREDE olursa olsun bulur.
 
-    Neden boyle: 5 Agustos'ta belgeler Markdown/ altina tasindi ve bu betik
-    onlari kokte aradi. Bulamadi, hicbir sey kontrol etmedi, ve dort kontrolun
-    ucu TAMAM dedi. Bulunamayan bir belge artik BASARISIZLIKTIR — "bakmadim"
-    demek olan bir yesil, en kotu ciktidir.
+    Belgeler geçmişte taşındığında bu arama sessizce hiçbir şey kontrol etmemişti.
+    Bu nedenle bulunamayan güncel bir belge artık açık başarısızlıktır.
     """
     # DEĞİŞTİRME YASAĞI BAŞLANGICI
     for kok, klasorler, dosyalar in os.walk(KOK):

@@ -32,7 +32,7 @@ CHECK_NAMES = (
     "Beklenen belgeler bulunabiliyor mu",
     "Belgede adı geçen dosyalar var mı",
     "Belgede adı geçen sabitler kodda var mı",
-    "PLAN_New.md bölüm atıfları geçerli mi",
+    "PLAN.md bölüm atıfları geçerli mi",
     "Performans sayıları tarih taşıyor mu",
 )
 
@@ -66,7 +66,7 @@ def _build_checks(context: CheckContext):
             source,
             allowed,
         ),
-        lambda: check_section_references(context.document_path("PLAN_New.md")),
+        lambda: check_section_references(context.document_path("PLAN.md")),
         lambda: check_measurements(
             context.document_names,
             context.document_path,
