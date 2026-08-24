@@ -10,6 +10,7 @@ import unittest
 from unittest.mock import patch
 
 from arac import ayar_cli
+from arac.yaren_web import WebAccessCode
 from startech.configuration.profiles import ProfileStore
 
 
@@ -135,6 +136,51 @@ class YarenCliTest(unittest.TestCase):
         self.assertEqual(ayar_cli.EXIT_OK, result)
         self.assertIn("Selection cancelled", output)
         self.assertFalse(self.store.active_path.exists())
+
+    def test_web_key_command_creates_separate_private_and_public_files(self):
+        private_path = self.root.parent / "device.json"
+        public_path = self.root.parent / "device-public.json"
+        result, output = self.run_cli(
+            [
+                "web-key",
+                "--device",
+                "YAREN-school-car",
+                "--identity-file",
+                str(private_path),
+                "--public-output",
+                str(public_path),
+            ]
+        )
+        self.assertEqual(ayar_cli.EXIT_OK, result, output)
+        self.assertTrue(private_path.is_file())
+        self.assertTrue(public_path.is_file())
+        self.assertIn("Never copy or upload the private file", output)
+        self.assertNotIn("private_key", public_path.read_text(encoding="utf-8"))
+
+    def test_web_code_command_and_interactive_action_never_claim_arming(self):
+        access = WebAccessCode("AB12CD34", "YAREN-school-car", 1_800_000_000)
+        with patch("arac.ayar_cli.request_web_code", return_value=access):
+            result, output = self.run_cli(
+                [
+                    "web-code",
+                    "--server",
+                    "https://cam.example.test",
+                    "--identity-file",
+                    str(self.root.parent / "device.json"),
+                ]
+            )
+        self.assertEqual(ayar_cli.EXIT_OK, result, output)
+        self.assertIn("AB12CD34", output)
+        self.assertIn("NOT ARMED", output)
+
+        values = iter(("10", "0"))
+        with patch("arac.ayar_cli.request_web_code", return_value=access):
+            result, output = self.run_cli(
+                ["interactive"], input_fn=lambda _prompt: next(values)
+            )
+        self.assertEqual(ayar_cli.EXIT_OK, result, output)
+        self.assertIn("AB12CD34", output)
+        self.assertIn("vehicle remains unarmed", output)
 
 
 if __name__ == "__main__":
