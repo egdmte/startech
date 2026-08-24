@@ -1,0 +1,46 @@
+[Unit]
+Description=STARTECH Calibration Arrangement and Management Tool
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=egemen
+Group=egemen
+WorkingDirectory=/srv/startech-cam/app
+EnvironmentFile=/etc/startech-cam.env
+ExecStart=/srv/startech-cam/venv/bin/gunicorn \
+    --workers 2 \
+    --threads 4 \
+    --timeout 30 \
+    --bind 127.0.0.1:8765 \
+    --access-logfile - \
+    --error-logfile - \
+    wsgi:app
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+# CAM edits files only under shared/. It cannot see physical device nodes.
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+ReadWritePaths=/srv/startech-cam/shared
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

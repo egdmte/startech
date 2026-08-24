@@ -1,0 +1,19 @@
+dymtal.avartech.net {
+	encode zstd gzip
+
+	@cam path /*
+	handle @cam {
+		reverse_proxy 127.0.0.1:8765
+	}
+
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy same-origin
+	}
+
+	# If this host must use the existing Cloudflare Origin certificate and that
+	# certificate covers *.avartech.net, add the following after verification:
+	# tls /etc/caddy/cf-origin.crt /etc/caddy/cf-origin.key
+}
