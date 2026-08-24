@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 
 from .device_security import (
     DeviceAuthenticationError,
@@ -27,6 +27,15 @@ from .security import issue_access_code, now_epoch
 
 
 device_api_blueprint = Blueprint("device_api", __name__, url_prefix="/api/device/v1")
+
+
+def _ordered_json(value: dict[str, Any]) -> Response:
+    """Preserve nested calibration order across the legacy digest boundary."""
+
+    return current_app.response_class(
+        current_app.json.dumps(value, sort_keys=False),
+        mimetype="application/json",
+    )
 
 
 def _error(code: str, message: str, status: int):
@@ -143,7 +152,7 @@ def link_poll():
     except DeviceLinkError:
         record_device_attempt(remote, "link-poll", succeeded=False)
         return _error("link_rejected", "The temporary device link was not accepted.", 401)
-    return jsonify({"state": state, "job": job})
+    return _ordered_json({"state": state, "job": job})
 
 
 @device_api_blueprint.post("/link/snapshot")

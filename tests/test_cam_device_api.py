@@ -22,6 +22,8 @@ from startech_cam.device_security import (
 from startech_cam.device_link import queue_device_job
 from startech_cam.repository import DEFAULT_DOCUMENT
 from startech_cam.security import consume_access_code_grant
+from startech.configuration.profiles import ProfileStore
+from startech.configuration.validation import kisa_ozet_hesapla
 
 
 def b64url(value: bytes) -> str:
@@ -181,11 +183,21 @@ class CamDeviceApiTest(unittest.TestCase):
                 "INSTALL_INACTIVE_CONFIGURATION",
                 {"deployment_id": "c7a2ee", "configuration": document},
             )
-        claimed = self.link_post(
+        claimed_response = self.link_post(
             "/api/device/v1/link/poll", base, issued["link_token"]
-        ).get_json()["job"]
+        )
+        claimed = claimed_response.get_json()["job"]
         self.assertEqual(job_id, claimed["job_id"])
         self.assertEqual("INSTALL_INACTIVE_CONFIGURATION", claimed["operation"])
+        received = claimed["payload"]["configuration"]
+        self.assertEqual(
+            received["kalibrasyon"]["damga"]["ozet"],
+            kisa_ozet_hesapla(received["kalibrasyon"]),
+        )
+        installed = ProfileStore(
+            Path(self.temporary.name) / "received-profiles"
+        ).import_combined(received, deployment_id="c7a2ee")
+        self.assertEqual(document["profil"]["ad"], installed.manifest.name)
         receipt = self.link_post(
             "/api/device/v1/link/receipt",
             {
