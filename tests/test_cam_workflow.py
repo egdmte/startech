@@ -141,6 +141,8 @@ class CamWorkflowTest(unittest.TestCase):
         )
         self.assertEqual(302, queued.status_code)
         job_id = queued.location.rsplit("job=", 1)[1]
+        pending = self.client.get(f"{path}?job={job_id}")
+        self.assertIn(b"LIVE MOTOR OUTPUT IS QUEUED OR MAY BE ACTIVE", pending.data)
         with self.app.app_context():
             row = get_db().execute(
                 "SELECT operation, payload_json, expires_at - created_at AS lifetime FROM device_jobs WHERE job_id = ?",

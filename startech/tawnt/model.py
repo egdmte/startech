@@ -1,4 +1,4 @@
-"""Shared constants and immutable public result types for 3awnt."""
+"""Shared constants and immutable public result types for TAWNT."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 
 class TawntHatasi(Exception):
-    """3awnt bir ihlal buldu; çağıran kod güvenli tarafta kalmalıdır."""
+    """TAWNT bir ihlal buldu; çağıran kod güvenli tarafta kalmalıdır."""
 
 
 OLCULDU = "olculdu"

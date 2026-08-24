@@ -12,15 +12,17 @@
 # Ama once dusen kontrolu okuyun. §21, "sonra bakariz" ile baslamisti.
 # =============================================================================
 
-if ! command -v python3 >/dev/null 2>&1; then
-    if command -v python >/dev/null 2>&1; then
-        PY=python
-    else
-        echo "pre-commit: python bulunamadi, kontrol atlaniyor."
-        exit 0
+PY=""
+for ADAY in python3 py python; do
+    if command -v "$ADAY" >/dev/null 2>&1 && "$ADAY" -c "import sys" >/dev/null 2>&1; then
+        PY="$ADAY"
+        break
     fi
-else
-    PY=python3
+done
+
+if [ -z "$PY" ]; then
+    echo "pre-commit: calisan Python bulunamadi, kontrol atlaniyor."
+    exit 0
 fi
 
 echo "pre-commit: kontrol.py calisiyor..."
@@ -32,7 +34,7 @@ if [ $KOD -ne 0 ]; then
     echo "  Commit durduruldu."
     echo ""
     echo "  Belgede adi gecen bir sey kodda bulunamadi, ya da bir performans"
-    echo "  sayisi tarihsiz yazildi. Ikisi de §21'in hikayesidir."
+    echo "  sayisi tarihsiz yazildi."
     echo ""
     echo "  Ya iddiayi duzeltin, ya sebebini kontrol-izin.txt'ye yazin."
     echo ""

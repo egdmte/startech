@@ -65,14 +65,15 @@
     const startNow = form.querySelector("[data-workshop-now]");
     const cancel = form.querySelector("[data-workshop-cancel]");
     const submit = form.querySelector(".workshop-submit");
+    const workshopDelaySeconds = 7;
     let interval = null;
-    let remaining = 5;
+    let remaining = workshopDelaySeconds;
 
     const reset = () => {
       if (interval !== null) window.clearInterval(interval);
       interval = null;
-      remaining = 5;
-      if (count) count.textContent = "5";
+      remaining = workshopDelaySeconds;
+      if (count) count.textContent = String(workshopDelaySeconds);
       if (countdown) countdown.hidden = true;
       if (submit) submit.disabled = false;
     };
@@ -86,7 +87,7 @@
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       if (!form.reportValidity() || interval !== null) return;
-      remaining = 5;
+      remaining = workshopDelaySeconds;
       if (count) count.textContent = String(remaining);
       if (countdown) countdown.hidden = false;
       if (submit) submit.disabled = true;

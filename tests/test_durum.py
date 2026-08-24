@@ -1,4 +1,4 @@
-"""Transition tests for the pure DORA/SARA state machine."""
+"""Transition tests for the pure DORA state machine."""
 
 from __future__ import annotations
 

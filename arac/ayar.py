@@ -1,6 +1,6 @@
 """Read-only runtime boundary for the active STARTECH configuration.
 
-STARTECH-YAREN (CLARA)
+STARTECH-YAREN
 Yapılandırma Arşivleme, Revizyon ve Etkinleştirme Noktası
 Configuration Loading, Archival and Revision Agent
 

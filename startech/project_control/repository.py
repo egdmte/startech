@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import re
 from collections.abc import Callable, Iterable
 
 
@@ -63,15 +62,6 @@ def allowed_names(
     """Load planned filenames and explicit exceptions."""
 
     allowed = set()
-    plan = document_path("PLAN_New.md")
-    if plan:
-        with open(plan, encoding="utf-8") as handle:
-            text = handle.read()
-        match = re.search(r"^## 4\. .*?```(.*?)```", text, re.S | re.M)
-        if match:
-            for line in match.group(1).splitlines():
-                for name in re.findall(r"[\w./-]+\.\w+", line):
-                    allowed.add(os.path.basename(name))
 
     if os.path.exists(allow_file):
         with open(allow_file, encoding="utf-8") as handle:

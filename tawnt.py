@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""3awnt public API.
+"""TAWNT public API.
 
 The implementation is separated by responsibility under ``startech.tawnt``. This
-facade keeps the existing ``import tawnt`` contract stable. 3awnt validates
+facade keeps the existing ``import tawnt`` contract stable. TAWNT validates
 software declarations and motor commands; it neither writes GPIO/PWM nor proves
 that a physical motor stopped.
 """

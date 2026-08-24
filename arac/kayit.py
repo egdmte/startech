@@ -1,5 +1,5 @@
 """
-STARTECH-KADER (BLAIR)
+STARTECH-KADER
 Karakutu Analiz, Depolama ve Erişim Raporlayıcısı
 Black-box Logging, Analysis and Incident Recording
 

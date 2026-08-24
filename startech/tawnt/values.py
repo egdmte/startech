@@ -37,7 +37,7 @@ def _require_name(ad: str) -> dict[str, Any]:
 def _require_unsealed() -> None:
     if runtime.muhur:
         raise TawntHatasi(
-            "3awnt defteri muhurlu; kosu sirasinda kritik deger degistirilemez."
+            "TAWNT defteri muhurlu; kosu sirasinda kritik deger degistirilemez."
         )
 
 
@@ -478,7 +478,7 @@ def differenceSkew(koseler, kareBoyutu, snap=1):
         return yeni, True
     raise TawntHatasi(
         "Sag-alt kose (%d,%d), kare %dx%d; %d px yatay, %d px dikey uzakta. "
-        "3awnt tek koseyi tasiyarak dortgeni deforme etmez."
+        "TAWNT tek koseyi tasiyarak dortgeni deforme etmez."
         % (sx, sy, g, y, dx, dy)
     )
 

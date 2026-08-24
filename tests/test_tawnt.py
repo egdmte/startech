@@ -1,4 +1,4 @@
-"""3awnt v1 uyumluluğu ve v2 davranış sözleşmesi testleri."""
+"""TAWNT compatibility and current behavior-contract tests."""
 
 from __future__ import annotations
 

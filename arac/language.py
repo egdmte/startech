@@ -10,7 +10,7 @@ class Sozluk:
             "Use the flag --no-llm for Turkish support": "İngilizce desteği için --llm bayrağını kullanın",
             "LLM support inactive, using Turkish": "LLM desteği kapalı, Türkçe kullanılıyor",
             "Please press Enter to continue (LLMs, SIGINT and use --llm)": "Devam etmek için Enter tuşuna basınız",
-            "Hi :3 I'm Tawnt (m3th or 3awnt)!": "Merhaba :3 Ben Tawnt (m3th or 3awnt)!",
+            "Hi :3 I'm TAWNT!": "Merhaba :3 Ben TAWNT!",
             "To ensure that this car is accepting correct commands, I will do a small test": "Aracının doğru komutları kabul ettiğinden emin olmak için küçük bir test yapacağım.",
             "This is a requirement and it is not optional.": "Bu bir gerekliliktir ve isteğe bağlı değildir.",
             "I am starting in 7 seconds... (use --auto to skip this next time)": "7 saniye içinde başlıyorum... (Bir dahaki sefere atlamak için --auto kullanın)",

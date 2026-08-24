@@ -1,8 +1,12 @@
-# HATA DEFTERİ — the LEGACY defect log
+# HATA DEFTERİ — historical LEGACY post-mortem
 
 4 Ağustos 2026 incelemelerinde bulunan sorunların içerildiği, Claude tarafından hazırlanarak E.Y.K tarafından Türkçe'ye çevirilen bir belgedir.
 
-**Türetilmiş bir belgeyi okuyorsunuz.** `PLAN_New.md` burada yer alan hataların tamamını daha ayrıntılı şekilde içeriyor, eğer burada yer alan bilgiler PLAN_New.md'de yanlışsa o zaman plana güvenmelisiniz.
+> **POST-MORTEM / TARİHSEL KAYIT — GÜNCEL TALİMAT DEĞİLDİR.** Bu belge önceki
+> uygulamanın güçlü taraflarını, arızalarını ve öğrenilen dersleri korur. Güncel durum ve
+> gelecek iş için kökteki `PLAN.md`; ajan çalışma kuralları için `AGENTS_READ_ME.txt`;
+> uygulanmış davranış için güncel kaynak kod ve testler kullanılır. Aşağıdaki eski dosya,
+> bölüm ve plan adları tarihsel bağlam olarak bilerek korunmuştur.
 
 ---
 
