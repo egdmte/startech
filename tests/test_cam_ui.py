@@ -181,6 +181,20 @@ class CamInterfaceTest(unittest.TestCase):
         self.assertIn(b"Calibration is about to be created", summary.data)
         self.assertIn(b"Review required", summary.data)
 
+    def test_sac_preflight_exposes_real_checks_and_a_cancelable_countdown(self):
+        self.authenticate()
+        draft_id = self.start_sac()
+        preflight = self.client.get(f"/sac/{draft_id}/preflight")
+        self.assertIn(b"Check the linked car for real", preflight.data)
+        self.assertIn(b"data-workshop-form", preflight.data)
+        self.assertIn(b"Start 5-second countdown", preflight.data)
+        self.assertIn(b"data-workshop-now", preflight.data)
+        self.assertIn(b"data-workshop-cancel", preflight.data)
+        self.assertIn(b"NOT RUN / NOT OBSERVED", preflight.data)
+        script = self.client.get("/static/cam.js")
+        self.assertIn(b"HTMLFormElement.prototype.submit.call(form)", script.data)
+        self.assertIn(b"window.clearInterval", script.data)
+
     def test_mac_editor_routes_remain_available(self):
         self.authenticate()
         token = self.token("/new/MAC")

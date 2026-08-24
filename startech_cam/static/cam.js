@@ -59,6 +59,69 @@
     hotspot.addEventListener("touchstart", preview, { passive: true });
   });
 
+  document.querySelectorAll("[data-workshop-form]").forEach((form) => {
+    const countdown = form.querySelector("[data-workshop-countdown]");
+    const count = form.querySelector("[data-workshop-count]");
+    const startNow = form.querySelector("[data-workshop-now]");
+    const cancel = form.querySelector("[data-workshop-cancel]");
+    const submit = form.querySelector(".workshop-submit");
+    let interval = null;
+    let remaining = 5;
+
+    const reset = () => {
+      if (interval !== null) window.clearInterval(interval);
+      interval = null;
+      remaining = 5;
+      if (count) count.textContent = "5";
+      if (countdown) countdown.hidden = true;
+      if (submit) submit.disabled = false;
+    };
+    const queue = () => {
+      if (interval !== null) window.clearInterval(interval);
+      interval = null;
+      if (submit) submit.disabled = true;
+      HTMLFormElement.prototype.submit.call(form);
+    };
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!form.reportValidity() || interval !== null) return;
+      remaining = 5;
+      if (count) count.textContent = String(remaining);
+      if (countdown) countdown.hidden = false;
+      if (submit) submit.disabled = true;
+      interval = window.setInterval(() => {
+        remaining -= 1;
+        if (count) count.textContent = String(Math.max(0, remaining));
+        if (remaining <= 0) queue();
+      }, 1000);
+    });
+    startNow?.addEventListener("click", queue);
+    cancel?.addEventListener("click", reset);
+  });
+
+  const workshopJob = document.querySelector("[data-workshop-job]");
+  if (workshopJob && ["PENDING", "CLAIMED"].includes(workshopJob.dataset.jobStatus)) {
+    const statusUrl = workshopJob.dataset.statusUrl;
+    const poll = async () => {
+      try {
+        const response = await fetch(statusUrl, { headers: { Accept: "application/json" } });
+        if (!response.ok) return;
+        const result = await response.json();
+        const status = workshopJob.querySelector("[data-workshop-job-status]");
+        if (status) status.textContent = result.status;
+        if (["ACCEPTED", "REJECTED", "EXPIRED"].includes(result.status)) {
+          window.location.reload();
+          return;
+        }
+      } catch (_error) {
+        // A later poll may recover; the server and YAREN enforce command expiry.
+      }
+      window.setTimeout(poll, 1000);
+    };
+    window.setTimeout(poll, 800);
+  }
+
   document.addEventListener("click", (event) => {
     const anchor = event.target.closest("a[href]");
     if (!anchor || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

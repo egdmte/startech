@@ -117,7 +117,8 @@ CREATE TABLE IF NOT EXISTS device_jobs (
     operation TEXT NOT NULL CHECK (operation IN (
         'REQUEST_ACTIVE_CONFIGURATION',
         'REQUEST_CAPABILITY_REPORT',
-        'INSTALL_INACTIVE_CONFIGURATION'
+        'INSTALL_INACTIVE_CONFIGURATION',
+        'RUN_BOUNDED_WORKSHOP_COMMAND'
     )),
     payload_json TEXT NOT NULL,
     created_at INTEGER NOT NULL,
@@ -218,6 +219,58 @@ def _migrate_existing_database(connection: sqlite3.Connection) -> None:
     draft_columns = _column_names(connection, "drafts")
     if "parent_tag" not in draft_columns:
         connection.execute("ALTER TABLE drafts ADD COLUMN parent_tag TEXT")
+
+    jobs_sql_row = connection.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'device_jobs'"
+    ).fetchone()
+    jobs_sql = "" if jobs_sql_row is None else str(jobs_sql_row[0] or "")
+    if "RUN_BOUNDED_WORKSHOP_COMMAND" not in jobs_sql:
+        connection.execute("ALTER TABLE device_jobs RENAME TO device_jobs_legacy")
+        connection.execute(
+            """
+            CREATE TABLE device_jobs (
+                job_id TEXT PRIMARY KEY,
+                link_id TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                operation TEXT NOT NULL CHECK (operation IN (
+                    'REQUEST_ACTIVE_CONFIGURATION',
+                    'REQUEST_CAPABILITY_REPORT',
+                    'INSTALL_INACTIVE_CONFIGURATION',
+                    'RUN_BOUNDED_WORKSHOP_COMMAND'
+                )),
+                payload_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                expires_at INTEGER NOT NULL,
+                claimed_at INTEGER,
+                completed_at INTEGER,
+                status TEXT NOT NULL CHECK (status IN (
+                    'PENDING', 'CLAIMED', 'ACCEPTED', 'REJECTED', 'EXPIRED'
+                )),
+                receipt_json TEXT,
+                FOREIGN KEY (link_id) REFERENCES device_links(link_id),
+                FOREIGN KEY (device_id) REFERENCES registered_devices(device_id)
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO device_jobs(
+                job_id, link_id, device_id, operation, payload_json, created_at,
+                expires_at, claimed_at, completed_at, status, receipt_json
+            )
+            SELECT
+                job_id, link_id, device_id, operation, payload_json, created_at,
+                expires_at, claimed_at, completed_at, status, receipt_json
+            FROM device_jobs_legacy
+            """
+        )
+        connection.execute("DROP TABLE device_jobs_legacy")
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS device_jobs_link_status
+            ON device_jobs(link_id, status, created_at)
+            """
+        )
 
 
 def init_app(app: Flask) -> None:

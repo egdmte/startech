@@ -1,19 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Safety and hardware preflight{% endblock %}
+{% block title %}Live SAC checks{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css', v=cam_asset_version) }}">{% endblock %}
 {% block frame_class %}cam-frame--preflight{% endblock %}
 {% block content %}
 <section class="preflight-panel" aria-labelledby="preflight-title">
   <header class="preflight-heading" data-motion data-motion-delay="1">
-    <h1 id="preflight-title">Please wait while we check your car’s integrity.</h1>
-    {% if report %}
-    <p>YAREN reported bounded checks for this temporary link. These results do not prove driving safety.</p>
+    <h1 id="preflight-title">Check the linked car for real.</h1>
+    {% if car_linked %}
+    <p>YAREN is connected. Camera checks use physical frames; motor checks use one short TAWNT-bounded command.</p>
     {% else %}
-    <p>CAM can verify the configuration session. Physical hardware remains unavailable until YAREN reports it.</p>
+    <p>No car is connected. You may continue configuring, but physical evidence remains NOT RUN.</p>
     {% endif %}
   </header>
+
+  <section class="live-check-card" aria-labelledby="camera-check-title">
+    <div>
+      <h2 id="camera-check-title">Camera and lane recognition</h2>
+      <p>These results come from the selected profile and linked car. They are not a driving-safety certificate.</p>
+    </div>
+    <form method="post" action="{{ url_for('cam.refresh_sac_capabilities', draft_id=draft_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="cam-action cam-action--secondary" type="submit" {% if not car_linked %}disabled{% endif %}>Run new camera check</button>
+    </form>
+  </section>
+
   <ol class="preflight-list" data-motion data-motion-delay="2">
-    {% set symbols = {'live': '✓', 'responded': '✓', 'simulated': '◇', 'blocked-by-policy': '×', 'unavailable': '—', 'failed': '!', 'unverified': '?', 'configured': '→'} %}
+    {% set symbols = {'live': '✓', 'responded': '✓', 'unavailable': '—', 'failed': '!', 'unverified': '?', 'configured': '→'} %}
     {% for label, state, detail in checks %}
     <li class="preflight-item preflight-item--{{ state }}">
       <span class="preflight-state" aria-hidden="true">{{ symbols.get(state, '—') }}</span>
@@ -22,10 +34,67 @@
     </li>
     {% endfor %}
   </ol>
-  <p class="preflight-note">CAM will not arm, move, steer, or test the car from this screen. “Simulated” and “unverified” are not hardware passes.</p>
+
+  <section class="workshop-card" aria-labelledby="workshop-title">
+    <div class="workshop-heading">
+      <div>
+        <h2 id="workshop-title">Bounded workshop motor check</h2>
+        <p>Operator: <strong>{{ current_actor }}</strong>. Maximum ±35% for 3 seconds. The active car profile—not this unpublished draft—will be used.</p>
+      </div>
+      <strong class="evidence-state {% if physical_evidence.fiziksel_dogrulama_yapildi %}is-observed{% endif %}">
+        {{ 'OBSERVED PASS' if physical_evidence.fiziksel_dogrulama_yapildi else 'NOT RUN / NOT OBSERVED' }}
+      </strong>
+    </div>
+
+    <form class="workshop-form" method="post" action="{{ url_for('cam.run_sac_workshop', draft_id=draft_id) }}" data-workshop-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="workshop-values">
+        <label>Left motor %<input name="left_percent" type="number" min="-35" max="35" step="1" value="10" required></label>
+        <label>Right motor %<input name="right_percent" type="number" min="-35" max="35" step="1" value="10" required></label>
+        <label>Duration seconds<input name="duration_seconds" type="number" min="0.05" max="3" step="0.05" value="0.25" required></label>
+      </div>
+      <fieldset class="workshop-inspection">
+        <legend>Confirm the physical setup</legend>
+        <label><input type="checkbox" name="inspection" value="wheels-secured" required> The wheels are secured or the car is restrained.</label>
+        <label><input type="checkbox" name="inspection" value="motors-mounted" required> The motors and wiring are mounted for this check.</label>
+        <label><input type="checkbox" name="inspection" value="path-clear" required> The movement area and power switches are reachable.</label>
+      </fieldset>
+      <button class="cam-action cam-action--danger workshop-submit" type="submit" {% if not car_linked %}disabled{% endif %}>Start 5-second countdown</button>
+      <div class="workshop-countdown" data-workshop-countdown hidden role="status" aria-live="assertive">
+        <strong>Motor command queues in <span data-workshop-count>5</span></strong>
+        <div>
+          <button class="cam-action cam-action--danger" type="button" data-workshop-now>Start now</button>
+          <button class="cam-action cam-action--secondary" type="button" data-workshop-cancel>Cancel</button>
+        </div>
+      </div>
+    </form>
+
+    {% if workshop_job %}
+    <div class="workshop-result" data-workshop-job data-status-url="{{ url_for('cam.sac_job_status', draft_id=draft_id, job_id=workshop_job.job_id) }}" data-job-status="{{ workshop_job.status }}">
+      <h3>Command {{ workshop_job.job_id[:12] }}</h3>
+      <p>Status: <strong data-workshop-job-status>{{ workshop_job.status }}</strong></p>
+      {% if workshop_job.receipt %}
+      <dl>
+        <div><dt>CAM issued</dt><dd>{{ workshop_job.receipt.cam_issued_at_utc or workshop_job.receipt.cam_issued_at }}</dd></div>
+        <div><dt>Applied</dt><dd>{{ workshop_job.receipt.applied_left }} / {{ workshop_job.receipt.applied_right }}</dd></div>
+        <div><dt>Duration</dt><dd>{{ workshop_job.receipt.duration_seconds }} s</dd></div>
+        <div><dt>Stop</dt><dd>{{ 'requested' if workshop_job.receipt.stop_requested else 'not recorded' }}</dd></div>
+      </dl>
+      <p class="receipt-warning">This receipt proves software execution and a stop request. It does not prove that a wheel physically moved or stopped.</p>
+      <form class="observation-form" method="post" action="{{ url_for('cam.observe_sac_workshop', draft_id=draft_id, job_id=workshop_job.job_id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="cam-action cam-action--primary" name="observation" value="expected" type="submit">Movement matched</button>
+        <button class="cam-action cam-action--secondary" name="observation" value="unexpected" type="submit">Wrong or not observed</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+
+  <p class="preflight-note">Continuing without a physical test leaves physical verification false. SAC never substitutes generated evidence.</p>
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="cam-action cam-action--primary preflight-continue" type="submit">Continue</button>
+    <button class="cam-action cam-action--primary preflight-continue" type="submit">Continue to SAC configuration</button>
   </form>
 </section>
 {% endblock %}

@@ -1,7 +1,8 @@
-"""Temporary, configuration-only links between CAM and one YAREN device.
+"""Temporary, closed-operation links between CAM and one YAREN device.
 
-The link protocol has a closed operation list.  It cannot carry shell, steering,
-motor, activation, or arbitrary execution requests.
+The protocol cannot carry shell, profile activation, continuous steering, or
+arbitrary execution requests.  Its only physical operation is one short, bounded
+SAC workshop command validated again by YAREN, ARDA, TAWNT and OSMAN.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ ALLOWED_OPERATIONS = frozenset(
         "REQUEST_ACTIVE_CONFIGURATION",
         "REQUEST_CAPABILITY_REPORT",
         "INSTALL_INACTIVE_CONFIGURATION",
+        "RUN_BOUNDED_WORKSHOP_COMMAND",
     }
 )
 CAPABILITY_STATUSES = frozenset(
@@ -330,11 +332,22 @@ def queue_device_job(
     device_id: str,
     operation: str,
     payload: Mapping[str, Any] | None = None,
+    *,
+    actor: str = "browser",
+    lifetime_seconds: int = 15 * 60,
 ) -> str:
     if operation not in ALLOWED_OPERATIONS:
         raise DeviceLinkError("device operation is not allowed")
     if not browser_link_is_active(link_id, device_id):
         raise DeviceLinkError("device link is not active")
+    if not isinstance(actor, str) or not actor.strip() or len(actor) > 120:
+        raise DeviceLinkError("device job actor is invalid")
+    if (
+        isinstance(lifetime_seconds, bool)
+        or not isinstance(lifetime_seconds, int)
+        or not 1 <= lifetime_seconds <= 15 * 60
+    ):
+        raise DeviceLinkError("device job lifetime must be between 1 and 900 seconds")
     selected_payload = dict(payload or {})
     payload_json = _canonical_json(selected_payload)
     connection = get_db()
@@ -370,11 +383,11 @@ def queue_device_job(
             operation,
             payload_json,
             current,
-            min(int(link["expires_at"]), current + 15 * 60),
+            min(int(link["expires_at"]), current + lifetime_seconds),
         ),
     )
     connection.commit()
-    audit("browser", "DEVICE_JOB_QUEUED", device_id, {"job_id": job_id, "operation": operation})
+    audit(actor.strip(), "DEVICE_JOB_QUEUED", device_id, {"job_id": job_id, "operation": operation})
     return job_id
 
 
@@ -450,7 +463,7 @@ def complete_device_job(
 def get_device_job(job_id: str, link_id: str, device_id: str) -> dict[str, Any] | None:
     row = get_db().execute(
         """
-        SELECT operation, status, receipt_json, created_at, completed_at
+        SELECT operation, payload_json, status, receipt_json, created_at, completed_at
         FROM device_jobs WHERE job_id = ? AND link_id = ? AND device_id = ?
         """,
         (job_id, link_id, device_id),
@@ -460,6 +473,7 @@ def get_device_job(job_id: str, link_id: str, device_id: str) -> dict[str, Any] 
     return {
         "job_id": job_id,
         "operation": str(row["operation"]),
+        "payload": json.loads(str(row["payload_json"])),
         "status": str(row["status"]),
         "receipt": None if row["receipt_json"] is None else json.loads(str(row["receipt_json"])),
         "created_at": int(row["created_at"]),

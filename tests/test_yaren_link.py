@@ -7,6 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from arac.atolye import WorkshopCommand, WorkshopReceipt
 from arac.yaren_link import (
     CLOSE_PATH,
     LinkRunResult,
@@ -45,6 +46,15 @@ class YarenTemporaryLinkTest(unittest.TestCase):
             "a" * 32,
             "temporary-link-token-with-enough-entropy",
         )
+
+    @staticmethod
+    def capabilities(device_id: str, **_kwargs):
+        return {
+            "version": 1,
+            "device_id": device_id,
+            "checked_at": 1000,
+            "results": [],
+        }
 
     def test_install_job_creates_inactive_immutable_profile(self):
         document = json.loads(
@@ -144,6 +154,116 @@ class YarenTemporaryLinkTest(unittest.TestCase):
         )
         self.assertEqual(self.access.link_token, token)
         self.assertEqual(3.0, timeout)
+
+    def test_bounded_workshop_job_reaches_the_real_executor_and_returns_receipt(self):
+        payload = {
+            "draft_id": "d" * 32,
+            "operator": "Ada Lovelace",
+            "issued_at": 1000,
+            "expires_at": 1020,
+            "left_percent": 12.0,
+            "right_percent": -8.0,
+            "duration_seconds": 0.25,
+            "inspection": ["wheels-secured", "motors-mounted", "path-clear"],
+        }
+        polls = [
+            {"state": "ACTIVE", "job": {
+                "job_id": "e" * 32,
+                "operation": "RUN_BOUNDED_WORKSHOP_COMMAND",
+                "payload": payload,
+            }},
+            {"state": "ACTIVE", "job": None},
+        ]
+        receipts = []
+        executed: list[WorkshopCommand] = []
+        moment = [1000]
+
+        def transport(url, body, _token, _timeout):
+            if url.endswith("/poll"):
+                return polls.pop(0)
+            if url.endswith("/receipt"):
+                receipts.append(dict(body))
+            return {"accepted": True}
+
+        def executor(command, **_kwargs):
+            executed.append(command)
+            return WorkshopReceipt(
+                command_id=command.command_id,
+                operator=command.operator,
+                source=command.source,
+                cam_issued_at=command.cam_issued_at,
+                profile_id=self.active_id,
+                requested_left_percent=command.left_percent,
+                requested_right_percent=command.right_percent,
+                applied_left=0.12,
+                applied_right=-0.08,
+                duration_seconds=command.duration_seconds,
+                started_at_utc="2026-08-24T12:00:00+00:00",
+                finished_at_utc="2026-08-24T12:00:00.250+00:00",
+                stop_requested=True,
+                run_id="workshop-e",
+            )
+
+        def sleep(_seconds):
+            moment[0] += 4
+
+        result = run_temporary_link(
+            self.access,
+            profile_root=self.root,
+            server_url="https://cam.example.test",
+            transport=transport,
+            capability_collector=self.capabilities,
+            workshop_executor=executor,
+            epoch=lambda: moment[0],
+            sleep=sleep,
+        )
+
+        self.assertEqual(LinkRunResult("EXPIRED", 1, 0), result)
+        self.assertEqual(1, len(executed))
+        self.assertEqual("Ada Lovelace", executed[0].operator)
+        self.assertEqual("CAM_SAC", executed[0].source)
+        self.assertTrue(receipts[0]["accepted"])
+        self.assertTrue(receipts[0]["receipt"]["stop_requested"])
+        self.assertFalse(receipts[0]["receipt"]["physical_motion_observed"])
+
+    def test_expired_workshop_job_is_rejected_before_the_executor(self):
+        polls = [{"state": "ACTIVE", "job": {
+            "job_id": "f" * 32,
+            "operation": "RUN_BOUNDED_WORKSHOP_COMMAND",
+            "payload": {
+                "draft_id": "d" * 32,
+                "operator": "Ada Lovelace",
+                "issued_at": 950,
+                "expires_at": 970,
+                "left_percent": 10,
+                "right_percent": 10,
+                "duration_seconds": 0.25,
+                "inspection": ["wheels-secured", "motors-mounted", "path-clear"],
+            },
+        }}]
+        receipt = []
+        moment = [1000]
+
+        def transport(url, body, _token, _timeout):
+            if url.endswith("/poll"):
+                return polls.pop(0)
+            if url.endswith("/receipt"):
+                receipt.append(dict(body))
+            return {"accepted": True}
+
+        result = run_temporary_link(
+            self.access,
+            profile_root=self.root,
+            server_url="https://cam.example.test",
+            transport=transport,
+            capability_collector=self.capabilities,
+            workshop_executor=lambda *_args, **_kwargs: self.fail("executor called"),
+            epoch=lambda: moment[0],
+            sleep=lambda _seconds: moment.__setitem__(0, moment[0] + 5),
+        )
+        self.assertEqual(LinkRunResult("EXPIRED", 0, 1), result)
+        self.assertFalse(receipt[0]["accepted"])
+        self.assertIn("expired", receipt[0]["receipt"]["error"])
 
 
 if __name__ == "__main__":

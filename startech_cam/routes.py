@@ -12,6 +12,7 @@ from flask import (
     Response,
     abort,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -44,12 +45,14 @@ from .repository import (
     parse_document_text,
     parse_json_value,
     project_sac_speed,
+    record_sac_workshop_observation,
     refresh_calibration_stamp,
     publish_draft,
     replace_draft_json,
     save_draft,
     serialize_document,
 )
+from .security import now_epoch
 
 
 cam_blueprint = Blueprint("cam", __name__)
@@ -196,7 +199,7 @@ def sac_name() -> Any:
 @cam_blueprint.route("/sac/<draft_id>/preflight", methods=["GET", "POST"])
 @login_required
 def sac_preflight(draft_id: str) -> Any:
-    _document, _touched, workflow = get_draft(draft_id, current_actor())
+    document, _touched, workflow = get_draft(draft_id, current_actor())
     if workflow != "SAC":
         abort(404)
     if request.method == "POST":
@@ -228,14 +231,18 @@ def sac_preflight(draft_id: str) -> Any:
         ),
         (
             "Camera recognition",
-            "configured",
-            "KASIM settings can be edited; no frame has been physically tested.",
+            "unverified",
+            "No linked-car frame has been processed for this SAC session.",
         ),
-        ("Motor driver", "blocked-by-policy", "No motor command is sent from this page."),
+        (
+            "Motor driver",
+            "unverified",
+            "Use the bounded workshop control below after linking YAREN.",
+        ),
         (
             "Steering system",
             "unavailable",
-            "Steering values are recorded only.",
+            "The differential wheel directions have not been physically observed.",
         ),
         (
             "Black box and M3TH",
@@ -243,9 +250,171 @@ def sac_preflight(draft_id: str) -> Any:
             "Validation policy is available; hardware behaviour remains unverified.",
         ),
         )
+    workshop_job = None
+    job_id = request.args.get("job", "")
+    if job_id and selected is not None:
+        candidate = get_device_job(job_id, *selected)
+        if (
+            candidate is not None
+            and candidate["operation"] == "RUN_BOUNDED_WORKSHOP_COMMAND"
+            and candidate["payload"].get("draft_id") == draft_id
+        ):
+            workshop_job = candidate
     return render_template(
-        "sac_preflight.html", draft_id=draft_id, checks=checks, report=report
+        "sac_preflight.html",
+        draft_id=draft_id,
+        checks=checks,
+        report=report,
+        workshop_job=workshop_job,
+        car_linked=selected is not None,
+        physical_evidence=document["oturum_kaniti"],
     )
+
+
+def _workshop_number(name: str, minimum: float, maximum: float) -> float:
+    raw = request.form.get(name, "").strip()
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise InvalidDocument(f"{name} must be a number") from exc
+    if not math.isfinite(value) or not minimum <= value <= maximum:
+        raise InvalidDocument(f"{name} must be between {minimum:g} and {maximum:g}")
+    return value
+
+
+@cam_blueprint.post("/sac/<draft_id>/capabilities/refresh")
+@login_required
+def refresh_sac_capabilities(draft_id: str) -> Any:
+    _document, _touched, workflow = get_draft(draft_id, current_actor())
+    if workflow != "SAC":
+        abort(404)
+    selected = _session_device_link()
+    if selected is None:
+        flash("Connect the current YAREN device before running live checks.", "error")
+        return redirect(url_for("cam.sac_preflight", draft_id=draft_id))
+    requested_at = now_epoch()
+    try:
+        queue_device_job(
+            *selected,
+            "REQUEST_CAPABILITY_REPORT",
+            {"requested_at": requested_at},
+            actor=current_actor(),
+            lifetime_seconds=30,
+        )
+    except DeviceLinkError as exc:
+        flash(str(exc), "error")
+    else:
+        flash("A new physical camera and lane-recognition check was queued.", "success")
+    return redirect(url_for("cam.sac_preflight", draft_id=draft_id))
+
+
+@cam_blueprint.post("/sac/<draft_id>/workshop")
+@login_required
+def run_sac_workshop(draft_id: str) -> Any:
+    _document, _touched, workflow = get_draft(draft_id, current_actor())
+    if workflow != "SAC":
+        abort(404)
+    selected = _session_device_link()
+    if selected is None:
+        flash("Connect the current YAREN device before sending a workshop command.", "error")
+        return redirect(url_for("cam.sac_preflight", draft_id=draft_id))
+    try:
+        left = _workshop_number("left_percent", -35, 35)
+        right = _workshop_number("right_percent", -35, 35)
+        duration = _workshop_number("duration_seconds", 0.05, 3.0)
+        if left == 0 and right == 0:
+            raise InvalidDocument("at least one workshop motor value must be non-zero")
+        inspection = request.form.getlist("inspection")
+        required = {"wheels-secured", "motors-mounted", "path-clear"}
+        if len(inspection) != 3 or set(inspection) != required:
+            raise InvalidDocument("confirm all three physical workshop conditions")
+        issued_at = now_epoch()
+        job_id = queue_device_job(
+            *selected,
+            "RUN_BOUNDED_WORKSHOP_COMMAND",
+            {
+                "draft_id": draft_id,
+                "operator": current_actor(),
+                "issued_at": issued_at,
+                "expires_at": issued_at + 20,
+                "left_percent": left,
+                "right_percent": right,
+                "duration_seconds": duration,
+                "inspection": inspection,
+            },
+            actor=current_actor(),
+            lifetime_seconds=20,
+        )
+    except (InvalidDocument, DeviceLinkError) as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("cam.sac_preflight", draft_id=draft_id))
+    return redirect(url_for("cam.sac_preflight", draft_id=draft_id, job=job_id))
+
+
+@cam_blueprint.get("/sac/<draft_id>/jobs/<job_id>")
+@login_required
+def sac_job_status(draft_id: str, job_id: str) -> Any:
+    _document, _touched, workflow = get_draft(draft_id, current_actor())
+    if workflow != "SAC":
+        abort(404)
+    selected = _session_device_link()
+    if selected is None:
+        return jsonify({"error": "device link unavailable"}), 409
+    job = get_device_job(job_id, *selected)
+    if (
+        job is None
+        or job["operation"] != "RUN_BOUNDED_WORKSHOP_COMMAND"
+        or job["payload"].get("draft_id") != draft_id
+    ):
+        abort(404)
+    return jsonify(
+        {
+            "job_id": job["job_id"],
+            "status": job["status"],
+            "receipt": job["receipt"],
+            "completed_at": job["completed_at"],
+        }
+    )
+
+
+@cam_blueprint.post("/sac/<draft_id>/workshop/<job_id>/observe")
+@login_required
+def observe_sac_workshop(draft_id: str, job_id: str) -> Any:
+    _document, _touched, workflow = get_draft(draft_id, current_actor())
+    if workflow != "SAC":
+        abort(404)
+    selected = _session_device_link()
+    if selected is None:
+        flash("The YAREN link is no longer available.", "error")
+        return redirect(url_for("cam.sac_preflight", draft_id=draft_id))
+    job = get_device_job(job_id, *selected)
+    if (
+        job is None
+        or job["operation"] != "RUN_BOUNDED_WORKSHOP_COMMAND"
+        or job["payload"].get("draft_id") != draft_id
+    ):
+        abort(404)
+    if job["status"] != "ACCEPTED" or not isinstance(job["receipt"], dict):
+        flash("Only a completed workshop command can receive a physical observation.", "error")
+        return redirect(url_for("cam.sac_preflight", draft_id=draft_id, job=job_id))
+    observation = request.form.get("observation", "")
+    if observation not in {"expected", "unexpected"}:
+        flash("Choose whether the physical movement matched the command.", "error")
+        return redirect(url_for("cam.sac_preflight", draft_id=draft_id, job=job_id))
+    record_sac_workshop_observation(
+        draft_id,
+        current_actor(),
+        job_id=job_id,
+        inspection=job["payload"]["inspection"],
+        observed_as_expected=observation == "expected",
+    )
+    flash(
+        "Physical movement recorded as observed."
+        if observation == "expected"
+        else "Unexpected or missing movement recorded; physical verification remains failed.",
+        "success" if observation == "expected" else "error",
+    )
+    return redirect(url_for("cam.sac_preflight", draft_id=draft_id, job=job_id))
 
 
 @cam_blueprint.get("/sac/<draft_id>/components")

@@ -49,7 +49,7 @@ SAC_STEPS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
     ),
     "drive": (
         "Command response",
-        "CAM records policy only; it cannot arm the vehicle or send motor commands.",
+        "Record runtime policy. Physical SAC checks are separate, short workshop commands and never start autonomous driving.",
         (
             Field("sac_niyeti.surus.komut_kaybi_eylemi", "Loss-of-command action", "select", choices=(("invalidate-request", "Invalidate request"), ("disarm-wait", "Disarm and wait"), ("refer-validated-commands", "Refer to validated commands"))),
             Field("sac_niyeti.surus.surucu_cikis_modu", "Driver output mode", "select", choices=(("off", "Off — simulations only"), ("semi", "Semi — steering only"), ("full", "Full — full car control"))),

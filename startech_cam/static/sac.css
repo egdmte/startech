@@ -46,7 +46,7 @@
   position: static;
   display: grid;
   align-self: center;
-  width: min(720px, calc(100% - 48px));
+  width: min(880px, calc(100% - 48px));
   max-height: 100%;
   margin: 0 auto;
   padding: clamp(24px, 4vh, 56px) 0 20px;
@@ -78,6 +78,45 @@
 .preflight-item--unverified .preflight-state, .preflight-item--unverified em { color: #9b7100; }
 .preflight-note { margin: 28px 0 12px; color: var(--cam-muted); text-align: center; }
 .preflight-continue { width: 100%; }
+.live-check-card, .workshop-card {
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid #c9c9c9;
+  border-radius: 7px;
+  background: rgb(255 255 255 / 48%);
+}
+.live-check-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.live-check-card h2, .workshop-card h2 { margin: 0 0 5px; font-size: 18px; }
+.live-check-card p, .workshop-card p { margin: 0; color: var(--cam-muted); }
+.workshop-heading { display: flex; align-items: start; justify-content: space-between; gap: 22px; }
+.evidence-state { flex: 0 0 auto; color: #9b7100; font-size: 13px; }
+.evidence-state.is-observed { color: var(--cam-success); }
+.workshop-form { display: grid; gap: 16px; margin-top: 20px; }
+.workshop-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.workshop-values label { display: grid; gap: 5px; font-weight: 600; }
+.workshop-values input { width: 100%; padding: 8px; border: 1px solid #aaa; border-radius: 4px; }
+.workshop-inspection { display: grid; gap: 7px; padding: 13px; border: 1px solid #d0d0d0; }
+.workshop-inspection legend { padding: 0 5px; font-weight: 600; }
+.workshop-inspection label { display: flex; align-items: start; gap: 8px; }
+.workshop-submit { width: 100%; }
+.cam-action--danger { color: #fff; background: var(--cam-danger); }
+.cam-action--danger:hover { background: #b60000; }
+.workshop-countdown { display: grid; gap: 12px; padding: 16px; border-left: 5px solid var(--cam-danger); background: #fff; text-align: center; }
+.workshop-countdown[hidden] { display: none; }
+.workshop-countdown > strong { font-size: 20px; }
+.workshop-countdown > div, .observation-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.workshop-result { display: grid; gap: 10px; margin-top: 18px; padding: 14px; border: 1px solid #bbb; background: #fff; }
+.workshop-result h3, .workshop-result p { margin: 0; }
+.workshop-result dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin: 0; }
+.workshop-result dl div { display: grid; grid-template-columns: 90px 1fr; }
+.workshop-result dt { color: var(--cam-muted); }
+.receipt-warning { padding: 10px; border-left: 4px solid #9b7100; background: #fff9df; }
+.cam-action:disabled { cursor: not-allowed; opacity: .45; }
 .cam-frame--preflight .cam-workflow-footer {
   position: static;
   margin: 0 38px 11px 14px;
@@ -257,6 +296,8 @@
   .components-page { padding-right: 20px; padding-left: 20px; }
   .components-workspace { grid-template-columns: 1fr; }
   .car-map { min-width: 0; }
+  .workshop-values { grid-template-columns: 1fr; }
+  .live-check-card, .workshop-heading { align-items: stretch; flex-direction: column; }
 }
 @media (max-width: 560px) {
   .sac-abort { top: 20px; left: 20px; }

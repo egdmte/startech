@@ -19,11 +19,10 @@ from startech.configuration.profiles import ProfileStore
 
 from . import tawnt
 from .durum import EventType, StateEvent, StateMachine
-from .goruntu import SimulatedVisionAnalyzer
+from .goruntu import LaneVisionAnalyzer
 from .goz import (
     CameraProbeResult,
     CameraUnavailable,
-    FramePacket,
     build_preferred_camera,
     probe_camera,
 )
@@ -176,24 +175,29 @@ def _camera_probe(camera_factory: Callable[[], object]) -> tuple[str, str, Mappi
     )
 
 
-def _vision_probe() -> tuple[str, str, Mapping[str, Any]]:
-    frame = FramePacket(
-        1,
-        1.0,
-        {
-            "valid": True,
-            "lane_error": 0.0,
-            "obstacle": False,
-            "confidence": 1.0,
-            "reason": "deterministic diagnostic",
-        },
-        "yaren-diagnostic",
-    )
-    observation = SimulatedVisionAnalyzer().analyze(frame)
+def _vision_probe(
+    store: ProfileStore,
+    camera_factory: Callable[[], object],
+) -> tuple[str, str, Mapping[str, Any]]:
+    profile = store.load_active_profile()
+    camera = camera_factory()
+    camera.open()  # type: ignore[attr-defined]
+    try:
+        frame = camera.read_frame()  # type: ignore[attr-defined]
+    finally:
+        camera.close()  # type: ignore[attr-defined]
+    observation = LaneVisionAnalyzer(profile.calibration).analyze(frame)
     return (
-        "SIMULATED",
-        "The deterministic vision contract responded; real recognition was not tested.",
-        {"valid": observation.valid, "frame_id": observation.frame_id},
+        "LIVE",
+        "The active lane detector processed a new frame from the physical camera.",
+        {
+            "valid": observation.valid,
+            "frame_id": observation.frame_id,
+            "source": frame.source,
+            "confidence": observation.confidence,
+            "error_px": observation.error_px,
+            "reason": observation.reason,
+        },
     )
 
 
@@ -242,7 +246,7 @@ def collect_capability_report(
     device_id: str,
     *,
     profile_root: str | Path | None = None,
-    camera_factory: Callable[[], object] = build_preferred_camera,
+    camera_factory: Callable[[], object] | None = None,
     timeout_seconds: float = 8.0,
     epoch: Callable[[], int] = lambda: int(time.time()),
     clock: Callable[[], float] = time.monotonic,
@@ -254,6 +258,17 @@ def collect_capability_report(
     if timeout_seconds <= 0 or timeout_seconds > 30:
         raise ValueError("diagnostic timeout must be greater than zero and at most 30 seconds")
     store = ProfileStore(profile_root)
+
+    def active_profile_camera() -> object:
+        profile = store.load_active_profile()
+        camera = profile.calibration["kamera"]
+        return build_preferred_camera(
+            size=(int(camera["genislik"]), int(camera["yukseklik"])),
+            bgr_output=bool(camera["bgr_cikis"]),
+            rotate_180=bool(camera["dondur_180"]),
+        )
+
+    selected_camera_factory = camera_factory or active_profile_camera
     definitions: tuple[tuple[str, str, str, Probe], ...] = (
         (
             "YAREN",
@@ -265,13 +280,13 @@ def collect_capability_report(
             "KASIM",
             "Camera acquisition",
             "One physical frame; USB first, Raspberry Pi fallback",
-            lambda: _camera_probe(camera_factory),
+            lambda: _camera_probe(selected_camera_factory),
         ),
         (
             "KEREM",
             "Camera recognition",
-            "Deterministic software simulation only",
-            _vision_probe,
+            "Real active-profile lane analysis on one new camera frame",
+            lambda: _vision_probe(store, selected_camera_factory),
         ),
         (
             "DORA",
@@ -308,9 +323,9 @@ def collect_capability_report(
             CapabilityResult(
                 "OSMAN",
                 "Motor driver",
-                "BLOCKED_BY_POLICY",
-                "Not executed or imported by YAREN diagnostics",
-                "Motor output is deliberately outside the web-link protocol.",
+                "UNVERIFIED",
+                "Not operated by automatic diagnostics",
+                "Use the explicit bounded SAC workshop command to test motor output.",
                 0,
                 {"tested": False},
             ),

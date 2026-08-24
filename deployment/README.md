@@ -188,7 +188,9 @@ sudo systemctl start startech-cam.service
 curl --fail --silent http://127.0.0.1:8765/health
 ```
 
-Başlatma sırasında SQLite'a yalnız eklemeli tablolar uygulanır; mevcut SAC/MAC
-kalibrasyonları silinmez. Geri almak gerekirse hizmeti durdurun, önceki commit'e
-ayrı bir doğrulanmış çalışma ağacı kurun ve yedek veritabanını kullanın. Çalışan
-paylaşılan veritabanını körlemesine eski şemaya açmayın.
+Başlatma sırasında mevcut SAC/MAC kalibrasyonları silinmez. Atölye komut türünü
+ekleyen geçiş, `device_jobs` tablosunu aynı satırları kopyalayarak yeni kapalı işlem
+listesiyle yeniden kurar; bu nedenle güncellemeden önce yukarıdaki veritabanı yedeği
+zorunludur. Geri almak gerekirse hizmeti durdurun, önceki commit'e ayrı bir doğrulanmış
+çalışma ağacı kurun ve yedek veritabanını kullanın. Çalışan paylaşılan veritabanını
+körlemesine eski şemaya açmayın.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,7 +13,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from startech_cam import create_app
-from startech_cam.db import get_db
+from startech_cam.db import SCHEMA, get_db
 from startech_cam.device_security import (
     ACCESS_CODE_PATH,
     canonical_request,
@@ -127,6 +128,65 @@ class CamDeviceApiTest(unittest.TestCase):
             self.assertEqual(
                 1, get_db().execute("SELECT COUNT(*) FROM access_codes").fetchone()[0]
             )
+
+    def test_existing_device_jobs_survive_the_workshop_operation_migration(self):
+        path = Path(self.temporary.name) / "legacy-cam.sqlite3"
+        legacy_schema = SCHEMA.replace(
+            ",\n        'RUN_BOUNDED_WORKSHOP_COMMAND'", ""
+        )
+        connection = sqlite3.connect(path)
+        connection.executescript(legacy_schema)
+        connection.execute(
+            "INSERT INTO registered_devices VALUES (?, 'Ed25519', ?, ?, 'test', NULL, NULL, NULL, NULL)",
+            ("YAREN-legacy", "A" * 43, 1_800_000_000),
+        )
+        connection.execute(
+            """
+            INSERT INTO device_links(
+                link_id, token_digest, device_id, issued_at, expires_at,
+                activated_at, activated_by, last_seen_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 'test', ?)
+            """,
+            ("1" * 32, "2" * 64, "YAREN-legacy", 1, 4_000_000_000, 1, 1),
+        )
+        connection.execute(
+            """
+            INSERT INTO device_jobs(
+                job_id, link_id, device_id, operation, payload_json,
+                created_at, expires_at, status
+            ) VALUES (?, ?, ?, 'REQUEST_CAPABILITY_REPORT', '{}', 1, 2, 'EXPIRED')
+            """,
+            ("3" * 32, "1" * 32, "YAREN-legacy"),
+        )
+        connection.commit()
+        connection.close()
+
+        migrated = create_app(
+            {
+                "TESTING": True,
+                "DATABASE": str(path),
+                "SECRET_KEY": "migration-secret-that-is-long-enough-for-tests",
+                "CAM_PASSWORD": "school-password",
+                "CAM_PASSWORD_HASH": "",
+                "SESSION_COOKIE_SECURE": False,
+            }
+        )
+        with migrated.app_context():
+            self.assertEqual(
+                "REQUEST_CAPABILITY_REPORT",
+                get_db().execute(
+                    "SELECT operation FROM device_jobs WHERE job_id = ?",
+                    ("3" * 32,),
+                ).fetchone()["operation"],
+            )
+            job_id = queue_device_job(
+                "1" * 32,
+                "YAREN-legacy",
+                "RUN_BOUNDED_WORKSHOP_COMMAND",
+                {"proof": "schema accepts closed operation"},
+                lifetime_seconds=20,
+            )
+            self.assertEqual(32, len(job_id))
 
     def test_code_activates_closed_configuration_link_and_close_revokes_it(self):
         challenge = self.challenge().get_json()["challenge"]

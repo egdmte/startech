@@ -1,7 +1,8 @@
-"""Production web application for STARTECH calibration management.
+"""Production web application for STARTECH calibration and supervised SAC.
 
-CAM creates and validates configuration files.  It deliberately has no import of
-the vehicle driver layer and no route that can arm or move the physical car.
+CAM validates configuration files and queues one closed, bounded workshop operation
+to the linked YAREN device.  Physical motor code remains on the car, behind ARDA,
+TAWNT and OSMAN; the web process never imports a GPIO driver.
 """
 
 from __future__ import annotations

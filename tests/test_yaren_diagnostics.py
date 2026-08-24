@@ -8,7 +8,9 @@ import sys
 import tempfile
 import unittest
 
-from arac.goz import FramePacket, SequenceCamera, UnavailableCamera
+import numpy as np
+
+from arac.goz import CameraStatus, CameraUnavailable, FramePacket
 from arac.yaren_diagnostics import collect_capability_report
 from startech.configuration.profiles import ProfileStore
 
@@ -17,9 +19,28 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES = PROJECT_ROOT / "config" / "examples"
 
 
-class ArrayFrame:
-    def __init__(self, width: int = 640, height: int = 480) -> None:
-        self.shape = (height, width, 3)
+class ScriptedCamera:
+    def __init__(self, *, unavailable: str | None = None) -> None:
+        self.unavailable = unavailable
+        self.opened = False
+
+    @property
+    def status(self) -> CameraStatus:
+        return CameraStatus.STREAMING if self.opened else CameraStatus.DISCONNECTED
+
+    def open(self) -> None:
+        if self.unavailable:
+            raise CameraUnavailable(self.unavailable)
+        self.opened = True
+
+    def read_frame(self) -> FramePacket:
+        image = np.zeros((630, 840, 3), dtype=np.uint8)
+        image[:, 220:235] = 255
+        image[:, 605:620] = 255
+        return FramePacket(1, 1.0, image, source="USB:0")
+
+    def close(self) -> None:
+        self.opened = False
 
 
 class YarenDiagnosticsTest(unittest.TestCase):
@@ -42,21 +63,18 @@ class YarenDiagnosticsTest(unittest.TestCase):
     def statuses(self, report) -> dict[str, str]:
         return {item["module"]: item["status"] for item in report["results"]}
 
-    def test_report_distinguishes_live_simulated_blocked_and_unverified(self):
-        camera = SequenceCamera(
-            [FramePacket(1, 1.0, ArrayFrame(), source="USB:0")]
-        )
+    def test_report_uses_real_camera_frames_and_real_lane_analysis(self):
         report = collect_capability_report(
             "YAREN-school-car",
             profile_root=self.root,
-            camera_factory=lambda: camera,
+            camera_factory=ScriptedCamera,
             epoch=lambda: 1_800_000_000,
             clock=lambda: 1.0,
         )
         statuses = self.statuses(report)
         self.assertEqual("LIVE", statuses["KASIM"])
-        self.assertEqual("SIMULATED", statuses["KEREM"])
-        self.assertEqual("BLOCKED_BY_POLICY", statuses["OSMAN"])
+        self.assertEqual("LIVE", statuses["KEREM"])
+        self.assertEqual("UNVERIFIED", statuses["OSMAN"])
         self.assertEqual("UNVERIFIED", statuses["STEERING"])
         self.assertEqual("RESPONDED", statuses["YAREN"])
         self.assertEqual(9, len(report["results"]))
@@ -82,7 +100,9 @@ class YarenDiagnosticsTest(unittest.TestCase):
         report = collect_capability_report(
             "YAREN-school-car",
             profile_root=self.root,
-            camera_factory=lambda: UnavailableCamera("school camera is disconnected"),
+            camera_factory=lambda: ScriptedCamera(
+                unavailable="school camera is disconnected"
+            ),
             epoch=lambda: 1_800_000_000,
             clock=lambda: 1.0,
         )

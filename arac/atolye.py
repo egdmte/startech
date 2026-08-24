@@ -52,7 +52,14 @@ class WorkshopCommand:
     cam_issued_at: int | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.command_id, str) or not 1 <= len(self.command_id) <= 80:
+        if (
+            not isinstance(self.command_id, str)
+            or not 1 <= len(self.command_id) <= 80
+            or any(
+                character not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+                for character in self.command_id
+            )
+        ):
             raise ValueError("workshop command id must contain 1..80 characters")
         if (
             not isinstance(self.operator, str)
@@ -85,6 +92,7 @@ class WorkshopReceipt:
     command_id: str
     operator: str
     source: str
+    cam_issued_at: int | None
     profile_id: str
     requested_left_percent: float
     requested_right_percent: float
@@ -97,10 +105,17 @@ class WorkshopReceipt:
     run_id: str
 
     def to_dict(self) -> dict[str, Any]:
+        cam_issued_at_utc = None
+        if self.cam_issued_at is not None:
+            cam_issued_at_utc = datetime.fromtimestamp(
+                self.cam_issued_at, tz=timezone.utc
+            ).isoformat(timespec="seconds")
         return {
             "command_id": self.command_id,
             "operator": self.operator,
             "source": self.source,
+            "cam_issued_at": self.cam_issued_at,
+            "cam_issued_at_utc": cam_issued_at_utc,
             "profile_id": self.profile_id,
             "requested_left_percent": self.requested_left_percent,
             "requested_right_percent": self.requested_right_percent,
@@ -229,6 +244,7 @@ def execute_workshop_command(
         command_id=command.command_id,
         operator=command.operator,
         source=command.source,
+        cam_issued_at=command.cam_issued_at,
         profile_id=configuration.profile_id,
         requested_left_percent=command.left_percent,
         requested_right_percent=command.right_percent,

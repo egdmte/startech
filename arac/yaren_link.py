@@ -1,10 +1,11 @@
-"""Outbound YAREN client for one temporary CAM configuration link."""
+"""Outbound YAREN client for configuration and bounded SAC workshop jobs."""
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 import json
+import math
 from pathlib import Path
 import time
 from typing import Any
@@ -14,6 +15,7 @@ from urllib.request import Request, urlopen
 from startech.configuration.combined import merge_v1_pair
 from startech.configuration.profiles import ProfileStore
 
+from .atolye import WorkshopCommand, WorkshopReceipt, execute_workshop_command
 from .yaren_diagnostics import collect_capability_report
 from .yaren_web import WebAccessCode, default_server_url
 
@@ -28,6 +30,22 @@ ALLOWED_OPERATIONS = frozenset(
         "REQUEST_ACTIVE_CONFIGURATION",
         "REQUEST_CAPABILITY_REPORT",
         "INSTALL_INACTIVE_CONFIGURATION",
+        "RUN_BOUNDED_WORKSHOP_COMMAND",
+    }
+)
+WORKSHOP_INSPECTION = frozenset(
+    {"wheels-secured", "motors-mounted", "path-clear"}
+)
+WORKSHOP_PAYLOAD_FIELDS = frozenset(
+    {
+        "draft_id",
+        "operator",
+        "issued_at",
+        "expires_at",
+        "left_percent",
+        "right_percent",
+        "duration_seconds",
+        "inspection",
     }
 )
 
@@ -45,6 +63,72 @@ class LinkRunResult:
 
 LinkTransport = Callable[[str, Mapping[str, Any], str, float], dict[str, Any]]
 StatusCallback = Callable[[str], None]
+WorkshopExecutor = Callable[..., WorkshopReceipt]
+
+
+def _workshop_command(
+    job_id: str,
+    payload: Mapping[str, Any],
+    *,
+    now: int,
+) -> WorkshopCommand:
+    """Validate the exact, short-lived CAM command before motor code is called."""
+
+    if set(payload) != WORKSHOP_PAYLOAD_FIELDS:
+        raise YarenLinkError("workshop command has unexpected fields")
+    draft_id = payload["draft_id"]
+    operator = payload["operator"]
+    issued_at = payload["issued_at"]
+    expires_at = payload["expires_at"]
+    inspection = payload["inspection"]
+    if (
+        not isinstance(draft_id, str)
+        or len(draft_id) != 32
+        or any(character not in "0123456789abcdef" for character in draft_id)
+    ):
+        raise YarenLinkError("workshop draft id is invalid")
+    if not isinstance(operator, str) or operator != operator.strip():
+        raise YarenLinkError("workshop operator is invalid")
+    if (
+        isinstance(issued_at, bool)
+        or not isinstance(issued_at, int)
+        or isinstance(expires_at, bool)
+        or not isinstance(expires_at, int)
+    ):
+        raise YarenLinkError("workshop command times must be integer epochs")
+    if issued_at > now + 5:
+        raise YarenLinkError("workshop command issue time is in the future")
+    if issued_at < now - 30 or expires_at <= now:
+        raise YarenLinkError("workshop command expired")
+    if expires_at <= issued_at or expires_at - issued_at > 30:
+        raise YarenLinkError("workshop command lifetime is invalid")
+    if (
+        not isinstance(inspection, list)
+        or len(inspection) != len(WORKSHOP_INSPECTION)
+        or set(inspection) != WORKSHOP_INSPECTION
+        or any(not isinstance(item, str) for item in inspection)
+    ):
+        raise YarenLinkError("workshop physical inspection is incomplete")
+    for name in ("left_percent", "right_percent", "duration_seconds"):
+        value = payload[name]
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+        ):
+            raise YarenLinkError(f"workshop {name} must be a finite number")
+    try:
+        return WorkshopCommand(
+            command_id=job_id,
+            operator=operator,
+            left_percent=float(payload["left_percent"]),
+            right_percent=float(payload["right_percent"]),
+            duration_seconds=float(payload["duration_seconds"]),
+            source="CAM_SAC",
+            cam_issued_at=issued_at,
+        )
+    except ValueError as exc:
+        raise YarenLinkError(str(exc)) from exc
 
 
 def _server_root(server_url: str) -> str:
@@ -245,6 +329,8 @@ def run_temporary_link(
     poll_interval: float = 2.0,
     transport: LinkTransport | None = None,
     capability_collector: Callable[..., dict[str, Any]] = collect_capability_report,
+    workshop_executor: WorkshopExecutor = execute_workshop_command,
+    workshop_log_dir: str | Path = Path("runs"),
     status: StatusCallback = lambda _message: None,
     epoch: Callable[[], int] = lambda: int(time.time()),
     sleep: Callable[[float], None] = time.sleep,
@@ -318,7 +404,7 @@ def run_temporary_link(
                         capability_collector,
                     )
                     receipt = {"reported": True}
-                else:
+                elif operation == "INSTALL_INACTIVE_CONFIGURATION":
                     if set(payload) != {"deployment_id", "configuration"}:
                         raise YarenLinkError("installation job has unexpected fields")
                     deployment_id = payload["deployment_id"]
@@ -333,6 +419,16 @@ def run_temporary_link(
                         "installed": True,
                         "active": False,
                     }
+                else:
+                    command = _workshop_command(job_id, payload, now=epoch())
+                    executed = workshop_executor(
+                        command,
+                        profile_root=profile_root,
+                        log_dir=Path(workshop_log_dir),
+                    )
+                    if not isinstance(executed, WorkshopReceipt):
+                        raise YarenLinkError("workshop executor returned an invalid receipt")
+                    receipt = executed.to_dict()
                 _send_receipt(
                     server,
                     access,
@@ -343,7 +439,7 @@ def run_temporary_link(
                     timeout,
                 )
                 accepted_jobs += 1
-                status(f"Accepted configuration-only CAM job {job_id}.")
+                status(f"Accepted bounded CAM job {job_id}.")
             except Exception as exc:
                 rejected_jobs += 1
                 if job_id != "unknown":

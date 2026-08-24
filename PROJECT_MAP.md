@@ -36,8 +36,9 @@ arac/main.py       ARDA / ADAM    command-line entry and orchestration
     +-- arac/ayar.py       YAREN / CLARA   fail-closed active profile loader
     +-- arac/ayar_cli.py   YAREN / CLARA   calibration/settings registry menu
     +-- arac/yaren_web.py                  signed device identity and web-code bootstrap
-    +-- arac/yaren_link.py                 temporary outbound configuration-only link
-    +-- arac/yaren_diagnostics.py          bounded, read-only capability probes
+    +-- arac/yaren_link.py                 temporary outbound closed-operation link
+    +-- arac/yaren_diagnostics.py          real camera/lane capability probes
+    +-- arac/atolye.py                     shared bounded physical workshop execution
     +-- arac/goz.py        KASIM / CAMILA   camera acquisition
     +-- arac/kamera_oturumu.py             finite record/replay sessions
     +-- arac/goruntu.py    KEREM / CORA     cautious vision observations
@@ -90,21 +91,26 @@ YAREN --signed request--> CAM --random one-use code--> operator
    +-- outbound bearer link <--- browser consumes --+
               |
               +-- active configuration snapshot
-              +-- truthful capability report
+              +-- physical camera + real lane-analysis report
               +-- validated inactive profile import
+              +-- one short, explicit SAC workshop motor command
 ```
 
-The link understands only `REQUEST_ACTIVE_CONFIGURATION`,
-`REQUEST_CAPABILITY_REPORT` and `INSTALL_INACTIVE_CONFIGURATION`. It has no motor,
-steering, arming or profile-activation operation. Imported combined v2 files are
-validated, separated into their v1 runtime documents and stored as immutable inactive
-profiles for human review. Logout, expiry, YAREN shutdown or Ctrl+C revokes the link.
+The link has a closed operation list: `REQUEST_ACTIVE_CONFIGURATION`,
+`REQUEST_CAPABILITY_REPORT`, `INSTALL_INACTIVE_CONFIGURATION` and
+`RUN_BOUNDED_WORKSHOP_COMMAND`. The last operation is available only from an
+authenticated SAC session, carries CAM's legal-name/time record, expires in seconds and
+is limited to ±35% for at most three seconds. It executes on the car through the same
+ARDA → TAWNT → OSMAN path as the local bench command. It is not continuous remote
+control and cannot start autonomous driving or activate a profile. Imported combined v2
+files remain immutable inactive profiles for human review. Logout, expiry, YAREN shutdown
+or Ctrl+C revokes the link.
 
-Capability states are deliberately precise: `LIVE`, `RESPONDED`, `SIMULATED`,
-`BLOCKED_BY_POLICY`, `UNAVAILABLE`, `FAILED` and `UNVERIFIED`. In particular, KEREM's
-fake vision and motor-driver checks are reported as simulated, OSMAN is blocked by
-policy, and steering remains unverified. A successful report is not evidence that the
-physical vehicle is safe.
+The CAM capability report opens the physical camera twice: once for acquisition metadata
+and once for KEREM to run the active lane detector. OSMAN is not moved by automatic
+diagnostics; physical output requires the separate, explicit workshop form and countdown.
+Its software receipt records requested/applied values and a stop request. Only a separate
+human observation can record that a wheel physically moved as expected.
 
 TAWNT keeps every accepted motion request behind a validation gate:
 

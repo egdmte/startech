@@ -12,7 +12,9 @@ from startech.configuration.combined import combined_config_errors
 from startech.configuration.validation import kisa_ozet_hesapla
 from startech_cam import create_app
 from startech_cam.db import get_db
+from startech_cam.device_link import claim_next_device_job, complete_device_job
 from startech_cam.repository import get_draft
+from startech_cam.security import now_epoch
 
 
 TOKEN = re.compile(rb'name="csrf_token" value="([^"]+)"')
@@ -88,6 +90,122 @@ class CamWorkflowTest(unittest.TestCase):
         self.assertEqual(302, preflight.status_code)
         self.assertTrue(preflight.location.endswith(f"/sac/{draft_id}/components"))
         return draft_id
+
+    def connect_device(self) -> tuple[str, str]:
+        link_id = "a" * 32
+        device_id = "YAREN-school-car"
+        current = now_epoch()
+        with self.app.app_context():
+            connection = get_db()
+            connection.execute(
+                """
+                INSERT INTO registered_devices(
+                    device_id, algorithm, public_key_b64, created_at, created_by
+                ) VALUES (?, 'Ed25519', ?, ?, 'test')
+                """,
+                (device_id, "A" * 43, current),
+            )
+            connection.execute(
+                """
+                INSERT INTO device_links(
+                    link_id, token_digest, device_id, issued_at, expires_at,
+                    activated_at, activated_by, last_seen_at
+                ) VALUES (?, ?, ?, ?, ?, ?, 'test', ?)
+                """,
+                (link_id, "b" * 64, device_id, current, current + 600, current, current),
+            )
+            connection.commit()
+        with self.client.session_transaction() as browser_session:
+            browser_session["device_id"] = device_id
+            browser_session["device_link_id"] = link_id
+            browser_session["car_access_expires_at"] = current + 600
+        return link_id, device_id
+
+    def test_sac_queues_one_bounded_real_command_and_records_human_observation(self):
+        draft_id = self.start_sac("Physical workshop")
+        link_id, device_id = self.connect_device()
+        path = f"/sac/{draft_id}/preflight"
+        page = self.client.get(path)
+        self.assertIn(b"Bounded workshop motor check", page.data)
+        self.assertIn(b"Egemen Yusuf Kayra", page.data)
+        token = TOKEN.search(page.data).group(1).decode("ascii")
+        queued = self.client.post(
+            f"/sac/{draft_id}/workshop",
+            data={
+                "csrf_token": token,
+                "left_percent": "10",
+                "right_percent": "-8",
+                "duration_seconds": "0.25",
+                "inspection": ["wheels-secured", "motors-mounted", "path-clear"],
+            },
+        )
+        self.assertEqual(302, queued.status_code)
+        job_id = queued.location.rsplit("job=", 1)[1]
+        with self.app.app_context():
+            row = get_db().execute(
+                "SELECT operation, payload_json, expires_at - created_at AS lifetime FROM device_jobs WHERE job_id = ?",
+                (job_id,),
+            ).fetchone()
+            self.assertEqual("RUN_BOUNDED_WORKSHOP_COMMAND", row["operation"])
+            self.assertLessEqual(row["lifetime"], 20)
+            payload = json.loads(row["payload_json"])
+            self.assertEqual("Egemen Yusuf Kayra", payload["operator"])
+            self.assertEqual(draft_id, payload["draft_id"])
+            claimed = claim_next_device_job(link_id, device_id)
+            self.assertEqual(job_id, claimed["job_id"])
+            complete_device_job(
+                link_id,
+                device_id,
+                job_id,
+                accepted=True,
+                receipt={
+                    "cam_issued_at": payload["issued_at"],
+                    "applied_left": 0.1,
+                    "applied_right": -0.08,
+                    "duration_seconds": 0.25,
+                    "stop_requested": True,
+                    "physical_motion_observed": False,
+                },
+            )
+
+        completed = self.client.get(f"{path}?job={job_id}")
+        self.assertIn(b"This receipt proves software execution", completed.data)
+        token = TOKEN.search(completed.data).group(1).decode("ascii")
+        observed = self.client.post(
+            f"/sac/{draft_id}/workshop/{job_id}/observe",
+            data={"csrf_token": token, "observation": "expected"},
+        )
+        self.assertEqual(302, observed.status_code)
+        with self.app.app_context():
+            document, touched, workflow = get_draft(
+                draft_id, "Egemen Yusuf Kayra"
+            )
+        self.assertEqual("SAC", workflow)
+        self.assertIn("hardware-evidence", touched)
+        self.assertTrue(document["oturum_kaniti"]["fiziksel_dogrulama_yapildi"])
+        self.assertTrue(document["oturum_kaniti"]["fiziksel_hizalama_dogrulandi"])
+
+    def test_sac_refuses_motor_job_without_all_physical_conditions(self):
+        draft_id = self.start_sac("Rejected workshop")
+        self.connect_device()
+        path = f"/sac/{draft_id}/preflight"
+        token = self.page_token(path)
+        rejected = self.client.post(
+            f"/sac/{draft_id}/workshop",
+            data={
+                "csrf_token": token,
+                "left_percent": "10",
+                "right_percent": "10",
+                "duration_seconds": "0.25",
+                "inspection": ["wheels-secured", "path-clear"],
+            },
+        )
+        self.assertEqual(302, rejected.status_code)
+        with self.app.app_context():
+            count = get_db().execute(
+                "SELECT COUNT(*) FROM device_jobs WHERE operation = 'RUN_BOUNDED_WORKSHOP_COMMAND'"
+            ).fetchone()[0]
+        self.assertEqual(0, count)
 
     def test_sac_persists_each_step_then_publishes_downloadable_v2(self):
         draft_id = self.start_sac()

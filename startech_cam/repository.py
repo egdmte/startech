@@ -25,6 +25,7 @@ from .security import audit, now_epoch
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DOCUMENT = ROOT / "config" / "examples" / "yapilandirma-v2.ornek.json"
 MAX_JSON_BYTES = 1_000_000
+SAC_PHYSICAL_INSPECTION = ("wheels-secured", "motors-mounted", "path-clear")
 
 
 class CamRepositoryError(RuntimeError):
@@ -247,6 +248,47 @@ def save_draft(
     audit(owner, "DRAFT_UPDATED", draft_id, {"section": section})
 
 
+def record_sac_workshop_observation(
+    draft_id: str,
+    owner: str,
+    *,
+    job_id: str,
+    inspection: list[str],
+    observed_as_expected: bool,
+) -> None:
+    """Record human physical observation separately from the software receipt."""
+
+    if (
+        not isinstance(job_id, str)
+        or len(job_id) != 32
+        or any(character not in "0123456789abcdef" for character in job_id)
+    ):
+        raise InvalidDocument("workshop job id is invalid")
+    if (
+        not isinstance(inspection, list)
+        or len(inspection) != len(SAC_PHYSICAL_INSPECTION)
+        or set(inspection) != set(SAC_PHYSICAL_INSPECTION)
+    ):
+        raise InvalidDocument("physical inspection record is incomplete")
+    if not isinstance(observed_as_expected, bool):
+        raise InvalidDocument("physical observation must be explicit")
+    document, _touched, workflow = get_draft(draft_id, owner)
+    if workflow != "SAC":
+        raise InvalidDocument("physical workshop observations belong to SAC drafts")
+    evidence = document["oturum_kaniti"]
+    evidence["mekanik_inceleme"] = list(SAC_PHYSICAL_INSPECTION)
+    evidence["fiziksel_dogrulama_yapildi"] = observed_as_expected
+    evidence["fiziksel_hizalama_dogrulandi"] = observed_as_expected
+    evidence["fiziksel_cikis_aktif"] = False
+    save_draft(draft_id, owner, document, section="hardware-evidence")
+    audit(
+        owner,
+        "SAC_WORKSHOP_OBSERVATION",
+        draft_id,
+        {"job_id": job_id, "observed_as_expected": observed_as_expected},
+    )
+
+
 def replace_draft_json(draft_id: str, owner: str, text: str, *, section: str) -> None:
     document = parse_document_text(text, refresh_calibration_digest=True)
     _existing, _touched, workflow = get_draft(draft_id, owner)
@@ -405,6 +447,7 @@ __all__ = [
     "parse_json_value",
     "publish_draft",
     "project_sac_speed",
+    "record_sac_workshop_observation",
     "refresh_calibration_stamp",
     "replace_draft_json",
     "save_draft",

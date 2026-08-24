@@ -10,6 +10,7 @@ import argparse
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
+import secrets
 import sys
 import time
 from typing import Any, TextIO
@@ -23,6 +24,7 @@ if __package__ in {None, ""}:
 
 from arac.ayar import ActiveConfiguration, load_active_configuration
 from arac.ayar_cli import run as run_yaren_cli
+from arac.atolye import WorkshopCommand, execute_workshop_command
 from arac.cli_ui import MenuOption, TerminalUI
 from arac.goruntu import LaneObservation, LaneVisionAnalyzer
 from arac.goz import CameraSource, build_preferred_camera
@@ -33,7 +35,6 @@ from arac.surucu import (
     GpioZeroMotorDriver,
     LaneController,
     MotorDriver,
-    MotorRequest,
     OutputWatchdog,
     validate_request,
 )
@@ -44,7 +45,6 @@ EXIT_OK = 0
 EXIT_ERROR = 2
 EXIT_INTERRUPTED = 130
 LANE_PHASE = "LANE_FOLLOW"
-BENCH_PHASE = "BENCH_OUTPUT"
 
 
 @dataclass(frozen=True)
@@ -235,38 +235,6 @@ def _log(
     black_box.append(kind, module, data, frame_id=frame_id)
 
 
-def _configure_tawnt(
-    *,
-    profile: str,
-    phase: str,
-    maximum_output: float,
-    fault_store: Path,
-    allow_reverse: bool,
-    allow_pivot: bool,
-    operator: str,
-) -> None:
-    if profile == tawnt.LIVE:
-        tawnt.configureFaultStore(fault_store)
-    tawnt.defineWatchdog("control", timeout_seconds=0.5)
-    tawnt.heartbeat("control")
-    tawnt.definePhase(
-        phase,
-        motion_allowed=True,
-        allow_reverse=allow_reverse,
-        allow_pivot=allow_pivot,
-        max_pwm=maximum_output,
-        max_difference=maximum_output * (2 if allow_pivot else 1),
-        required_watchdogs=("control",),
-    )
-    tawnt.validateBeforeStart(profile=profile)
-    tawnt.enterPhase(phase)
-    tawnt.arm(
-        operator,
-        live_hardware_authorized=profile == tawnt.LIVE,
-        final_confirmation=profile == tawnt.LIVE,
-    )
-
-
 def _wait_for_start(
     method: str,
     *,
@@ -420,58 +388,23 @@ def run_bench(
 
     if not options.operator or not options.confirm_output:
         raise ValueError("bench output needs an operator legal name and output confirmation")
-    configuration = configuration or load_active_configuration(options.profile_root)
-    driver = driver or GpioZeroMotorDriver(configuration.calibration["motor"])
-    black_box = _new_black_box(options, "bench")
-    output_watchdog = OutputWatchdog(driver)
-    armed = False
-    try:
-        driver.stop("bench pre-start electrical stop")
-        tawnt.sifirla()
-        tawnt.onShutdown(lambda: driver.stop("TAWNT zero callback"))
-        _configure_tawnt(
-            profile=tawnt.BENCH,
-            phase=BENCH_PHASE,
-            maximum_output=0.35,
-            fault_store=options.log_dir / "unused-bench-fault.json",
-            allow_reverse=True,
-            allow_pivot=True,
-            operator=options.operator or "",
-        )
-        armed = True
-        output_watchdog.start()
-        request = MotorRequest(
-            options.bench_left / 100.0,
-            options.bench_right / 100.0,
-            BENCH_PHASE,
-            "bounded workshop command",
-        )
-        validated = validate_request(request)
-        final_command = driver.apply(validated) or validated.command
-        _log(black_box, RecordKind.MOTOR_ACCEPTED, "OSMAN", {
-            "left": final_command.left, "right": final_command.right,
-            "seconds": options.bench_seconds, "operator": options.operator,
-        })
-        deadline = clock() + options.bench_seconds
-        while clock() < deadline:
-            tawnt.heartbeat("control")
-            output_watchdog.touch()
-            sleep(min(0.05, max(0.0, deadline - clock())))
-    except Exception as exc:
-        driver.stop(f"bench fault: {type(exc).__name__}")
-        try:
-            _log(black_box, RecordKind.FAULT, "ARDA", {
-                "type": type(exc).__name__, "message": str(exc),
-            })
-        except Exception:
-            pass
-        raise
-    finally:
-        output_watchdog.close()
-        driver.stop("bench duration ended")
-        if armed:
-            tawnt.disarm("bench duration ended")
-        driver.close()
+    command = WorkshopCommand(
+        command_id=secrets.token_hex(16),
+        operator=options.operator,
+        left_percent=options.bench_left,
+        right_percent=options.bench_right,
+        duration_seconds=options.bench_seconds,
+        source="ARDA_CLI",
+    )
+    execute_workshop_command(
+        command,
+        profile_root=options.profile_root,
+        configuration=configuration,
+        driver=driver,
+        log_dir=options.log_dir,
+        clock=clock,
+        sleep=sleep,
+    )
     return EXIT_OK
 
 
