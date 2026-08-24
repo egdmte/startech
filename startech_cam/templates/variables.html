@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Variable manager{% endblock %}
+{% block content %}
+<section class="document-editor">
+  <header class="section-heading">
+    <h1>Variable Management</h1>
+    <p>Edit the merged v2 document directly. CAM rejects unknown, missing, duplicate, non-finite, or semantically invalid values.</p>
+  </header>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <textarea class="code-input document-input" name="document_json" spellcheck="false">{{ document_json }}</textarea>
+    <div class="editor-actions">
+      <button class="primary-button" type="submit">Validate and save</button>
+      <a class="secondary-button" href="{{ url_for('cam.summary', workflow='mac', draft_id=draft_id) }}">Review summary</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

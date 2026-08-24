@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Calibration {{ tag }} created{% endblock %}
+{% block content %}
+<section class="center-card medium">
+  <div class="success-icon" aria-hidden="true">✓</div>
+  <h1>Calibration created!</h1>
+  <p>A new {{ document.profil.is_akisi }} calibration with tag <strong>{{ tag }}</strong> has been created.</p>
+  <div class="button-stack">
+    {% if document.profil.is_akisi == 'SAC' %}
+    <form method="post" action="{{ url_for('cam.edit_with_mac', tag=tag) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="primary-button" type="submit">Edit {{ tag }} with MAC</button>
+    </form>
+    {% endif %}
+    <a class="secondary-button" href="{{ url_for('cam.download', tag=tag) }}">Download merged JSON</a>
+    <a class="secondary-button" href="{{ url_for('cam.dashboard') }}">Main menu</a>
+  </div>
+</section>
+{% endblock %}

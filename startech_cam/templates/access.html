@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}YAREN access{% endblock %}
+{% block content %}
+<section class="center-card narrow">
+  <div class="message-icon" aria-hidden="true">▣</div>
+  <h1>Prove that you possess the code.</h1>
+  <p>Open YAREN, request a web code, and enter its eight characters here. Codes expire after fifteen minutes and work once.</p>
+  <form class="inline-code-form" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input name="access_code" aria-label="YAREN access code" autocomplete="one-time-code" maxlength="12" required>
+    <button class="primary-button compact" type="submit" aria-label="Submit code">↗</button>
+  </form>
+  <form method="post" action="{{ url_for('auth.continue_offline') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="text-button spacious" type="submit">Continue without access to the car →</button>
+  </form>
+</section>
+{% endblock %}

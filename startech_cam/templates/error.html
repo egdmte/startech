@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<section class="center-card narrow"><h1>{{ title }}</h1><p>{{ message }}</p><a class="secondary-button" href="{{ url_for('cam.dashboard') }}">Main menu</a></section>
+{% endblock %}

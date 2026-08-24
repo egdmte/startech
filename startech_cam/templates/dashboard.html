@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<section class="center-card dashboard-card">
+  <p>Welcome to Calibration Arrangement and Management Tool (CAM)</p>
+  <h1>Select an option to begin.</h1>
+  <div class="button-stack">
+    <a class="primary-button" href="{{ url_for('cam.new_configuration', workflow='sac') }}">Create a SAC <span>(Service Assisted Calibration)</span></a>
+    <a class="secondary-button" href="{{ url_for('cam.new_configuration', workflow='mac') }}">Create a MAC <span>(Manual Assisted Calibration)</span></a>
+    <a class="text-button" href="{{ url_for('cam.history') }}">Access version history →</a>
+  </div>
+  {% if calibrations %}
+  <div class="recent-list">
+    <h2>Recent configurations</h2>
+    {% for item in calibrations %}
+      <a href="{{ url_for('cam.download', tag=item.tag) }}"><strong>{{ item.tag }}</strong> {{ item.name }} · {{ item.workflow }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

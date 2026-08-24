@@ -1,5 +1,16 @@
 """STARTECH JSON configuration validation helpers."""
 
+from .combined import (
+    COMBINED_SCHEMA,
+    COMBINED_SCHEMA_VERSION,
+    SAC_CONTRACT_VERSION,
+    combined_config_errors,
+    combined_schema_errors,
+    combined_semantic_errors,
+    merge_v1_pair,
+    split_v2,
+)
+
 from .profiles import (
     ActiveDiagnosis,
     ActiveProfileArchiveError,
@@ -44,6 +55,8 @@ __all__ = [
     "ActiveProfileError",
     "ActiveSelection",
     "AYARLAR_SEMASI",
+    "COMBINED_SCHEMA",
+    "COMBINED_SCHEMA_VERSION",
     "HistoryEntry",
     "InvalidJsonFile",
     "InvalidProfile",
@@ -59,16 +72,22 @@ __all__ = [
     "ProfileNotFound",
     "ProfileStore",
     "ProfileSummary",
+    "SAC_CONTRACT_VERSION",
     "WarningAcknowledgementRequired",
     "ayarlar_anlam_hatalari",
     "ayarlar_uyarilari",
     "ayarlari_dogrula",
+    "combined_config_errors",
+    "combined_schema_errors",
+    "combined_semantic_errors",
     "default_profile_root",
     "json_oku",
     "kalibrasyon_anlam_hatalari",
     "kalibrasyon_uyarilari",
     "kalibrasyonu_dogrula",
     "kisa_ozet_hesapla",
+    "merge_v1_pair",
     "profile_schema_errors",
     "sema_hatalari",
+    "split_v2",
 ]

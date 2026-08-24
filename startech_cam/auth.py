@@ -1,0 +1,140 @@
+"""Password session and one-time YAREN access-code routes."""
+
+from __future__ import annotations
+
+from functools import wraps
+from typing import Any, Callable, TypeVar, cast
+
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+
+from .security import (
+    audit,
+    consume_access_code,
+    csrf_matches,
+    csrf_token,
+    now_epoch,
+    record_login,
+    remote_is_limited,
+    verify_password,
+)
+
+
+auth_blueprint = Blueprint("auth", __name__)
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def login_required(view: F) -> F:
+    @wraps(view)
+    def wrapped(*args: Any, **kwargs: Any) -> Any:
+        if not session.get("authenticated"):
+            return redirect(url_for("auth.login", next=request.path))
+        return view(*args, **kwargs)
+
+    return cast(F, wrapped)
+
+
+def current_actor() -> str:
+    value = session.get("legal_name")
+    return str(value) if isinstance(value, str) and value else "anonymous"
+
+
+def has_car_access() -> bool:
+    expires_at = session.get("car_access_expires_at", 0)
+    return isinstance(expires_at, int) and expires_at >= now_epoch()
+
+
+@auth_blueprint.app_context_processor
+def inject_auth_context() -> dict[str, Any]:
+    return {
+        "csrf_token": csrf_token,
+        "current_actor": current_actor(),
+        "has_car_access": has_car_access(),
+    }
+
+
+@auth_blueprint.before_app_request
+def protect_unsafe_requests() -> None:
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        if not csrf_matches(request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")):
+            abort(400, "The form expired or its CSRF token is invalid.")
+
+
+@auth_blueprint.route("/login", methods=["GET", "POST"])
+def login() -> Any:
+    if session.get("authenticated"):
+        return redirect(url_for("cam.dashboard"))
+    if request.method == "GET":
+        return render_template("login.html")
+
+    remote = request.remote_addr or "unknown"
+    if remote_is_limited(remote):
+        abort(429, "Too many failed login attempts. Wait fifteen minutes.")
+    name = request.form.get("legal_name", "").strip()
+    password = request.form.get("password", "")
+    accepted = 1 <= len(name) <= 120 and verify_password(password)
+    record_login(remote, succeeded=accepted)
+    if not accepted:
+        flash("The name or password was not accepted.", "error")
+        return render_template("login.html", legal_name=name), 401
+
+    session.clear()
+    session.permanent = True
+    session["authenticated"] = True
+    session["legal_name"] = name
+    csrf_token()
+    audit(name, "LOGIN", remote, {})
+    next_url = request.args.get("next", "")
+    if next_url.startswith("/") and not next_url.startswith("//"):
+        return redirect(next_url)
+    return redirect(url_for("auth.access"))
+
+
+@auth_blueprint.post("/logout")
+@login_required
+def logout() -> Any:
+    actor = current_actor()
+    audit(actor, "LOGOUT", "session", {})
+    session.clear()
+    return redirect(url_for("auth.login"))
+
+
+@auth_blueprint.route("/access", methods=["GET", "POST"])
+@login_required
+def access() -> Any:
+    if request.method == "GET":
+        return render_template("access.html")
+    code = request.form.get("access_code", "")
+    device_id = consume_access_code(code, current_actor())
+    if device_id is None:
+        flash("That YAREN code is invalid, expired, or already used.", "error")
+        return render_template("access.html"), 400
+    session["device_id"] = device_id
+    session["car_access_expires_at"] = now_epoch() + 15 * 60
+    flash(f"Connected to {device_id} for this session.", "success")
+    return redirect(url_for("cam.dashboard"))
+
+
+@auth_blueprint.post("/access/offline")
+@login_required
+def continue_offline() -> Any:
+    session.pop("device_id", None)
+    session.pop("car_access_expires_at", None)
+    audit(current_actor(), "OFFLINE_MODE", "session", {})
+    return redirect(url_for("cam.dashboard"))
+
+
+__all__ = [
+    "auth_blueprint",
+    "current_actor",
+    "has_car_access",
+    "login_required",
+]

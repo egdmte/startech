@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Version history{% endblock %}
+{% block content %}
+<section class="history-page">
+  <header class="section-heading"><h1>Version history</h1><p>Finalized configurations are append-only. Download or branch them into MAC.</p></header>
+  {% if calibrations %}
+  <div class="history-table" role="table">
+    {% for item in calibrations %}
+    <article class="history-row">
+      <div><strong>{{ item.tag }}</strong><span>{{ item.name }}</span></div>
+      <span>{{ item.workflow }}</span><span>{{ item.owner }}</span>
+      <div class="row-actions">
+        <a class="secondary-button compact" href="{{ url_for('cam.download', tag=item.tag) }}">Download</a>
+        <form method="post" action="{{ url_for('cam.edit_with_mac', tag=item.tag) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="text-button" type="submit">Open in MAC →</button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}<p>No finalized configurations exist yet.</p>{% endif %}
+  <a class="text-button" href="{{ url_for('cam.dashboard') }}">← Main menu</a>
+</section>
+{% endblock %}

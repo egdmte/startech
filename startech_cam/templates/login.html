@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Log in{% endblock %}
+{% block frame_class %}split-frame{% endblock %}
+{% block content %}
+<section class="login-intro">
+  <div>
+    <div class="car-glyph" aria-hidden="true">▰</div>
+    <h1>Calibrate your STARTECH instance</h1>
+    <p>Build validated merged configurations without transferring separate files.</p>
+  </div>
+  <p class="muted">CAM creates configuration files. It cannot arm or move the car.</p>
+</section>
+<section class="login-form-panel">
+  <form class="form-stack wide-form" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>
+      <span>Your full legal name</span>
+      <input name="legal_name" autocomplete="name" maxlength="120" required value="{{ legal_name or '' }}">
+    </label>
+    <label>
+      <span>Password provided</span>
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+    <button class="primary-button" type="submit">Log in</button>
+  </form>
+</section>
+{% endblock %}

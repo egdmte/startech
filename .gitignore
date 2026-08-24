@@ -5,3 +5,11 @@ venv/
 
 # Cowork/agent oturum verisi — projeye ait degil.
 .claude/
+
+# CAM production secrets and mutable state.
+instance/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.env
+.env.*

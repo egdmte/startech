@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ workflow }} · {{ title }}{% endblock %}
+{% block frame_class %}editor-frame{% endblock %}
+{% block content %}
+<div class="editor-layout">
+  <aside class="editor-sidebar">
+    <strong>{{ workflow }} editor</strong>
+    <nav>
+      {% for key, definition in definitions.items() %}
+        <a class="{{ 'active' if key == section else '' }}" href="{{ url_for('cam.edit_section', workflow=workflow.lower(), draft_id=draft_id, section=key) }}">
+          {{ definition[0] }}{% if key in touched %}<span aria-label="saved">✓</span>{% endif %}
+        </a>
+      {% endfor %}
+      {% if workflow == 'MAC' %}
+        <a href="{{ url_for('cam.variable_manager', draft_id=draft_id) }}">Variable manager{% if 'variables' in touched %}<span>✓</span>{% endif %}</a>
+      {% endif %}
+    </nav>
+    <a class="secondary-button" href="{{ url_for('cam.summary', workflow=workflow.lower(), draft_id=draft_id) }}">Review summary</a>
+  </aside>
+  <section class="editor-main">
+    <header class="section-heading">
+      <h1>{{ title }}</h1>
+      <p>{{ description }}</p>
+    </header>
+    <form class="editor-form" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% for field in fields %}
+        <div class="field-row {{ 'field-wide' if field.kind == 'json' else '' }}">
+          {% if field.kind == 'checkbox' %}
+            <label class="choice"><input type="checkbox" name="{{ field.path }}" {% if values[field.path] %}checked{% endif %}> {{ field.label }}</label>
+          {% elif field.kind == 'multiselect' %}
+            <fieldset><legend>{{ field.label }}</legend>
+              <div class="choice-grid">
+              {% for value, label in field.choices %}
+                <label class="choice"><input type="checkbox" name="{{ field.path }}" value="{{ value }}" {% if value in values[field.path] %}checked{% endif %}> {{ label }}</label>
+              {% endfor %}
+              </div>
+            </fieldset>
+          {% elif field.kind == 'select' %}
+            <label><span>{{ field.label }}</span><select name="{{ field.path }}">
+              {% for value, label in field.choices %}<option value="{{ value }}" {% if values[field.path]|string == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select></label>
+          {% elif field.kind == 'nullable_boolean' %}
+            <label><span>{{ field.label }}</span><select name="{{ field.path }}">
+              <option value="null" {% if values[field.path] == 'null' %}selected{% endif %}>Unknown</option>
+              <option value="false" {% if values[field.path] == 'false' %}selected{% endif %}>Not measured</option>
+              <option value="true" {% if values[field.path] == 'true' %}selected{% endif %}>Measured — evidence exists</option>
+            </select></label>
+          {% elif field.kind == 'json' %}
+            <label><span>{{ field.label }}</span><textarea class="code-input" name="{{ field.path }}" rows="10">{{ values[field.path] }}</textarea></label>
+          {% elif field.kind == 'range' %}
+            <label><span>{{ field.label }}: <output data-range-output>{{ values[field.path] }}</output></span>
+              <input type="range" name="{{ field.path }}" value="{{ values[field.path] }}" min="{{ field.minimum }}" max="{{ field.maximum }}" step="{{ field.step }}" data-range>
+            </label>
+          {% else %}
+            <label><span>{{ field.label }}</span><input type="{{ 'number' if field.kind in ['integer', 'number'] else 'text' }}" name="{{ field.path }}" value="{{ values[field.path] }}" {% if field.minimum is not none %}min="{{ field.minimum }}"{% endif %} {% if field.maximum is not none %}max="{{ field.maximum }}"{% endif %} {% if field.step is not none %}step="{{ field.step }}"{% endif %}></label>
+          {% endif %}
+          {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+        </div>
+      {% endfor %}
+      <div class="editor-actions">
+        <button class="primary-button" type="submit">Save and continue</button>
+        <a class="text-button" href="{{ url_for('cam.summary', workflow=workflow.lower(), draft_id=draft_id) }}">Review current values →</a>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

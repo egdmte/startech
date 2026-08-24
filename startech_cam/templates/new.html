@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}New {{ workflow }}{% endblock %}
+{% block content %}
+<section class="center-card medium">
+  <h1>Please enter a name for this calibration.</h1>
+  <p>Your legal name determines the owner. The display name helps organize versions and does not change schema identity.</p>
+  <form class="form-stack" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>
+      <span>Configuration name</span>
+      <input name="name" maxlength="80" placeholder="My{{ workflow }}" required value="{{ entered_name or '' }}">
+    </label>
+    <fieldset>
+      <legend>Starting point</legend>
+      <label class="choice"><input type="radio" name="source" value="DEFAULT" checked> Use the default validated model</label>
+      {% if calibrations %}
+        <label class="choice"><input type="radio" name="source" value="PREVIOUS"> Copy an old version</label>
+        <select name="previous_tag" aria-label="Previous configuration">
+          {% for item in calibrations %}<option value="{{ item.tag }}">{{ item.tag }} — {{ item.name }}</option>{% endfor %}
+        </select>
+      {% endif %}
+      {% if workflow == 'MAC' %}
+        <label class="choice"><input type="radio" name="source" value="UPLOAD"> Upload merged v2 JSON</label>
+        <input type="file" name="configuration" accept="application/json,.json">
+      {% endif %}
+      <label class="choice"><input type="radio" name="source" value="CAR" {{ '' if has_car_access else 'disabled' }}> Update from the car {{ '' if has_car_access else '(YAREN code required)' }}</label>
+    </fieldset>
+    <button class="primary-button" type="submit">Agree</button>
+    <a class="secondary-button" href="{{ url_for('cam.dashboard') }}">Go back</a>
+  </form>
+</section>
+{% endblock %}
