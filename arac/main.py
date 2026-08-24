@@ -1,7 +1,7 @@
 """STARTECH-ARDA (ADAM): operate the real lane-following car.
 
 The default screen is deliberately small: observe, bench-test, drive, or open
-YAREN/CAM.  Simulation and test harnesses are not vehicle modes.
+YAREN/CAM. Webots and developer-only harnesses are not vehicle modes.
 """
 
 from __future__ import annotations

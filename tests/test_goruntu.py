@@ -10,7 +10,6 @@ from arac.goruntu import (
     InvalidObservation,
     LaneObservation,
     LaneVisionAnalyzer,
-    SimulatedVisionAnalyzer,
     StaleFrame,
 )
 from arac.goz import FramePacket
@@ -103,16 +102,18 @@ class LiveLaneAnalyzerTest(unittest.TestCase):
     def test_resolution_mismatch_and_stale_frames_are_rejected(self):
         analyzer = LaneVisionAnalyzer(calibration())
         with self.assertRaisesRegex(InvalidObservation, "requires 320x240"):
-            analyzer.analyze(FramePacket(0, 1.0, np.zeros((100, 100, 3), dtype=np.uint8)))
+            analyzer.analyze(FramePacket(
+                0, 1.0, np.zeros((100, 100, 3), dtype=np.uint8), "controlled-test"
+            ))
 
         analyzer = LaneVisionAnalyzer(calibration())
-        analyzer.analyze(FramePacket(2, 1.0, lane_frame(None, None)))
+        analyzer.analyze(FramePacket(2, 1.0, lane_frame(None, None), "controlled-test"))
         with self.assertRaises(StaleFrame):
-            analyzer.analyze(FramePacket(2, 2.0, lane_frame(None, None)))
+            analyzer.analyze(FramePacket(2, 2.0, lane_frame(None, None), "controlled-test"))
 
     def test_observation_record_excludes_debug_pixels(self):
         result = LaneVisionAnalyzer(calibration()).analyze(
-            FramePacket(0, 1.0, lane_frame((65, 75), (245, 255)))
+            FramePacket(0, 1.0, lane_frame((65, 75), (245, 255)), "controlled-test")
         )
         record = result.record_data()
 
@@ -124,28 +125,6 @@ class ObservationModelTest(unittest.TestCase):
     def test_invalid_lane_observation_cannot_claim_an_error(self):
         with self.assertRaises(InvalidObservation):
             LaneObservation(0, 1.0, False, 2.0, 0.1, 0.0, None, None, None, 20, "lost")
-
-
-class YarenDiagnosticCompatibilityTest(unittest.TestCase):
-    def test_valid_mapping_still_answers_yaren_self_check(self):
-        analyzer = SimulatedVisionAnalyzer()
-        result = analyzer.analyze(FramePacket(4, 2.0, {
-            "valid": True,
-            "lane_error": 0.25,
-            "detected_sign": None,
-            "obstacle": False,
-            "confidence": 0.8,
-        }))
-
-        self.assertTrue(result.valid)
-        self.assertEqual(0.25, result.lane_error)
-
-    def test_invalid_diagnostic_cannot_smuggle_clear_road_claim(self):
-        analyzer = SimulatedVisionAnalyzer()
-        with self.assertRaises(InvalidObservation):
-            analyzer.analyze(FramePacket(0, 1.0, {
-                "valid": False, "reason": "no image", "obstacle": False,
-            }))
 
 
 if __name__ == "__main__":

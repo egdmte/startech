@@ -1,4 +1,4 @@
-"""Finite Webots visualization driven through TAWNT and FakeMotorDriver.
+"""Finite Webots visualization driven through TAWNT's Webots-only bridge.
 
 The devices in this file are Webots simulation devices. This controller never
 imports GPIO libraries and cannot address the physical STARTECH car.

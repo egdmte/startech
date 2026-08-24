@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from enum import Enum
 import importlib
 import math
 import threading
@@ -27,16 +26,6 @@ class MotorOutputError(RuntimeError):
 
 class InvalidMotorRequest(MotorOutputError, ValueError):
     """Raised before TAWNT when a request is malformed."""
-
-
-class PhysicalOutputBlocked(MotorOutputError):
-    """Compatibility error used by the old explicit blocked driver."""
-
-
-class DriverAction(str, Enum):
-    APPLY = "APPLY"
-    STOP_REQUESTED = "STOP_REQUESTED"
-    CLOSE = "CLOSE"
 
 
 def _is_finite_number(value: object) -> bool:
@@ -138,16 +127,6 @@ class ValidatedDriveRequest:
             or float(self.command.right) != float(self.request.right)
         ):
             raise InvalidMotorRequest("TAWNT command values do not match the request")
-
-
-@dataclass(frozen=True)
-class DriverEvent:
-    action: DriverAction
-    left: float
-    right: float
-    reason: str
-    frame_id: int | None
-    recorded_at: float = field(default_factory=time.monotonic)
 
 
 def validate_request(request: MotorRequest) -> ValidatedDriveRequest:
@@ -362,45 +341,6 @@ class OutputWatchdog:
                     self._stop_event.set()
 
 
-class FakeMotorDriver:
-    """Memory driver retained for unit-level proof and legacy simulator imports."""
-
-    def __init__(self) -> None:
-        self._history: list[DriverEvent] = []
-        self._closed = False
-
-    @property
-    def history(self) -> tuple[DriverEvent, ...]:
-        return tuple(self._history)
-
-    def apply(self, request: ValidatedDriveRequest) -> tawnt.ValidatedMotorCommand:
-        if self._closed:
-            raise MotorOutputError("fake driver is closed")
-        if not isinstance(request, ValidatedDriveRequest):
-            raise TypeError("driver accepts only ValidatedDriveRequest")
-        self._history.append(DriverEvent(
-            DriverAction.APPLY, float(request.command.left), float(request.command.right),
-            request.request.reason.strip(), request.request.frame_id,
-        ))
-        return request.command
-
-    def stop(self, reason: str = "stop requested") -> None:
-        if not isinstance(reason, str) or not reason.strip():
-            raise InvalidMotorRequest("stop request needs a non-empty reason")
-        self._history.append(DriverEvent(
-            DriverAction.STOP_REQUESTED, 0.0, 0.0, reason.strip(), None,
-        ))
-
-    def close(self) -> None:
-        if self._closed:
-            return
-        self.stop("fake driver closing")
-        self._closed = True
-        self._history.append(DriverEvent(
-            DriverAction.CLOSE, 0.0, 0.0, "fake driver closed", None,
-        ))
-
-
 class GpioZeroMotorDriver:
     """Real Raspberry Pi 5/gpiozero adapter for the car's L298N channels."""
 
@@ -560,37 +500,9 @@ class GpioStartButton:
             close()
 
 
-class BlockedMotorDriver:
-    """Compatibility helper for callers that explicitly request refusal."""
-
-    def __init__(self, reason: str = "physical output explicitly disabled") -> None:
-        if not isinstance(reason, str) or not reason.strip():
-            raise ValueError("blocked-driver reason must be non-empty text")
-        self.reason = reason.strip()
-        self.stop_requests: list[str] = []
-        self.closed = False
-
-    def apply(self, request: ValidatedDriveRequest) -> None:
-        if not isinstance(request, ValidatedDriveRequest):
-            raise TypeError("driver accepts only ValidatedDriveRequest")
-        raise PhysicalOutputBlocked(self.reason)
-
-    def stop(self, reason: str = "stop requested") -> None:
-        if not isinstance(reason, str) or not reason.strip():
-            raise InvalidMotorRequest("stop request needs a non-empty reason")
-        self.stop_requests.append(reason.strip())
-
-    def close(self) -> None:
-        if self.closed:
-            return
-        self.stop("blocked driver closing")
-        self.closed = True
-
-
 __all__ = [
-    "BlockedMotorDriver", "ControllerSettings", "DriverAction", "DriverEvent",
-    "FakeMotorDriver", "GpioStartButton", "GpioZeroMotorDriver",
+    "ControllerSettings", "GpioStartButton", "GpioZeroMotorDriver",
     "InvalidMotorRequest", "LEGACY_VEHICLE_WIRING", "LaneController",
-    "MotorDriver", "MotorOutputError", "MotorRequest", "PhysicalOutputBlocked",
+    "MotorDriver", "MotorOutputError", "MotorRequest",
     "OutputWatchdog", "ValidatedDriveRequest", "VehicleWiring", "validate_request",
 ]

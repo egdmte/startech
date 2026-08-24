@@ -98,7 +98,7 @@ STOP = "STOP"
 
 @dataclass(frozen=True)
 class ValidatedMotorCommand:
-    """Fake motor tester (fmt-m3t)."""
+    """Immutable motor command produced by the TAWNT validation boundary."""
 
     left: float
     right: float

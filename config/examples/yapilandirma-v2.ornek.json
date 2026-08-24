@@ -205,7 +205,6 @@
     }
   },
   "oturum_kaniti": {
-    "simulasyon": true,
     "fiziksel_cikis_aktif": false,
     "fiziksel_dogrulama_yapildi": false,
     "tam_cikis_onaylandi": false,

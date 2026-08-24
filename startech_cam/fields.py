@@ -52,7 +52,7 @@ SAC_STEPS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
         "Record runtime policy. Physical SAC checks are separate, short workshop commands and never start autonomous driving.",
         (
             Field("sac_niyeti.surus.komut_kaybi_eylemi", "Loss-of-command action", "select", choices=(("invalidate-request", "Invalidate request"), ("disarm-wait", "Disarm and wait"), ("refer-validated-commands", "Refer to validated commands"))),
-            Field("sac_niyeti.surus.surucu_cikis_modu", "Driver output mode", "select", choices=(("off", "Off — simulations only"), ("semi", "Semi — steering only"), ("full", "Full — full car control"))),
+            Field("sac_niyeti.surus.surucu_cikis_modu", "Driver output mode", "select", choices=(("off", "Off — no motor output"), ("semi", "Semi — steering only"), ("full", "Full — full car control"))),
             Field("sac_niyeti.surus.direksiyon_merkez_yuzde", "Steering center %", "range", -30, 30, 1),
             Field("sac_niyeti.surus.direksiyon_azami_hareket_yuzde", "Maximum steering movement %", "range", 10, 100, 1),
             Field("oturum_kaniti.tam_cikis_onaylandi", "I explicitly acknowledge full output", "checkbox"),

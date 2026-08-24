@@ -7,7 +7,7 @@ boundary. It does not control or model the physical STARTECH car accurately.
 
 The controller creates normalized motor requests, passes them through the
 existing TAWNT offline validation gate, records accepted requests through
-`FakeMotorDriver`, and sends the resulting wheel velocities to Webots' simulated
+the Webots-only command recorder, and sends the resulting wheel velocities to Webots'
 wheel devices.
 
 The demo performs these finite segments:

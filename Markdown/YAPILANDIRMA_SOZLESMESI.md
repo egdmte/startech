@@ -297,10 +297,12 @@ Bu bağlantının kapalı işlem kümesi şudur:
 - `REQUEST_CAPABILITY_REPORT`: sınırlı ve dürüst yazılım/donanım yoklamalarını bildirir.
 - `INSTALL_INACTIVE_CONFIGURATION`: birleşik v2 dosyasını doğrulayıp etkin olmayan,
   değiştirilemez yeni bir YAREN profili olarak kurar.
+- `RUN_BOUNDED_WORKSHOP_COMMAND`: yalnız kimliği doğrulanmış SAC oturumundan gelen, sunucu
+  zamanı ve yasal adı taşıyan, en fazla üç saniyelik sınırlı motor komutunu çalıştırır.
 
-Bağlantıda motor, direksiyon, arm etme, çalıştırma veya profili etkinleştirme komutu
-yoktur. OSMAN sürücüsü içe aktarılmaz. Yeni profil ancak daha sonra insan incelemesi ve
-normal YAREN seçim akışıyla etkinleştirilebilir.
+Bağlantıda sürekli sürüş, serbest direksiyon, kabuk komutu veya profili etkinleştirme
+işlemi yoktur. Süreli atölye komutu ARDA → TAWNT → OSMAN zincirini kullanır; yeni profil
+ancak daha sonra insan incelemesi ve normal YAREN seçim akışıyla etkinleştirilebilir.
 
 CAM aktarımı tek bir birleşik v2 belgesi kullanabilir; çalışma zamanı kayıt yapısı yine
 `kalibrasyon.json`, `ayarlar.json` ve `profil.json` olarak kalır. YAREN v2 belgeyi önce
@@ -313,16 +315,14 @@ Tanılama sonuçları yalnız şu durumları kullanır:
 
 - `LIVE`: gerçek kaynak açıldı ve sınırlı okuma başarıyla tamamlandı.
 - `RESPONDED`: yazılım bileşeni güvenli, salt okunur isteğe yanıt verdi.
-- `SIMULATED`: sonuç gerçek donanımdan değil sahte sürücü veya örnek veriden geldi.
-- `BLOCKED_BY_POLICY`: bu web bağlantısında özellikle yasaklanan sınırdır.
 - `UNAVAILABLE`: kaynak bulunamadı veya bu makinede kullanılamıyor.
 - `FAILED`: kaynak bulundu fakat yoklama hata verdi.
 - `UNVERIFIED`: fiziksel doğrulama yapılmadı.
 
 KASIM yoklaması USB kamerayı önce, Raspberry Pi kamerasını ikinci sırada dener ve tam
-bir kare okur. KEREM ile motor sürücüsü simülasyon olarak, OSMAN politika gereği engelli
-ve direksiyon fiziksel olarak doğrulanmamış raporlanır. Bu raporların hiçbiri aracın
-sürüşe güvenli olduğunu kanıtlamaz.
+bir kare okur. KEREM etkin profil ile yeni bir gerçek kamera karesini işler. OSMAN otomatik
+yoklamada çalıştırılmaz; yalnız ayrı süreli atölye komutuyla çalıştırılabilir. Komut makbuzu
+fiziksel hareketi kanıtlamaz; gözlem ayrıca insan tarafından kaydedilir.
 
 ## 8. Bugün bilerek çözülmeyen farklılıklar
 

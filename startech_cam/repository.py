@@ -130,7 +130,6 @@ def _prepare_profile(
         document["sac_niyeti"] = None
         document["oturum_kaniti"].update(
             {
-                "simulasyon": False,
                 "fiziksel_cikis_aktif": False,
                 "fiziksel_dogrulama_yapildi": False,
                 "tam_cikis_onaylandi": False,

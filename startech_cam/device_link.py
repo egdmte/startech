@@ -36,8 +36,6 @@ CAPABILITY_STATUSES = frozenset(
     {
         "LIVE",
         "RESPONDED",
-        "SIMULATED",
-        "BLOCKED_BY_POLICY",
         "UNAVAILABLE",
         "FAILED",
         "UNVERIFIED",

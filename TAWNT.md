@@ -53,14 +53,12 @@ enterPhase + arm       Hangi evredeyiz ve insan izin verdi mi?
 validateMotorCommand   Bu tek motor komutu gerçekten kabul edilebilir mi?
 ```
 
-Tamamen sahte ve açıklamalı çalışan örnek için:
+TAWNT'ın davranış sözleşmesini araçtan bağımsız doğrulamak için yalnız test paketini
+çalıştırın. Bu test sonucu fiziksel araç kanıtı değildir:
 
 ```powershell
-python fake_main.py
+py -m pytest -q tests/test_tawnt.py
 ```
-
-`fake_main.py` gerçek motor, GPIO veya kamera kullanmaz. Yalnız bellek içindeki
-`FakeMotorDriver` listesine sayı yazar.
 
 ### 0.1 Değer yöntemleri
 
@@ -152,7 +150,7 @@ zorunlu değerler ve watchdog'lar. Evreyi tanımlamak o evreye geçmek veya moto
 #### `validatePhase(...)`
 
 Belirli evrenin zorunlu değerlerini ve heartbeat'lerini kontrol eder. Eksik gereksinimde
-evreyi hazır kabul etmez ve güvenli tarafta kalmak için sahte/sıfır çıkış geri çağrılarını dener.
+evreyi hazır kabul etmez ve güvenli tarafta kalmak için kayıtlı sıfır-çıkış geri çağrılarını dener.
 
 #### `enterPhase(...)`
 
@@ -539,17 +537,19 @@ bu raporu tek başına `KANIT` kabul etmemelidir.
 
 ## 4. Bugünkü gerçek entegrasyon durumu
 
-6 Ağustos 2026 itibarıyla:
+24 Ağustos 2026 itibarıyla:
 
 - `tawnt.py`, `startech/tawnt/`, `tests/test_tawnt.py` ve bu kılavuz Git tarafından izlenmektedir.
-- V2 çekirdeği ve sahte öğretici ana program toplam 39 otomatik `unittest` davranış
-  testiyle doğrulanmaktadır: 34 çekirdek testi + 5 `fake_main.py` testi.
+- TAWNT davranış sözleşmesi otomatik testlerle doğrulanır; test kayıtları fiziksel hareket
+  kanıtı olarak kullanılmaz.
 - Değer yaşam döngüsü, OFFLINE/BENCH/LIVE profilleri, fail-closed arming, evre politikası,
   heartbeat/watchdog, kalıcı ciddi kilit ve statik motor erişimi taraması kütüphanede vardır.
-- Üretim aracı çalışma zinciri 3awnt'ı henüz çağırmamaktadır.
-- SIGINT, SIGTERM, yakalanmamış hata, kamera üreticisi ve GPIO sürücüsü henüz bağlanmamıştır.
-- Hiçbir üretim motor sürücüsü `validateMotorCommand(...)` sonucunu zorunlu fiziksel kapı
-  olarak kullanmamaktadır.
+- ARDA'nın otonom sürüşü, yerel atölye komutu ve SAC'ın süreli atölye komutu TAWNT'tan
+  geçerek gerçek `GpioZeroMotorDriver` sınırına ulaşır.
+- Üretim motor sürücüsü ham sayıları kabul etmez; yalnız `ValidatedDriveRequest` alır ve
+  kalibrasyon uygulanmış son PWM değerlerini TAWNT'a yeniden doğrulatır.
+- Yazılımın kabul makbuzu tekerleğin hareket ettiğini veya durduğunu kanıtlamaz. Bu gözlem
+  ancak araç başında insan tarafından ayrıca kaydedilir.
 
 Bu nedenle doğru ifade şudur:
 
@@ -653,7 +653,7 @@ Hibrit yapı, merkezi açıklama ile yerel fiziksel uygulamayı birleştirir.
 6. Her değer kaynağıyla birlikte `acquire` edilir.
 7. Ölçülmesi zorunlu değerler için daha sıkı kapı çalıştırılır.
 8. Yapılandırma ve kod kimliği kayda yazılır.
-9. Sahte sürücüyle self-test yapılır.
+9. GPIO açılmadan otomatik sözleşme testleri çalıştırılır.
 10. Sistem `HAZIR_AMA_SILAHLI_DEGIL` durumuna gelir.
 11. İnsan incelemesi ve Egemen'in donanım izni alınır.
 12. Tehlikeli adımdan hemen önce son onay istenir.
@@ -795,7 +795,7 @@ kontrol insana ve teknik kontrole aittir.
 > **ÖNERİ — HENÜZ YOK.** Bazı hata senaryoları birim testlerinde tek tek uygulanır;
 > birleşik bir fault-injection aracı yoktur.
 
-Sahte motor sürücüsüyle şu senaryolar otomatik denenir:
+Testlere özel kontrollü çağrı kaydedicileriyle şu senaryolar otomatik denenir:
 
 - kamera kare üretmiyor,
 - NaN veya sonsuz motor komutu,
@@ -805,7 +805,7 @@ Sahte motor sürücüsüyle şu senaryolar otomatik denenir:
 - evre değişirken PWM geliyor,
 - süreç yeniden başlıyor.
 
-Her senaryoda gerçek GPIO yerine kaydedilen komutların sıfıra indiği doğrulanır.
+Her senaryoda GPIO açılmaz; çağrı sırası yalnız yazılım sözleşmesi olarak doğrulanır.
 
 ### 8.13 `reviewManifest(...)` — insan inceleme kaydı
 
@@ -834,10 +834,9 @@ ile “araç fiziksel olarak durdu” ifadelerini karıştırmaz.
 
 ### 9.1 Bugünkü otomatik test
 
-`tests/test_tawnt.py`, `unittest` ile çalışan 34 assertion tabanlı çekirdek testi içerir.
-`tests/test_tawnt_demo.py` ayrıca donanım bağımsızlığını ve öğretici akışı denetleyen 5 test içerir;
-toplam 39 test çalışır. Testlerin geçmesi gerçek GPIO, kamera veya tekerlek davranışını
-doğrulamaz.
+`tests/test_tawnt.py`, TAWNT çekirdek sözleşmesini assertion tabanlı testlerle denetler.
+İlgili ARDA/OSMAN/atölye testleri gerçek GPIO nesnesi açmadan çağrı sınırlarını kontrol
+eder. Testlerin geçmesi gerçek GPIO, kamera veya tekerlek davranışını doğrulamaz.
 
 ### 9.2 Asgari birim testleri
 
@@ -860,7 +859,7 @@ Bugünkü birim testleri en az şunları kapsar:
 
 ### 9.3 Henüz yapılmayan entegrasyon testleri
 
-- Geçerli JSON ile sahte sürücü hazır fakat silahsız kalır.
+- Geçerli JSON ile gerçek sürücü açılmadan sistemin silahsız kaldığı doğrulanır.
 - Eksik veya yanlış çözünürlüklü JSON ile başlatma reddedilir.
 - Kamera kaybında en geç belirlenen sürede sıfır PWM kaydedilir.
 - Yakalanmamış hata son PWM'i korumaz.
@@ -902,7 +901,7 @@ Bir güvenlik yöntemi eklerken:
 1. Hangi arızayı yakaladığını yaz.
 2. Arızadan sonra son PWM'e ne olduğunu açıkla.
 3. Yöntemin atlanabileceği yolları ara.
-4. Sahte sürücüyle hata enjekte et.
+4. Testlere özel çağrı kaydedicisiyle hata enjekte et; sonucu fiziksel kanıt sayma.
 5. Program yeniden başlarsa ne olacağını test et.
 6. İnsan ve fiziksel anahtar adımını kaldırma.
 
@@ -1208,13 +1207,13 @@ kurallar kod ve test tarafından zorlanmalıdır.
 
 > **KÜTÜPHANEDE UYGULANDI.** Profil, `validateBeforeStart(profile=...)` ile seçilir.
 
-Tek bir doğrulama seviyesi hem Windows klip testi hem gerçek araç için uygun değildir.
+Tek bir doğrulama seviyesi hem masaüstü analiz işi hem gerçek araç için uygun değildir.
 V2 üç açık profil kullanır:
 
 | Profil | Kullanım | Motor çıkışı | Varsayım politikası |
 |---|---|---|---|
 | `OFFLINE` | Video, algoritma ve masaüstü testi | Gerçek çıkış kesinlikle yok | `VARSAYILDI` kabul edilebilir; raporda görünür |
-| `BENCH` | Sahte sürücü veya fiziksel olarak kısıtlı test | Varsayılan sahte; gerçek için ayrıca insan kapısı | Kritik varsayımlar uyarı veya ret olabilir |
+| `BENCH` | Süreli, fiziksel olarak kısıtlı atölye komutu | Yalnız açık insan onayı ve gerçek GPIO sınırı | Kritik varsayımlar uyarı veya ret olabilir |
 | `LIVE` | Zeminde gerçek araç hareketi | Yalnız silahlı ve doğrulanmış sistem | Güvenlik-kritik değerler `OLCULDU` olmalı |
 
 Profil kod içinde gizli bir Boolean olmayacaktır:
@@ -1461,9 +1460,8 @@ Bu sözleşme test adı olarak da okunabilmelidir. Asgari test grupları:
 - insan doğrulaması olmadan reset reddedilir,
 - doğrudan PWM/GPIO erişimi statik kontrolde bulunur.
 
-Bu maddeler artık atlanmıyor. `tests/test_tawnt.py` 34, `tests/test_tawnt_demo.py` 5 assertion tabanlı
-test çalıştırır; toplam 39 testte `skipped` yoktur. Bu sonuç kütüphane ve sahte eğitim
-akışı davranışının kanıtıdır, fiziksel araç testinin yerine geçmez.
+Bu maddeler `tests/test_tawnt.py` içinde assertion tabanlı testlerle doğrulanır. Sonuç
+kütüphane davranışının kanıtıdır, fiziksel araç testinin yerine geçmez.
 
 ---
 
@@ -1484,8 +1482,8 @@ yazılım doğrulaması + assertion testleri + insan kod incelemesi
                    + kontrollü fiziksel test + fiziksel anahtar
 ```
 
-V2 kütüphane kodu ve sahte eğitim programı uygulanmıştır. Gerçek `main.py`/`surucu.py`
-entegrasyonu, insan incelemesi ve fiziksel test yine ayrı plan ve ayrı onay ister.
+V2 kütüphane kodu gerçek `main.py`/`surucu.py` zincirine bağlıdır. İnsan incelemesi,
+araç başı açık izin ve fiziksel test yine ayrı kanıt ister.
 
 ---
 
@@ -1619,8 +1617,8 @@ Bu nedenle gerçek PWM'e giden tek yolun `surucu.py` olması kritik tasarım kur
 
 Hayır. Başarılı komutu `ValidatedMotorCommand` nesnesi olarak geri döndürür.
 
-Gelecekte `surucu.py`, yalnız bu nesnenin `left` ve `right` alanlarını özel fiziksel yazma
-yoluna aktarmalıdır. Bugünkü `fake_main.py` bunu yalnız bellek listesinde gösterir.
+`surucu.py`, yalnız bu nesneyi taşıyan `ValidatedDriveRequest` üzerinden fiziksel yazma
+yoluna geçer. Kalibrasyon sonrası son değerler GPIO değişmeden önce yeniden doğrulanır.
 
 ### “Neden Boolean yerine `ValidatedMotorCommand` dönüyor?”
 
@@ -1663,11 +1661,11 @@ ve kimin reset istediğini kaydetmektir. Donanım kanıtı olarak sunulmamalıd�
 
 ### “`sifirla()` ile fault-store da silinir mi?”
 
-Hayır. `sifirla()` test/demo için süreç içi sözlükleri ve durumları temizler; disk üzerindeki
+Hayır. `sifirla()` testler için süreç içi sözlükleri ve durumları temizler; disk üzerindeki
 JSON fault dosyasını silmez.
 
 Gerçek araç kodunun bu yöntemi çağırması yasak kabul edilmelidir. Testler birbirinden bağımsız
-olsun diye `tests/test_tawnt.py` ve `fake_main.py` kullanır.
+olsun diye `tests/test_tawnt.py` kullanır.
 
 ### “3awnt ağ tehditlerini izliyor mu?”
 
@@ -1687,8 +1685,8 @@ ek bir katmandır, onların yerine geçmez.
 
 ### “En kolay nereden başlamalıyım?”
 
-Önce `fake_main.py` dosyasını çalıştırın ve ekrandaki üç dersi okuyun. Sonra bu belgedeki
-§0 küçük sürümde yalnız kullandığınız yönteme bakın.
+Önce bu belgedeki §0 küçük sürümde yalnız kullandığınız yönteme bakın. Ardından
+`tests/test_tawnt.py` ile sözleşmeyi ve `arac/atolye.py` ile gerçek atölye zincirini okuyun.
 
-Gerçek projeye bağlamak için doğrudan kopyalama yapmayın. `ayar.py`, `main.py` ve `surucu.py`
-entegrasyonu ayrı plan, insan kod incelemesi ve önce sahte sürücü testi gerektirir.
+Fiziksel komut göndermeden önce etkin YAREN profili, kablolama, yükseltilmiş tekerlekler ve
+insan gözetimi ayrıca doğrulanmalıdır. Yazılım testinin geçmesi bu onayın yerine geçmez.

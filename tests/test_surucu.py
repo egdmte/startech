@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import unittest
 import time
+from types import SimpleNamespace
 
 import tawnt
 from arac.goruntu import LaneObservation
 from arac.surucu import (
     ControllerSettings,
-    FakeMotorDriver,
     GpioStartButton,
     GpioZeroMotorDriver,
     InvalidMotorRequest,
@@ -17,6 +17,7 @@ from arac.surucu import (
     LaneController,
     MotorRequest,
     OutputWatchdog,
+    ValidatedDriveRequest,
     validate_request,
 )
 
@@ -52,7 +53,7 @@ def observation(error: float | None, frame_id: int = 0) -> LaneObservation:
     )
 
 
-class FakeDigital:
+class RecordedDigitalOutput:
     def __init__(self, pin: int, **kwargs):
         self.pin = pin
         self.value = bool(kwargs.get("initial_value", False))
@@ -68,7 +69,7 @@ class FakeDigital:
         self.closed = True
 
 
-class FakePwm:
+class RecordedPwmOutput:
     def __init__(self, pin: int, **kwargs):
         self.pin = pin
         self.value = float(kwargs.get("initial_value", 0))
@@ -77,6 +78,29 @@ class FakePwm:
 
     def close(self):
         self.closed = True
+
+
+class ControlledMotorRecorder:
+    """Test-only call recorder; its history is never vehicle evidence."""
+
+    def __init__(self):
+        self.history = []
+
+    def apply(self, request):
+        if not isinstance(request, ValidatedDriveRequest):
+            raise TypeError("recorder accepts only ValidatedDriveRequest")
+        self.history.append(SimpleNamespace(
+            reason=request.request.reason,
+            left=float(request.command.left),
+            right=float(request.command.right),
+        ))
+        return request.command
+
+    def stop(self, reason="stop requested"):
+        self.history.append(SimpleNamespace(reason=reason, left=0.0, right=0.0))
+
+    def close(self):
+        self.stop("recorder closed")
 
 
 def motor_calibration(**changes) -> dict[str, float]:
@@ -150,8 +174,8 @@ class TawntAndGpioDriverTest(unittest.TestCase):
     def driver(self, calibration=None):
         return GpioZeroMotorDriver(
             calibration or motor_calibration(),
-            digital_factory=FakeDigital,
-            pwm_factory=FakePwm,
+            digital_factory=RecordedDigitalOutput,
+            pwm_factory=RecordedPwmOutput,
         )
 
     def test_existing_car_wiring_is_the_default_not_an_empty_placeholder(self):
@@ -163,9 +187,9 @@ class TawntAndGpioDriverTest(unittest.TestCase):
             wiring.left_pwm, wiring.right_pwm, wiring.start_button, wiring.pwm_frequency_hz,
         ))
 
-    def test_raw_request_cannot_reach_even_the_fake_driver(self):
+    def test_raw_request_cannot_reach_the_test_recorder(self):
         request = MotorRequest(0.2, 0.2, "LANE_FOLLOW", "lane")
-        driver = FakeMotorDriver()
+        driver = ControlledMotorRecorder()
         with self.assertRaises(TypeError):
             driver.apply(request)
         driver.apply(validate_request(request))
@@ -269,7 +293,7 @@ class OutputWatchdogTest(unittest.TestCase):
         tawnt.sifirla()
 
     def test_stalled_loop_requests_electrical_stop_without_waiting_for_next_frame(self):
-        driver = FakeMotorDriver()
+        driver = ControlledMotorRecorder()
         watchdog = OutputWatchdog(
             driver, timeout_seconds=0.02, poll_seconds=0.005
         )

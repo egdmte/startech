@@ -72,8 +72,6 @@
 .preflight-item--live .preflight-state, .preflight-item--live em,
 .preflight-item--responded .preflight-state, .preflight-item--responded em { color: var(--cam-success); }
 .preflight-item--configured .preflight-state, .preflight-item--configured em { color: #075dff; }
-.preflight-item--simulated .preflight-state, .preflight-item--simulated em { color: #075dff; }
-.preflight-item--blocked-by-policy .preflight-state, .preflight-item--blocked-by-policy em,
 .preflight-item--failed .preflight-state, .preflight-item--failed em { color: var(--cam-danger); }
 .preflight-item--unverified .preflight-state, .preflight-item--unverified em { color: #9b7100; }
 .preflight-note { margin: 28px 0 12px; color: var(--cam-muted); text-align: center; }

@@ -1,8 +1,7 @@
 """STARTECH-KEREM (CORA): live lane perception and YAREN diagnostics.
 
 The production analyzer consumes RGB frames from KASIM and uses the active
-YAREN calibration.  The small mapping analyzer at the bottom is retained only
-because YAREN's bounded self-check imports it; ARDA never drives from it.
+YAREN calibration. There is no generated-observation production path.
 """
 
 from __future__ import annotations
@@ -435,63 +434,7 @@ class VisionAnalyzer(Protocol):
         """Analyze a bounded diagnostic frame."""
 
 
-class SimulatedVisionAnalyzer:
-    """YAREN-only deterministic contract probe retained for compatibility."""
-
-    _ALLOWED = {"valid", "lane_error", "detected_sign", "obstacle", "confidence", "reason"}
-
-    def __init__(self) -> None:
-        self._last_frame_id: int | None = None
-
-    def analyze(self, frame: FramePacket) -> Observation:
-        if not isinstance(frame, FramePacket):
-            raise InvalidObservation("analyzer accepts only FramePacket objects")
-        if self._last_frame_id is not None and frame.frame_id <= self._last_frame_id:
-            raise StaleFrame("vision analyzer received a stale or duplicate frame")
-        self._last_frame_id = frame.frame_id
-        if not isinstance(frame.payload, Mapping):
-            raise InvalidObservation("diagnostic payload must be a mapping")
-        unknown = set(frame.payload) - self._ALLOWED
-        if unknown:
-            raise InvalidObservation("unknown diagnostic fields: " + ", ".join(sorted(unknown)))
-        if not isinstance(frame.payload.get("valid"), bool):
-            raise InvalidObservation("diagnostic payload needs valid=True/False")
-        if not frame.payload["valid"]:
-            if set(frame.payload) - {"valid", "reason"}:
-                raise InvalidObservation("invalid diagnostic payload claims observations")
-            reason = frame.payload.get("reason")
-            if not isinstance(reason, str) or not reason.strip():
-                raise InvalidObservation("invalid diagnostic payload needs a reason")
-            return Observation.invalid_from(frame, reason.strip())
-        missing = {"lane_error", "obstacle", "confidence"} - set(frame.payload)
-        if missing:
-            raise InvalidObservation("valid diagnostic payload is incomplete")
-        return Observation(
-            frame.frame_id,
-            frame.captured_at,
-            True,
-            frame.payload["lane_error"],
-            frame.payload.get("detected_sign"),
-            frame.payload["obstacle"],
-            frame.payload["confidence"],
-            str(frame.payload.get("reason", "")),
-        )
-
-
-class UnavailableVisionAnalyzer:
-    def __init__(self, reason: str = "physical vision analyzer is unavailable") -> None:
-        if not isinstance(reason, str) or not reason.strip():
-            raise ValueError("unavailable-vision reason must be non-empty text")
-        self.reason = reason.strip()
-
-    def analyze(self, frame: FramePacket) -> Observation:
-        if not isinstance(frame, FramePacket):
-            raise InvalidObservation("analyzer accepts only FramePacket objects")
-        return Observation.invalid_from(frame, self.reason)
-
-
 __all__ = [
     "InvalidObservation", "LaneObservation", "LaneVisionAnalyzer", "Observation",
-    "SimulatedVisionAnalyzer", "StaleFrame", "UnavailableVisionAnalyzer",
-    "VisionAnalyzer", "VisionError", "VisionUnavailable",
+    "StaleFrame", "VisionAnalyzer", "VisionError", "VisionUnavailable",
 ]

@@ -98,8 +98,8 @@ class YarenTemporaryLinkTest(unittest.TestCase):
                     {
                         "module": "OSMAN",
                         "name": "Motor driver",
-                        "status": "BLOCKED_BY_POLICY",
-                        "scope": "Not imported",
+                        "status": "UNVERIFIED",
+                        "scope": "Not operated by this report",
                         "detail": "No motor command was sent.",
                         "duration_ms": 0,
                         "facts": {"tested": False},

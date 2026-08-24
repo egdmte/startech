@@ -7,7 +7,6 @@ import unittest
 import numpy as np
 
 from arac.goz import (
-    CameraExhausted,
     CameraReadFailure,
     CameraStatus,
     CameraUnavailable,
@@ -16,8 +15,6 @@ from arac.goz import (
     OpenCvUsbCamera,
     PiCamera2Source,
     PreferredCamera,
-    SequenceCamera,
-    UnavailableCamera,
     build_preferred_camera,
     probe_camera,
 )
@@ -28,7 +25,7 @@ class ArrayFrame:
         self.shape = (height, width, 3)
 
 
-class FakeCapture:
+class CaptureAdapterRecorder:
     def __init__(self, *, opened=True, frames=None):
         self.opened = opened
         self.frames = list(frames or [])
@@ -51,7 +48,7 @@ class FakeCapture:
         self.released = True
 
 
-class FakePiCamera:
+class PiCameraAdapterRecorder:
     def __init__(self, frames=None):
         self.frames = list(frames or [])
         self.configuration = None
@@ -119,7 +116,7 @@ class StubCamera:
 
 class FramePacketTest(unittest.TestCase):
     def test_valid_packet_preserves_metadata(self):
-        frame = FramePacket(4, 1.25, {"pixels": "fake"}, source="unit-test")
+        frame = FramePacket(4, 1.25, {"pixels": "sample"}, source="unit-test")
 
         self.assertEqual(4, frame.frame_id)
         self.assertEqual(1.25, frame.captured_at)
@@ -137,80 +134,15 @@ class FramePacketTest(unittest.TestCase):
         for frame_id, captured_at, payload in invalid_arguments:
             with self.subTest(values=(frame_id, captured_at, payload)):
                 with self.assertRaises(InvalidFrame):
-                    FramePacket(frame_id, captured_at, payload)
+                    FramePacket(frame_id, captured_at, payload, source="controlled-test")
 
         with self.assertRaises(InvalidFrame):
             FramePacket(0, 0.0, {}, source=" ")
 
 
-class SequenceCameraTest(unittest.TestCase):
-    def make_camera(self):
-        return SequenceCamera(
-            (
-                FramePacket(10, 1.0, {"value": "first"}),
-                FramePacket(11, 2.0, {"value": "second"}),
-            )
-        )
-
-    def test_lifecycle_and_exhaustion_are_explicit(self):
-        camera = self.make_camera()
-        self.assertEqual(CameraStatus.DISCONNECTED, camera.status)
-
-        with self.assertRaises(CameraUnavailable):
-            camera.read_frame()
-
-        camera.open()
-        self.assertEqual(CameraStatus.READY, camera.status)
-        self.assertEqual(10, camera.read_frame().frame_id)
-        self.assertEqual(CameraStatus.STREAMING, camera.status)
-        self.assertEqual(11, camera.read_frame().frame_id)
-
-        with self.assertRaises(CameraExhausted):
-            camera.read_frame()
-        self.assertEqual(CameraStatus.EXHAUSTED, camera.status)
-
-        camera.close()
-        camera.close()
-        self.assertEqual(CameraStatus.DISCONNECTED, camera.status)
-
-    def test_reopening_restarts_a_deterministic_sequence(self):
-        camera = self.make_camera()
-        camera.open()
-        self.assertEqual(10, camera.read_frame().frame_id)
-        camera.close()
-        camera.open()
-
-        self.assertEqual(10, camera.read_frame().frame_id)
-
-    def test_duplicate_or_untyped_frames_are_rejected_at_construction(self):
-        with self.assertRaises(InvalidFrame):
-            SequenceCamera(
-                (
-                    FramePacket(1, 1.0, {}),
-                    FramePacket(1, 2.0, {}),
-                )
-            )
-
-        with self.assertRaises(InvalidFrame):
-            SequenceCamera((FramePacket(1, 1.0, {}), object()))
-
-    def test_physical_placeholder_always_refuses(self):
-        camera = UnavailableCamera("school camera not connected")
-
-        with self.assertRaisesRegex(CameraUnavailable, "school camera"):
-            camera.open()
-        self.assertEqual(CameraStatus.FAILED, camera.status)
-
-        with self.assertRaises(CameraUnavailable):
-            camera.read_frame()
-
-        camera.close()
-        self.assertEqual(CameraStatus.DISCONNECTED, camera.status)
-
-
 class UsbCameraTest(unittest.TestCase):
     def test_usb_camera_captures_increasing_frames_and_releases(self):
-        capture = FakeCapture(frames=[ArrayFrame(), ArrayFrame()])
+        capture = CaptureAdapterRecorder(frames=[ArrayFrame(), ArrayFrame()])
         ticks = iter((10.0, 11.0))
         camera = OpenCvUsbCamera(
             2,
@@ -229,7 +161,7 @@ class UsbCameraTest(unittest.TestCase):
         self.assertEqual(CameraStatus.DISCONNECTED, camera.status)
 
     def test_unavailable_usb_is_released_and_reported(self):
-        capture = FakeCapture(opened=False)
+        capture = CaptureAdapterRecorder(opened=False)
         camera = OpenCvUsbCamera(0, capture_factory=lambda index: capture)
 
         with self.assertRaisesRegex(CameraUnavailable, "index 0"):
@@ -241,7 +173,7 @@ class UsbCameraTest(unittest.TestCase):
     def test_runtime_usb_failure_does_not_return_an_empty_frame(self):
         camera = OpenCvUsbCamera(
             0,
-            capture_factory=lambda index: FakeCapture(opened=True),
+            capture_factory=lambda index: CaptureAdapterRecorder(opened=True),
         )
         camera.open()
 
@@ -253,7 +185,7 @@ class UsbCameraTest(unittest.TestCase):
     def test_usb_frames_are_rgb_rotated_and_resolution_checked(self):
         raw = np.zeros((1, 2, 3), dtype=np.uint8)
         raw[0, 0] = [0, 0, 255]  # BGR red, moved to the right by rotation.
-        capture = FakeCapture(frames=[raw])
+        capture = CaptureAdapterRecorder(frames=[raw])
         camera = OpenCvUsbCamera(
             0,
             size=(2, 1),
@@ -271,7 +203,7 @@ class UsbCameraTest(unittest.TestCase):
         camera = OpenCvUsbCamera(
             0,
             size=(320, 240),
-            capture_factory=lambda _index: FakeCapture(frames=[ArrayFrame(640, 480)]),
+            capture_factory=lambda _index: CaptureAdapterRecorder(frames=[ArrayFrame(640, 480)]),
         )
         camera.open()
         with self.assertRaisesRegex(CameraReadFailure, "requires 320x240"):
@@ -280,11 +212,11 @@ class UsbCameraTest(unittest.TestCase):
 
 class PiCameraTest(unittest.TestCase):
     def test_pi_camera_uses_preview_configuration_and_capture_array(self):
-        fake = FakePiCamera([ArrayFrame(800, 600)])
+        camera_adapter = PiCameraAdapterRecorder([ArrayFrame(800, 600)])
         camera = PiCamera2Source(
             1,
             size=(800, 600),
-            camera_factory=lambda number: fake,
+            camera_factory=lambda number: camera_adapter,
             clock=lambda: 4.0,
         )
 
@@ -295,31 +227,31 @@ class PiCameraTest(unittest.TestCase):
         self.assertEqual("rpi:1", packet.source)
         self.assertEqual(
             {"main": {"size": (800, 600), "format": "RGB888"}},
-            fake.configuration,
+            camera_adapter.configuration,
         )
-        self.assertTrue(fake.started)
-        self.assertTrue(fake.closed)
+        self.assertTrue(camera_adapter.started)
+        self.assertTrue(camera_adapter.closed)
 
     def test_pi_initialization_failure_is_wrapped_and_closed(self):
-        class BrokenPi(FakePiCamera):
+        class BrokenPi(PiCameraAdapterRecorder):
             def start(self):
                 raise RuntimeError("sensor unavailable")
 
-        fake = BrokenPi()
-        camera = PiCamera2Source(camera_factory=lambda number: fake)
+        camera_adapter = BrokenPi()
+        camera = PiCamera2Source(camera_factory=lambda number: camera_adapter)
 
         with self.assertRaisesRegex(CameraUnavailable, "sensor unavailable"):
             camera.open()
 
-        self.assertTrue(fake.closed)
+        self.assertTrue(camera_adapter.closed)
 
     def test_pi_configured_bgr_output_is_normalized_to_rgb(self):
         raw = np.array([[[255, 0, 0]]], dtype=np.uint8)
-        fake = FakePiCamera([raw])
+        camera_adapter = PiCameraAdapterRecorder([raw])
         camera = PiCamera2Source(
             size=(1, 1),
             bgr_output=True,
-            camera_factory=lambda _number: fake,
+            camera_factory=lambda _number: camera_adapter,
         )
         camera.open()
         payload = camera.read_frame().payload

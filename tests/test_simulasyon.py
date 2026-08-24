@@ -10,8 +10,9 @@ from arac.simulasyon import (
     InvalidSimulationStep,
     SimulationError,
     VisualSimulationBridge,
+    WebotsCommandAction,
 )
-from arac.surucu import DriverAction, MotorRequest, validate_request
+from arac.surucu import MotorRequest, validate_request
 
 
 class VisualSimulationBridgeTest(unittest.TestCase):
@@ -54,7 +55,7 @@ class VisualSimulationBridgeTest(unittest.TestCase):
 
         self.assertEqual(4.0, bridge.wheel_velocity.left)
         self.assertEqual(-2.5, bridge.wheel_velocity.right)
-        self.assertEqual(DriverAction.APPLY, bridge.history[-1].action)
+        self.assertEqual(WebotsCommandAction.APPLY, bridge.history[-1].action)
 
     def test_equal_wheels_move_straight(self):
         bridge = VisualSimulationBridge(
@@ -99,7 +100,7 @@ class VisualSimulationBridgeTest(unittest.TestCase):
         ))
         self.assertAlmostEqual(moving_pose.x, stopped_pose.x)
         self.assertAlmostEqual(moving_pose.y, stopped_pose.y)
-        self.assertEqual(DriverAction.STOP_REQUESTED, bridge.history[-1].action)
+        self.assertEqual(WebotsCommandAction.STOP_REQUESTED, bridge.history[-1].action)
 
     def test_invalid_geometry_and_time_are_rejected(self):
         with self.assertRaises(InvalidSimulationStep):

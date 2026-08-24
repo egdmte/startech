@@ -1,17 +1,18 @@
 """
 STARTECH visual motion simulation bridge
 
-This module turns TAWNT-validated, memory-only motor events into deterministic
-differential-drive motion. It has no Webots, GPIO, PWM, or physical-motor import.
+This module is exclusively the Webots boundary. It turns TAWNT-validated Webots
+commands into wheel velocities and never presents those results as car evidence.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from enum import Enum
 import math
+import time
 
 from .surucu import (
-    FakeMotorDriver,
     InvalidMotorRequest,
     MotorOutputError,
     ValidatedDriveRequest,
@@ -24,6 +25,24 @@ class SimulationError(RuntimeError):
 
 class InvalidSimulationStep(SimulationError, ValueError):
     """Raised when time or geometry would make motion meaningless."""
+
+
+class WebotsCommandAction(str, Enum):
+    APPLY = "APPLY"
+    STOP_REQUESTED = "STOP_REQUESTED"
+    CLOSE = "CLOSE"
+
+
+@dataclass(frozen=True)
+class WebotsCommandEvent:
+    """One command sent to the Webots bridge; never physical-car evidence."""
+
+    action: WebotsCommandAction
+    left: float
+    right: float
+    reason: str
+    frame_id: int | None
+    recorded_at: float = field(default_factory=time.monotonic)
 
 
 def _finite(value: object) -> bool:
@@ -75,11 +94,11 @@ class SimulationPose:
 
 
 class VisualSimulationBridge:
-    """MotorDriver-compatible recorder and deterministic visual motion source.
+    """MotorDriver-compatible Webots command bridge and visual motion source.
 
     ``apply`` accepts only the same ``ValidatedDriveRequest`` used by OSMAN's
-    fake driver. ``step`` advances a lightweight planar model for tests and
-    reporting. Webots may consume ``wheel_velocity`` to move simulated devices.
+    physical boundary. ``step`` advances a lightweight planar model for Webots
+    tests and reporting. It is never selected by the physical vehicle runner.
     """
 
     def __init__(
@@ -88,16 +107,13 @@ class VisualSimulationBridge:
         max_wheel_velocity: float = 8.0,
         wheel_radius: float = 0.045,
         track_width: float = 0.15,
-        recorder: FakeMotorDriver | None = None,
     ) -> None:
         self.max_wheel_velocity = _positive(
             "max_wheel_velocity", max_wheel_velocity
         )
         self.wheel_radius = _positive("wheel_radius", wheel_radius)
         self.track_width = _positive("track_width", track_width)
-        self._recorder = recorder or FakeMotorDriver()
-        if not isinstance(self._recorder, FakeMotorDriver):
-            raise TypeError("visual simulation recorder must be FakeMotorDriver")
+        self._history: list[WebotsCommandEvent] = []
         self._wheel_velocity = WheelVelocity(0.0, 0.0)
         self._pose = SimulationPose()
         self._closed = False
@@ -111,15 +127,21 @@ class VisualSimulationBridge:
         return self._pose
 
     @property
-    def history(self):
-        return self._recorder.history
+    def history(self) -> tuple[WebotsCommandEvent, ...]:
+        return tuple(self._history)
 
     def apply(self, request: ValidatedDriveRequest) -> None:
         if self._closed:
             raise MotorOutputError("visual simulation bridge is closed")
         if not isinstance(request, ValidatedDriveRequest):
             raise TypeError("visual simulation accepts only ValidatedDriveRequest")
-        self._recorder.apply(request)
+        self._history.append(WebotsCommandEvent(
+            WebotsCommandAction.APPLY,
+            float(request.command.left),
+            float(request.command.right),
+            request.request.reason.strip(),
+            request.request.frame_id,
+        ))
         self._wheel_velocity = WheelVelocity(
             float(request.command.left) * self.max_wheel_velocity,
             float(request.command.right) * self.max_wheel_velocity,
@@ -129,7 +151,13 @@ class VisualSimulationBridge:
         if not isinstance(reason, str) or not reason.strip():
             raise InvalidMotorRequest("visual simulation stop needs a reason")
         self._wheel_velocity = WheelVelocity(0.0, 0.0)
-        self._recorder.stop(reason.strip())
+        self._history.append(WebotsCommandEvent(
+            WebotsCommandAction.STOP_REQUESTED,
+            0.0,
+            0.0,
+            reason.strip(),
+            None,
+        ))
 
     def step(self, elapsed_seconds: float) -> SimulationPose:
         if self._closed:
@@ -156,5 +184,11 @@ class VisualSimulationBridge:
         if self._closed:
             return
         self.stop("visual simulation closing")
-        self._recorder.close()
         self._closed = True
+        self._history.append(WebotsCommandEvent(
+            WebotsCommandAction.CLOSE,
+            0.0,
+            0.0,
+            "Webots bridge closed",
+            None,
+        ))

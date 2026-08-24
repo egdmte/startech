@@ -1,72 +1,60 @@
-# Project: Autonomous Car Template + Team Monitoring Screen
+# STARTECH repository context
 
-Status: planning, plus tooling. The car code is not started; `LEGACY/` holds the 4 May 2026 build as read-only reference, and `kontrol.py` / `Markdown/` are live. The original `readme.txt` was folded into `Markdown/PLAN_New.md` and deleted.
+Source review: 24 August 2026.
 
-## What this project is
+Read `AGENTS_READ_ME.txt` before editing. That file and the main plan are pending a
+separate Q&A-led rewrite; do not silently rewrite their policy or project choices.
 
-Two related pieces:
+## Current project
 
-1. **Autonomous car template** — a reusable template for building an autonomous car on a Raspberry Pi 5.
-   - Vision-only: no sensors besides cameras (likely a USB camera).
-   - Motor control via a standard H-bridge driver:
-     - Pin 11 - In1 OUT
-     - Pin 13 - In2 OUT
-     - Pin 15 - In3 OUT
-     - Pin 16 - In4 OUT
-     - Pin 32 - Front PWM
-     - Pin 33 - Back PWM
-   - Must run on Linux (the real Pi target). A second mode should work on Windows — most likely a simulation/mock mode for developing and testing logic without real GPIO hardware (to be confirmed).
-   - Every configurable option (pins, camera source, OS mode, thresholds, etc.) should be exposed through a GUI.
+The physical autonomous car exists, and `LEGACY/` documents the wiring/older working
+behavior. The team does not possess the car during the summer. “No car now” means no
+current possession, not that the hardware is imaginary.
 
-2. **Team monitoring / division-of-work screen** — a dashboard the two collaborators use to track who owns what and whether work is progressing.
-   - Backed by JSON as the persistence format (e.g. a `tasks.json` with fields like `{id, title, owner, status, updated_at}`).
-   - Needs some form of "enforcement" so work actually gets done as divided — exact mechanism (reminders vs. blocking vs. visibility-only) still to be defined.
-   - Should use the same GUI approach/toolkit as the car's config screens, for consistency.
+The current application under `arac/` has real paths for:
 
-## People
+- YAREN immutable calibration/settings profiles and the CAM gateway;
+- KASIM USB/Picamera2 RGB acquisition;
+- KEREM lane detection on captured frames;
+- DORA state transitions and KADER records;
+- TAWNT validation, arming, phase and watchdog boundaries;
+- OSMAN output through the existing Raspberry Pi/gpiozero wiring;
+- ARDA live observation, autonomous driving and bounded workshop output;
+- CAM/SAC real linked-car camera/lane checks and bounded workshop commands.
 
-- T.B. and E.Y.K. are building this together.
+There is no production pretend-car mode. Features are real or explicitly documented as
+unfinished/physically unverified. Controlled call recorders may exist only in tests and
+are never evidence that the vehicle moved. `sim/` and `arac/simulasyon.py` are the sole,
+explicit Webots exception and cannot be selected by ARDA.
 
-## Open questions (unresolved as of last planning pass)
+Windows uses a real OpenCV USB camera for capture, recording/replay, calibration and lane
+analysis. Physical motor output is Raspberry Pi/gpiozero-only.
 
-- What should "enforce" mean for the monitoring screen? (reminders, blocking, or just visibility)
-Explained below
-- Is the Windows build simulation-only, or does it serve another purpose?
-Simulation
-- Classical CV (edge/color-based) vs. a lightweight ML model for the vision pipeline?
-Both, split by purpose (answered 5 Aug 2026, PLAN_New.md 15.2 q14): the trained model is
-for SIGN CLASSIFICATION only. Everything else - lane lines, crossings, the speed bump,
-colour segmentation - is classical CV. LEGACY/ already contains sign_model.json and
-train_sign.py, so this matches what is on disk rather than overruling it.
-- Which GUI toolkit to standardize on across both the car config screens and the monitoring screen (e.g. Qt/PySide vs. a local web app)?
+## Working rules
 
-## Conventions / preferences
+- Be conversational and explain behavior in terms of what part helps the car do.
+- Preserve unrelated changes already in the working tree.
+- Do not write for a teammate-owned part without asking.
+- Do not add sensors; this vehicle is camera-only.
+- Give every change a concrete reason. Reject decorative or unexplained changes.
+- Never invent a file, API, metric or physical result. A number described as measured
+  needs the dated real-run evidence that produced it.
+- Software tests prove software behavior only. A driver receipt proves a call/stop request,
+  not wheel movement or braking.
+- Code-change approval is not live-hardware authorization. A real run needs separate,
+  explicit car-side approval and the physical checklist.
+- Any GPIO/PWM path starts/stops at zero, validates through TAWNT and stops on failure.
+- First motor work is bounded, wheels raised/secured, path clear, human supervised and
+  within reach of physical power removal.
 
-<!-- Add anything here you want Claude to always know/follow for this project:
-     coding style, naming conventions, tools you prefer, things to avoid, etc. -->
-- Name whatever you do. Like Turkiye's projects where it's usually small versions of the actual name. This may or may not actually help the project but it would still be more managable because everything is where it should be.
-- No sensors ever! Just cameras!
-- Be conversational and fun and don't assume that I'm a coder that will somehow understand "method() invokes method2() which will cause ImportError when method3() has a baby". Make it like "method(), which helps the car move, will cause an import error when method3(), which does check how the car moves, activates."
-- Obey the division: don't write code for a part owned by the other person without asking first, even if it looks quick — the point of the monitoring screen is knowing who touched what.
+## Where to look
 
-## Notes
+- `PROJECT_MAP.md`: current code paths.
+- `Markdown/OKULDA_LLM_DEVAM_REHBERI.md`: current school workshop handoff.
+- `Markdown/HATA_DEFTERI.md`: historical failures; not a current capability list.
+- `TAWNT.md`: safety API and evidence boundary.
+- `Markdown/YAPILANDIRMA_SOZLESMESI.md`: configuration/CAM contract.
+- `LEGACY/`: read-only historical implementation reference.
 
-<!-- Freeform space for anything else worth remembering across sessions. -->
-- Two people will come to our team but it is unknown if they will do an autonomous car or they will actually use our code. T.B. and E.Y.K. are proven to work on this car.
-- Never assume that we have deadlines, because only E.Y.K. actually keeps this serious. So, if you have any idea to make out enforcement system better, which I'll name it (ŞUBİRU, "Şununla bir uğraşsan"), never skip the chance!
-- I mean, E.Y.K. is the one who makes this, so praise E.Y.K. Don't forget to inform us to change the part to our names because T.B. may decide to work.
-- Plus, if any person, even me, decides to add an idea that's not ideal at all, like "Let's replace SPACE hotkey with "GG" or "EZ", do not approve. Our each action should have a reason. A real E.Y.K. will always give us reason.
-
-## More rules that would not fit above, and I like to keep them seperate because they don't posess extra caution rather than the upper ones. Damn what a long heading.
-- No identity or access checks, at all. Anyone on the team can run, test and edit this code on any machine — school PCs, a borrowed laptop, the Pi itself. We test in too many environments for gatekeeping to be worth the friction, and this is a small team with no outsider trying to break in. What actually protects the code is git (every change is attributable and revertable) plus the "every action needs a reason" rule above — not proving who you are.
-- Always check ŞUBİRU status. If we didn't finish a part and ask about another thing to do (that would fit on the next category), stop us. I don't care if I feel sad, or angry at you, just respond back. 
-- Have a ready-made text file named Tuna.txt, which will have each change with its date, explaning what changed like he is 5.
-- Always check what you have done and make sure it will give no errors in runtime.
-- Documentation may only describe what has actually been read in the code, or measured on a real run. Never describe work you believe you performed — describe what is in the file. If a document names a constant, a method or a filename, that name must be findable with grep; if it isn't, the document is wrong and gets fixed before anything else happens. A performance number (FPS, pixel error, accuracy) may only be written down if it came out of the car's own log on a real run, with that run's date beside it. A predicted improvement is not a result, and an estimate of our competition score is not a measurement. This rule exists because the May 2026 run was lost to four confident "optimisation reports" that invented nine constants, five methods, ten filenames and every metric in them — see PLAN_New.md section 21.
-- If there is a feature that can work and can be integrated to C# Winform, let us know. Theoritically, the enforcement part can also be done by Winform but IGNORE THAT. If I don't tell you anything about Winform, assume that I don't want. A E.Y.K. will not reject real Winform projects (he will never say "no".)
-- Report interesting changes. Each change will have a random, non-sense story that is well written, or it will include a story that has continuation in each file. If you see ANY abnormality, STOP and tell us that we should clone the repo all over again. Maybe the teacher changed the file and doesn't know about this rule, so let the user know that this is also a possibility.
-- Version control: this folder IS a git repo now (branch `master`, two commits in). But there is still NO remote. Until we push to a private remote, "clone the repo from scratch" is not actually actionable and a bad local change has nowhere to be recovered from. This is now the single most useful protection we can add.
-- Physical/hardware safety (new, since this car has real motors): any code that sets PWM/direction pins must default to motors-off on startup and on any uncaught error, never assume a previous safe state. First test of any new motor-control code should happen with the car's wheels off the ground or blocked, not on the floor, in case direction/speed logic is wrong. Flag this explicitly whenever we're about to test something that spins the motors for the first time.
-
-
-
+Use `py -m pytest -q tests` for the current Python suite. Run `py kontrol.py` separately;
+its documentation result is not interchangeable with the unit-test result.

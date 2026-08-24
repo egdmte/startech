@@ -91,7 +91,7 @@ def _validate_run_id(run_id: str) -> str:
 
 @dataclass(frozen=True)
 class BlackBoxRecord:
-    """One immutable, JSON-safe event in a specific simulated or physical run."""
+    """One immutable, JSON-safe event in a recorded or physical run."""
 
     run_id: str
     sequence: int

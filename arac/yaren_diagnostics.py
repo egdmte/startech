@@ -33,8 +33,6 @@ CAPABILITY_STATUSES = frozenset(
     {
         "LIVE",
         "RESPONDED",
-        "SIMULATED",
-        "BLOCKED_BY_POLICY",
         "UNAVAILABLE",
         "FAILED",
         "UNVERIFIED",
@@ -207,7 +205,7 @@ def _state_probe() -> tuple[str, str, Mapping[str, Any]]:
     snapshot = machine.apply(StateEvent(EventType.SELF_TEST_PASSED, occurred_at=2.0))
     return (
         "RESPONDED",
-        "The software-only BOOT → SELF_TEST → READY transitions completed.",
+        "The in-process BOOT → SELF_TEST → READY state contract completed.",
         {"state": snapshot.state.value, "revision": snapshot.revision},
     )
 
@@ -291,7 +289,7 @@ def collect_capability_report(
         (
             "DORA",
             "State analysis",
-            "Software-only safe state transitions",
+            "In-process state-machine transitions",
             _state_probe,
         ),
         (

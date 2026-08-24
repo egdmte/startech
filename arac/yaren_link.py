@@ -199,7 +199,6 @@ def active_configuration_document(store: ProfileStore) -> dict[str, Any]:
 
     profile = store.load_active_profile()
     evidence = {
-        "simulasyon": False,
         "fiziksel_cikis_aktif": False,
         "fiziksel_dogrulama_yapildi": False,
         "tam_cikis_onaylandi": False,

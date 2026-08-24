@@ -58,7 +58,6 @@ def sac_intent() -> dict[str, object]:
 
 def session_evidence() -> dict[str, object]:
     return {
-        "simulasyon": True,
         "fiziksel_cikis_aktif": False,
         "fiziksel_dogrulama_yapildi": False,
         "tam_cikis_onaylandi": False,

@@ -15,7 +15,7 @@ from enum import Enum
 import importlib
 import math
 import time
-from typing import Iterable, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 class CameraError(RuntimeError):
@@ -27,11 +27,11 @@ class CameraUnavailable(CameraError):
 
 
 class InvalidFrame(CameraError, ValueError):
-    """Raised when simulated or physical frame metadata is malformed."""
+    """Raised when captured or recorded frame metadata is malformed."""
 
 
 class CameraExhausted(CameraError):
-    """Raised when a finite simulation has no frame left to return."""
+    """Raised when a finite recorded camera session has no frame left."""
 
 
 class CameraReadFailure(CameraError):
@@ -39,7 +39,7 @@ class CameraReadFailure(CameraError):
 
 
 def _prepare_rgb_frame(payload: object, *, source_bgr: bool, rotate_180: bool) -> object:
-    """Normalize a NumPy camera image while leaving diagnostic fakes untouched."""
+    """Normalize a NumPy camera image while preserving custom adapter payloads."""
 
     if type(payload).__module__.split(".")[0] != "numpy":
         return payload
@@ -58,7 +58,7 @@ def _prepare_rgb_frame(payload: object, *, source_bgr: bool, rotate_180: bool) -
 
 
 class CameraStatus(str, Enum):
-    """Observable lifecycle states shared by simulated and future real cameras."""
+    """Observable lifecycle states shared by live and recorded cameras."""
 
     DISCONNECTED = "DISCONNECTED"
     READY = "READY"
@@ -82,7 +82,7 @@ class FramePacket:
     frame_id: int
     captured_at: float
     payload: object
-    source: str = "simulation"
+    source: str
 
     def __post_init__(self) -> None:
         if isinstance(self.frame_id, bool) or not isinstance(self.frame_id, int):
@@ -99,7 +99,7 @@ class FramePacket:
 
 @runtime_checkable
 class CameraSource(Protocol):
-    """Interface ARDA can use without knowing whether a camera is simulated."""
+    """Interface ARDA uses for live cameras and explicitly recorded sessions."""
 
     @property
     def status(self) -> CameraStatus:
@@ -113,81 +113,6 @@ class CameraSource(Protocol):
 
     def close(self) -> None:
         """Release the source; repeated calls must remain safe."""
-
-
-class SequenceCamera:
-    """Finite in-memory camera used by simulations and deterministic tests."""
-
-    def __init__(self, frames: Iterable[FramePacket]) -> None:
-        self._frames = tuple(frames)
-        self._validate_sequence(self._frames)
-        self._cursor = 0
-        self._last_frame_id: int | None = None
-        self._status = CameraStatus.DISCONNECTED
-
-    @staticmethod
-    def _validate_sequence(frames: tuple[FramePacket, ...]) -> None:
-        previous: int | None = None
-        for frame in frames:
-            if not isinstance(frame, FramePacket):
-                raise InvalidFrame("SequenceCamera accepts only FramePacket objects")
-            if previous is not None and frame.frame_id <= previous:
-                raise InvalidFrame("frame identifiers must be strictly increasing")
-            previous = frame.frame_id
-
-    @property
-    def status(self) -> CameraStatus:
-        return self._status
-
-    def open(self) -> None:
-        self._cursor = 0
-        self._last_frame_id = None
-        self._status = CameraStatus.READY
-
-    def read_frame(self) -> FramePacket:
-        if self._status == CameraStatus.DISCONNECTED:
-            raise CameraUnavailable("camera must be opened before reading")
-        if self._cursor >= len(self._frames):
-            self._status = CameraStatus.EXHAUSTED
-            raise CameraExhausted("the simulated camera has no frame left")
-
-        frame = self._frames[self._cursor]
-        if self._last_frame_id is not None and frame.frame_id <= self._last_frame_id:
-            self._status = CameraStatus.FAILED
-            raise InvalidFrame("camera attempted to replay a stale frame")
-
-        self._cursor += 1
-        self._last_frame_id = frame.frame_id
-        self._status = CameraStatus.STREAMING
-        return frame
-
-    def close(self) -> None:
-        self._status = CameraStatus.DISCONNECTED
-
-
-class UnavailableCamera:
-    """Fail-closed placeholder for the not-yet-written Raspberry Pi adapter."""
-
-    def __init__(self, reason: str = "physical camera adapter is not implemented") -> None:
-        if not isinstance(reason, str) or not reason.strip():
-            raise ValueError("unavailable-camera reason must be a non-empty string")
-        self.reason = reason.strip()
-        self._status = CameraStatus.DISCONNECTED
-
-    @property
-    def status(self) -> CameraStatus:
-        return self._status
-
-    def open(self) -> None:
-        self._status = CameraStatus.FAILED
-        raise CameraUnavailable(self.reason)
-
-    def read_frame(self) -> FramePacket:
-        self._status = CameraStatus.FAILED
-        raise CameraUnavailable(self.reason)
-
-    def close(self) -> None:
-        self._status = CameraStatus.DISCONNECTED
 
 
 def _frame_dimensions(payload: object) -> tuple[int, int]:

@@ -17,13 +17,12 @@ Use this page when the repository starts feeling larger than the car.
 | Path | What it is | Use it when |
 |---|---|---|
 | `arac/` | Current autonomous-car application contracts | Working on camera, configuration, vision, state, logs, orchestration or motor requests |
-| `sim/` | Webots-only visual car driven through TAWNT and `FakeMotorDriver` | Watching or testing fake motor behavior without the physical car |
+| `sim/` | Explicitly Webots-only visual car driven through TAWNT | Inspecting the Webots world; its output is never car evidence |
 | `tests/` | Automated proof for the current Python behavior | Changing anything in `arac/`, TAWNT, configuration or project checks |
 | `startech/` | Shared implementation packages used by public entry points | Maintaining TAWNT internals, configuration validation or document checks |
 | `config/` | Versioned JSON schemas and examples | Working on calibration/configuration file structure |
 | `startech_cam/` | Production CAM web application, device link API and SAC/MAC UI | Working on browser authentication, calibration creation or YAREN communication |
 | `examples/prototypes/` | Historical design references for the production CAM UI | Comparing the implemented interface with the approved Figma-derived screens |
-| `examples/tawnt_demo/` | Small, fake TAWNT demonstrations | Learning or testing the safety API without the car |
 | `Markdown/` | Detailed plans, evidence and school handoff documents | Understanding decisions or preparing a supervised school session |
 | `subiru/` | Separate team task/evidence dashboard | Working specifically on ŞUBİRU project tracking |
 | `LEGACY/` | Historical code kept for reference | Comparing old behavior only; do not import it into current code |
@@ -44,8 +43,8 @@ arac/main.py       ARDA / ADAM    command-line entry and orchestration
     +-- arac/goruntu.py    KEREM / CORA     cautious vision observations
     +-- arac/durum.py      DORA / SARA      state transitions
     +-- arac/kayit.py      KADER / BLAIR    black-box software records
-    +-- arac/surucu.py     OSMAN / MATT     only planned motor-output boundary
-    +-- arac/simulasyon.py                 fake differential-drive bridge
+    +-- arac/surucu.py     OSMAN / MATT     real GPIO motor-output boundary
+    +-- arac/simulasyon.py                 explicitly Webots-only bridge
     +-- arac/cli_ui.py                     shared dependency-free terminal widgets
 ```
 
@@ -120,8 +119,9 @@ MotorRequest -> tawnt.py -> ValidatedDriveRequest -> MotorDriver
 
 - Root `tawnt.py` is the public TAWNT entry point.
 - `startech/tawnt/` contains its implementation pieces.
-- `FakeMotorDriver` records requests only.
-- `BlockedMotorDriver` refuses physical output.
+- `GpioZeroMotorDriver` is the only production motor-driver implementation.
+- Controlled call recorders live only in tests and are never accepted as vehicle evidence.
+- The Webots bridge is isolated under `arac/simulasyon.py` and cannot be selected by ARDA.
 - A log entry or requested stop is not proof that a real wheel moved or stopped.
 
 ## Camera state
@@ -167,8 +167,8 @@ evidence, not proof that the car moved, steered or stopped.
 ## Visual motor simulation
 
 Open `sim/worlds/startech.wbt` in Webots and press Run. The finite controller sends
-five TAWNT-validated requests through `FakeMotorDriver`, moves four simulated wheels,
-then requests zero output. See `sim/README.md` for the automated smoke check.
+five TAWNT-validated requests through its Webots-specific command bridge, moves four
+Webots wheel devices, then requests zero output. See `sim/README.md` for the smoke check.
 
 The Webots result is a visualization, not a calibration of real motors, batteries,
 traction, braking or stopping distance.
