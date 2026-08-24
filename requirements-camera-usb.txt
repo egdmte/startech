@@ -1,3 +1,4 @@
-# Optional Windows/Linux USB-camera diagnostic dependency.
-# Picamera2 is supplied by Raspberry Pi OS and is intentionally not listed here.
+# Windows/Linux live-camera lane-following dependencies.
+# Picamera2 and gpiozero are supplied by Raspberry Pi OS and stay off this list.
+numpy>=2.0,<3
 opencv-python>=4.10,<5

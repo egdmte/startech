@@ -1,8 +1,10 @@
-"""Contract tests for the hardware-free KASIM/CAMILA camera scaffold."""
+"""Contract tests for KASIM's live USB/Pi RGB camera boundary."""
 
 from __future__ import annotations
 
 import unittest
+
+import numpy as np
 
 from arac.goz import (
     CameraExhausted,
@@ -16,6 +18,7 @@ from arac.goz import (
     PreferredCamera,
     SequenceCamera,
     UnavailableCamera,
+    build_preferred_camera,
     probe_camera,
 )
 
@@ -30,6 +33,7 @@ class FakeCapture:
         self.opened = opened
         self.frames = list(frames or [])
         self.released = False
+        self.properties = {}
 
     def isOpened(self):
         return self.opened
@@ -38,6 +42,10 @@ class FakeCapture:
         if not self.frames:
             return False, None
         return True, self.frames.pop(0)
+
+    def set(self, key, value):
+        self.properties[key] = value
+        return True
 
     def release(self):
         self.released = True
@@ -242,6 +250,33 @@ class UsbCameraTest(unittest.TestCase):
 
         self.assertEqual(CameraStatus.FAILED, camera.status)
 
+    def test_usb_frames_are_rgb_rotated_and_resolution_checked(self):
+        raw = np.zeros((1, 2, 3), dtype=np.uint8)
+        raw[0, 0] = [0, 0, 255]  # BGR red, moved to the right by rotation.
+        capture = FakeCapture(frames=[raw])
+        camera = OpenCvUsbCamera(
+            0,
+            size=(2, 1),
+            rotate_180=True,
+            capture_factory=lambda _index: capture,
+        )
+        camera.open()
+        frame = camera.read_frame().payload
+        camera.close()
+
+        self.assertEqual([255, 0, 0], frame[0, 1].tolist())
+        self.assertTrue(capture.properties)
+
+    def test_usb_rejects_resolution_that_does_not_match_yaren(self):
+        camera = OpenCvUsbCamera(
+            0,
+            size=(320, 240),
+            capture_factory=lambda _index: FakeCapture(frames=[ArrayFrame(640, 480)]),
+        )
+        camera.open()
+        with self.assertRaisesRegex(CameraReadFailure, "requires 320x240"):
+            camera.read_frame()
+
 
 class PiCameraTest(unittest.TestCase):
     def test_pi_camera_uses_preview_configuration_and_capture_array(self):
@@ -278,8 +313,31 @@ class PiCameraTest(unittest.TestCase):
 
         self.assertTrue(fake.closed)
 
+    def test_pi_configured_bgr_output_is_normalized_to_rgb(self):
+        raw = np.array([[[255, 0, 0]]], dtype=np.uint8)
+        fake = FakePiCamera([raw])
+        camera = PiCamera2Source(
+            size=(1, 1),
+            bgr_output=True,
+            camera_factory=lambda _number: fake,
+        )
+        camera.open()
+        payload = camera.read_frame().payload
+        camera.close()
+        self.assertEqual([0, 0, 255], payload[0, 0].tolist())
+
 
 class PreferredCameraTest(unittest.TestCase):
+    def test_builder_carries_active_calibration_to_both_live_adapters(self):
+        preferred = build_preferred_camera(
+            3, size=(840, 630), bgr_output=True, rotate_180=True
+        )
+        usb, pi = preferred._candidates
+        self.assertEqual((840, 630), usb.size)
+        self.assertEqual((840, 630), pi.size)
+        self.assertTrue(pi.bgr_output)
+        self.assertTrue(usb.rotate_180)
+
     def test_usb_is_selected_before_pi(self):
         usb = StubCamera("usb:0")
         pi = StubCamera("rpi:0")

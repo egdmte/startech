@@ -1,497 +1,356 @@
-"""Behavior tests for the hardware-free STARTECH-ARDA CLI scaffold."""
+"""End-to-end contract proof for ARDA's actual vehicle paths."""
 
 from __future__ import annotations
 
-import io
+from io import StringIO
 from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import patch
 
-from arac import ayar, ayar_cli, durum, goruntu, goz, kayit, main, surucu
-from arac.kamera_oturumu import (
-    CameraSessionError,
-    RecordedFrame,
-    ReplaySummary,
-    SessionManifest,
-)
+import tawnt
+from arac import ayar, durum, goruntu, goz, kayit, main, surucu
+from arac.ayar import ActiveConfiguration
+from arac.goruntu import LaneObservation
+from arac.goz import CameraStatus, FramePacket
+from arac.kayit import RecordKind
 
 
-class ArdaCliTest(unittest.TestCase):
-    def run_cli(self, arguments, input_fn=lambda _: ""):
-        output = io.StringIO()
-        exit_code = main.run(arguments, input_fn=input_fn, output=output)
-        return exit_code, output.getvalue()
+def active_configuration() -> ActiveConfiguration:
+    calibration = {
+        "kamera": {
+            "genislik": 320,
+            "yukseklik": 240,
+            "bgr_cikis": False,
+            "dondur_180": False,
+        },
+        "motor": {
+            "olculdu": None,
+            "sol_trim_dusuk": 1.0,
+            "sol_trim_yuksek": 1.0,
+            "sag_trim_dusuk": 1.0,
+            "sag_trim_yuksek": 1.0,
+            "olu_bolge_min_pwm": 30,
+            "olu_bolge_yuzde": 20,
+        },
+    }
+    settings = {
+        "kontrol": {
+            "kp": 0.5,
+            "kd": 0.2,
+            "ki": 0.0,
+            "integral_max": 50,
+            "deriv_cap": 150,
+        },
+        "hiz": {"hedef": 50, "min": 25, "max": 57, "k_speed": 0.45},
+    }
+    return ActiveConfiguration(
+        profile_id="a" * 32,
+        name="school car",
+        calibration_sha256="b" * 64,
+        settings_sha256="c" * 64,
+        warning_digest="d" * 64,
+        warnings=(),
+        calibration=calibration,
+        settings=settings,
+    )
 
-    def test_module_identities_match_the_agreed_names(self):
-        identities = {
-            durum: ("STARTECH-DORA (SARA)", "Durum Okuma ve Raporlama"),
-            ayar: ("STARTECH-YAREN (CLARA)", "Configuration Loading, Archival and Revision"),
-            ayar_cli: ("STARTECH-YAREN", "vehicle arming"),
-            goruntu: ("STARTECH-KEREM (CORA)", "Camera Object Recognition Agent"),
-            goz: ("STARTECH-KASIM (CAMILA)", "Camera Acquisition and Monitoring"),
-            kayit: ("STARTECH-KADER (BLAIR)", "Black-box Logging"),
-            main: ("STARTECH-ARDA (ADAM)", "Autonomous Driving Analysis Module"),
-            surucu: ("STARTECH-OSMAN (MATT)", "Motor Actuation and Transfer Terminal"),
+
+def lane_result(frame_id: int, *, valid: bool = True) -> LaneObservation:
+    return LaneObservation(
+        frame_id=frame_id,
+        captured_at=float(frame_id + 1),
+        valid=valid,
+        error_px=0.0 if valid else None,
+        normalized_error=0.0 if valid else None,
+        confidence=0.9 if valid else 0.0,
+        lane_center_px=160 if valid else None,
+        left_lane_px=70 if valid else None,
+        right_lane_px=250 if valid else None,
+        brightness=120,
+        reason="" if valid else "no lane signal",
+    )
+
+
+class StubCamera:
+    def __init__(self, count: int = 10):
+        self.count = count
+        self.next_id = 0
+        self.opened = False
+        self.closed = False
+
+    @property
+    def status(self):
+        return CameraStatus.STREAMING if self.opened else CameraStatus.DISCONNECTED
+
+    def open(self):
+        self.opened = True
+
+    def read_frame(self):
+        if self.next_id >= self.count:
+            raise RuntimeError("camera exhausted")
+        frame = FramePacket(
+            self.next_id,
+            float(self.next_id + 1),
+            object(),
+            source="live-camera",
+        )
+        self.next_id += 1
+        return frame
+
+    def close(self):
+        self.closed = True
+        self.opened = False
+
+
+class StubAnalyzer:
+    def __init__(self, *, fail_at: int | None = None):
+        self.fail_at = fail_at
+        self.calls = []
+
+    def analyze(self, frame):
+        self.calls.append(frame.frame_id)
+        if frame.frame_id == self.fail_at:
+            raise RuntimeError("vision failed")
+        return lane_result(frame.frame_id)
+
+
+class RecordingDriver:
+    def __init__(self, events=None):
+        self.events = events if events is not None else []
+        self.applied = []
+        self.closed = False
+
+    def apply(self, request):
+        self.applied.append(request)
+        self.events.append(("apply", request.request.frame_id))
+
+    def stop(self, reason="stop"):
+        self.events.append(("stop", reason))
+
+    def close(self):
+        self.closed = True
+        self.events.append(("close", None))
+
+
+class ArdaTest(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.temp = Path(temporary.name)
+        tawnt.sifirla()
+
+    def tearDown(self):
+        tawnt.sifirla()
+
+    def options(self, action: str, **changes) -> main.StartupOptions:
+        values = {
+            "action": action,
+            "profile_root": None,
+            "usb_index": 0,
+            "frames": 2,
+            "preview": False,
+            "operator": None,
+            "confirm_output": False,
+            "start": "enter",
+            "bench_left": 0.0,
+            "bench_right": 0.0,
+            "bench_seconds": 0.1,
+            "log_dir": self.temp / "runs",
+            "color": False,
         }
+        values.update(changes)
+        return main.StartupOptions(**values)
 
-        for module, expected_parts in identities.items():
+    def test_module_identities_remain_the_agreed_names(self):
+        expected = {
+            main: "STARTECH-ARDA (ADAM)",
+            ayar: "STARTECH-YAREN (CLARA)",
+            durum: "STARTECH-DORA (SARA)",
+            goz: "STARTECH-KASIM (CAMILA)",
+            goruntu: "STARTECH-KEREM (CORA)",
+            kayit: "STARTECH-KADER (BLAIR)",
+            surucu: "STARTECH-OSMAN (MATT)",
+        }
+        for module, identity in expected.items():
             with self.subTest(module=module.__name__):
-                self.assertIsNotNone(module.__doc__)
-                for expected in expected_parts:
-                    self.assertIn(expected, module.__doc__)
+                self.assertIn(identity, module.__doc__)
 
-    def test_english_simulation_renders_truthful_state(self):
-        exit_code, output = self.run_cli(
-            ["--mode", "simulation", "--language", "en", "--no-color"]
-        )
-
-        self.assertEqual(main.EXIT_OK, exit_code)
-        self.assertIn("STARTECH // ARDA (ADAM)", output)
-        self.assertIn("STARTUP STATE", output)
-        self.assertIn("[SIMULATED]", output)
-        self.assertIn("[BLOCKED", output)
-        self.assertIn("Bounded self-check passed", output)
-        self.assertIn("No continuous driving loop was started", output)
-
-    def test_turkish_is_the_default_language(self):
-        exit_code, output = self.run_cli(["--no-color"])
-
-        self.assertEqual(main.EXIT_OK, exit_code)
-        self.assertIn("BAŞLANGIÇ DURUMU", output)
-        self.assertIn("Sınırlı öz denetim geçti", output)
-        self.assertIn("ARDA simülasyon sözleşmeleri hazır", output)
-
-    def test_auto_skips_prompt_but_does_not_claim_arming(self):
-        def unexpected_input(_prompt):
-            self.fail("--auto must not request terminal input")
-
-        exit_code, output = self.run_cli(
-            ["--auto", "--language", "en", "--no-color"],
-            input_fn=unexpected_input,
-        )
-
-        self.assertEqual(main.EXIT_OK, exit_code)
-        self.assertIn("Automatic vehicle arming remains impossible", output)
-        self.assertNotIn("ARMED", output)
-
-    def test_vehicle_mode_fails_closed_even_with_auto(self):
-        def unexpected_input(_prompt):
-            self.fail("refused vehicle mode must not request input")
-
-        exit_code, output = self.run_cli(
-            [
-                "--mode",
-                "vehicle",
-                "--auto",
-                "--language",
-                "en",
-                "--no-color",
-            ],
-            input_fn=unexpected_input,
-        )
-
-        self.assertEqual(main.EXIT_NOT_READY, exit_code)
-        self.assertIn("VEHICLE", output)
-        self.assertIn("NOT CONNECTED", output)
-        self.assertIn("Vehicle mode refused", output)
-        self.assertIn("No physical motor command", output)
-
-    def test_vehicle_mode_never_runs_the_simulation_probe(self):
-        with patch(
-            "arac.main.run_simulation_probe",
-            side_effect=AssertionError("vehicle mode must refuse before probing"),
-        ):
-            exit_code, _output = self.run_cli(
-                ["--mode", "vehicle", "--auto", "--no-color"]
-            )
-
-        self.assertEqual(main.EXIT_NOT_READY, exit_code)
-
-    def test_real_camera_check_is_explicit_and_reports_metadata(self):
-        result = goz.CameraProbeResult(
-            source="usb:0",
-            frame_count=3,
-            width=640,
-            height=480,
-            elapsed_seconds=0.125,
-        )
-        with patch("arac.main.run_camera_diagnostic", return_value=result) as probe:
-            exit_code, output = self.run_cli(
-                [
-                    "--auto",
-                    "--check-camera",
-                    "--camera-frames",
-                    "3",
-                    "--language",
-                    "en",
-                    "--no-color",
-                ]
-            )
-
-        self.assertEqual(main.EXIT_OK, exit_code)
-        probe.assert_called_once()
-        self.assertIn("Checking USB camera 0 first", output)
-        self.assertIn("source=usb:0", output)
-        self.assertIn("resolution=640x480", output)
-
-    def test_camera_check_failure_stops_before_simulation_probe(self):
-        with (
-            patch(
-                "arac.main.run_camera_diagnostic",
-                side_effect=goz.CameraUnavailable("USB and Pi unavailable"),
-            ),
-            patch(
-                "arac.main.run_simulation_probe",
-                side_effect=AssertionError("self-check must not follow camera failure"),
-            ),
-        ):
-            exit_code, output = self.run_cli(
-                ["--auto", "--check-camera", "--language", "en", "--no-color"]
-            )
-
-        self.assertEqual(main.EXIT_NOT_READY, exit_code)
-        self.assertIn("Camera check failed closed", output)
-        self.assertIn("USB and Pi unavailable", output)
-
-    def test_bounded_probe_exercises_only_simulated_boundaries(self):
-        result = main.run_simulation_probe()
-
-        self.assertEqual(durum.VehicleState.READY, result.final_state)
-        self.assertTrue(result.observation_valid)
-        self.assertEqual(3, result.record_count)
-        self.assertEqual("BLOCKED", result.motor_state)
-        self.assertGreaterEqual(result.stop_request_count, 1)
-
-    def test_probe_failure_is_reported_and_fails_closed(self):
-        with patch(
-            "arac.main.run_simulation_probe",
-            side_effect=RuntimeError("deliberate test failure"),
-        ):
-            exit_code, output = self.run_cli(
-                ["--auto", "--language", "en", "--no-color"]
-            )
-
-        self.assertEqual(main.EXIT_NOT_READY, exit_code)
-        self.assertIn("Simulation self-check failed closed", output)
-        self.assertIn("deliberate test failure", output)
-
-    def test_keyboard_interrupt_exits_without_starting(self):
-        def interrupt(_prompt):
-            raise KeyboardInterrupt
-
-        exit_code, output = self.run_cli(
-            ["--language", "en", "--no-color"], input_fn=interrupt
-        )
-
-        self.assertEqual(main.EXIT_INTERRUPTED, exit_code)
-        self.assertIn("no hardware action was taken", output)
-        self.assertNotIn("simulation scaffold is ready", output)
-
-    def test_missing_confirmation_input_fails_closed(self):
-        def end_of_input(_prompt):
-            raise EOFError
-
-        exit_code, output = self.run_cli(
-            ["--language", "en", "--no-color"], input_fn=end_of_input
-        )
-
-        self.assertEqual(main.EXIT_NOT_READY, exit_code)
-        self.assertIn("confirmation input was unavailable", output)
-        self.assertNotIn("simulation scaffold is ready", output)
-
-    def test_argument_parser_defaults_to_safe_simulation(self):
+    def test_cli_defaults_to_real_arda_menu_not_simulation(self):
         options = main.parse_options([])
+        self.assertEqual("interactive", options.action)
+        self.assertFalse(hasattr(main, "SIMULATION"))
 
-        self.assertEqual(main.SIMULATION, options.mode)
-        self.assertEqual("tr", options.language)
-        self.assertFalse(options.automatic)
-        self.assertFalse(options.check_camera)
-        self.assertIsNone(options.record_camera)
-        self.assertIsNone(options.replay_camera)
-        self.assertFalse(options.interactive)
-        self.assertFalse(options.configuration)
-        self.assertIsNone(options.profile_root)
-        self.assertEqual(0, options.usb_index)
-        self.assertEqual(3, options.camera_frames)
-        self.assertEqual(120, options.record_frames)
+    def test_physical_actions_require_one_name_and_confirmation(self):
+        for arguments in (["--drive"], ["--bench", "--operator", "Ada Lovelace"]):
+            with self.subTest(arguments=arguments), self.assertRaises(SystemExit):
+                main.parse_options(arguments)
 
-    @staticmethod
-    def session_manifest():
-        return SessionManifest(
-            session_id="record-test",
-            created_at_utc="2026-08-22T12:00:00+00:00",
-            source="usb:0",
-            width=640,
-            height=480,
-            elapsed_seconds=0.0,
-            observed_fps=0.0,
-            warnings=("equal timestamp at frame 0",),
-            frames=(
-                RecordedFrame(
-                    frame_id=0,
-                    offset_seconds=0.0,
-                    path="frames/000000.jpg",
-                    sha256="0" * 64,
-                ),
-            ),
+        options = main.parse_options([
+            "--drive", "--operator", "Ada Lovelace", "--confirm-output",
+        ])
+        self.assertEqual("Ada Lovelace", options.operator)
+
+    def test_observation_uses_live_frames_and_never_constructs_a_driver(self):
+        camera = StubCamera(2)
+        analyzer = StubAnalyzer()
+        output = StringIO()
+        options = self.options("observe")
+        with patch("arac.main.GpioZeroMotorDriver", side_effect=AssertionError("motor")):
+            result = main.run_observation(
+                options,
+                configuration=active_configuration(),
+                camera=camera,
+                analyzer=analyzer,
+                output=output,
+            )
+
+        self.assertEqual(main.EXIT_OK, result)
+        self.assertEqual([0, 1], analyzer.calls)
+        self.assertTrue(camera.closed)
+        self.assertIn("confidence=0.90", output.getvalue())
+
+    def test_live_drive_reaches_validated_driver_and_writes_full_loop_log(self):
+        camera = StubCamera(3)  # one preflight frame + two controlled frames
+        analyzer = StubAnalyzer()
+        driver = RecordingDriver()
+        options = self.options(
+            "drive", operator="Ada Lovelace", confirm_output=True
+        )
+        result = main.run_drive(
+            options,
+            configuration=active_configuration(),
+            camera=camera,
+            analyzer=analyzer,
+            driver=driver,
+            input_fn=lambda _prompt: "",
+            output=StringIO(),
         )
 
-    @staticmethod
-    def replay_summary():
-        return ReplaySummary(
-            session_id="replay-test",
-            source="rpi:0",
-            frame_count=4,
-            width=640,
-            height=480,
-            elapsed_seconds=0.3,
-            observed_fps=10.0,
-            warnings=(),
+        self.assertEqual(main.EXIT_OK, result)
+        self.assertEqual(2, len(driver.applied))
+        self.assertTrue(all(
+            isinstance(item, surucu.ValidatedDriveRequest) for item in driver.applied
+        ))
+        self.assertTrue(driver.closed)
+        log_path = next(options.log_dir.glob("drive-*.jsonl"))
+        records = kayit.JsonlBlackBox(log_path, log_path.stem).records
+        kinds = [record.kind for record in records]
+        self.assertEqual(2, kinds.count(RecordKind.OBSERVATION))
+        self.assertEqual(2, kinds.count(RecordKind.MOTOR_ACCEPTED))
+
+    def test_drive_stops_physically_before_fault_is_logged(self):
+        events = []
+        driver = RecordingDriver(events)
+        options = self.options(
+            "drive", operator="Ada Lovelace", confirm_output=True
         )
 
-    def test_record_and_replay_arguments_are_mutually_exclusive(self):
-        record = main.parse_options(
-            ["--record-camera", "recordings/school-1", "--record-frames", "250"]
-        )
-        replay = main.parse_options(["--replay-camera", "recordings/school-1"])
+        def log_event(_box, kind, _module, _data, **_kwargs):
+            events.append(("log", kind))
 
-        self.assertEqual(Path("recordings/school-1"), record.record_camera)
-        self.assertEqual(250, record.record_frames)
-        self.assertEqual(Path("recordings/school-1"), replay.replay_camera)
-        with patch("sys.stderr", new=io.StringIO()):
-            with self.assertRaises(SystemExit):
-                main.parse_options(
-                    [
-                        "--record-camera",
-                        "one",
-                        "--replay-camera",
-                        "two",
-                    ]
+        with patch("arac.main._log", side_effect=log_event):
+            with self.assertRaisesRegex(RuntimeError, "vision failed"):
+                main.run_drive(
+                    options,
+                    configuration=active_configuration(),
+                    camera=StubCamera(3),
+                    analyzer=StubAnalyzer(fail_at=1),
+                    driver=driver,
+                    input_fn=lambda _prompt: "",
+                    output=StringIO(),
                 )
 
-    def test_recording_renders_progress_summary_and_skips_simulation_probe(self):
-        manifest = self.session_manifest()
-
-        def fake_record(options, *, progress):
-            progress(1, 1, goz.FramePacket(0, 0.0, {}, source="usb:0"))
-            return manifest
-
-        with (
-            patch("arac.main.run_camera_recording", side_effect=fake_record) as record,
-            patch(
-                "arac.main.run_simulation_probe",
-                side_effect=AssertionError("record utility must exit after capture"),
-            ),
-        ):
-            exit_code, output = self.run_cli(
-                [
-                    "--auto",
-                    "--record-camera",
-                    "recordings/school-1",
-                    "--record-frames",
-                    "1",
-                    "--language",
-                    "en",
-                    "--no-color",
-                ]
-            )
-
-        self.assertEqual(main.EXIT_OK, exit_code)
-        record.assert_called_once()
-        self.assertIn("CAMERA SESSION COMPLETE", output)
-        self.assertIn("record-test", output)
-        self.assertIn("1/1", output)
-        self.assertIn("Warning: equal timestamp", output)
-
-    def test_recording_failure_is_fail_closed_before_simulation(self):
-        with (
-            patch(
-                "arac.main.run_camera_recording",
-                side_effect=CameraSessionError("disk became unavailable"),
-            ),
-            patch(
-                "arac.main.run_simulation_probe",
-                side_effect=AssertionError("failed recording must stop"),
-            ),
-        ):
-            exit_code, output = self.run_cli(
-                [
-                    "--auto",
-                    "--record-camera",
-                    "recordings/fail",
-                    "--language",
-                    "en",
-                    "--no-color",
-                ]
-            )
-
-        self.assertEqual(main.EXIT_NOT_READY, exit_code)
-        self.assertIn("Camera recording failed closed", output)
-        self.assertIn("disk became unavailable", output)
-
-    def test_replay_renders_verified_summary_and_skips_simulation(self):
-        with (
-            patch(
-                "arac.main.run_replay_diagnostic",
-                return_value=self.replay_summary(),
-            ) as replay,
-            patch(
-                "arac.main.run_simulation_probe",
-                side_effect=AssertionError("replay utility must exit after validation"),
-            ),
-        ):
-            exit_code, output = self.run_cli(
-                [
-                    "--auto",
-                    "--replay-camera",
-                    "recordings/pi-1",
-                    "--language",
-                    "en",
-                    "--no-color",
-                ]
-            )
-
-        self.assertEqual(main.EXIT_OK, exit_code)
-        replay.assert_called_once()
-        self.assertIn("RECORDED SESSION VERIFIED", output)
-        self.assertIn("replay-test", output)
-        self.assertIn("rpi:0", output)
-        self.assertIn("640x480 BGR8", output)
-
-    def test_replay_integrity_failure_is_visible_and_fail_closed(self):
-        with patch(
-            "arac.main.run_replay_diagnostic",
-            side_effect=CameraSessionError("checksum mismatch"),
-        ):
-            exit_code, output = self.run_cli(
-                [
-                    "--auto",
-                    "--replay-camera",
-                    "recordings/broken",
-                    "--language",
-                    "en",
-                    "--no-color",
-                ]
-            )
-
-        self.assertEqual(main.EXIT_NOT_READY, exit_code)
-        self.assertIn("Recorded session was rejected", output)
-        self.assertIn("checksum mismatch", output)
-
-    def test_interactive_menu_collects_record_path_and_frame_limit(self):
-        values = iter(("3", "recordings/menu-session", "7"))
-
-        with patch(
-            "arac.main.run_camera_recording", return_value=self.session_manifest()
-        ) as record:
-            exit_code, output = self.run_cli(
-                ["--interactive", "--language", "en", "--no-color"],
-                input_fn=lambda _prompt: next(values),
-            )
-
-        self.assertEqual(main.EXIT_OK, exit_code)
-        selected = record.call_args.args[0]
-        self.assertEqual(Path("recordings/menu-session"), selected.record_camera)
-        self.assertEqual(7, selected.record_frames)
-        self.assertIn("ARDA WORKBENCH", output)
-        self.assertIn("Record a finite camera session", output)
-
-    def test_interactive_menu_retries_invalid_choice_and_can_exit(self):
-        values = iter(("wrong", "6"))
-
-        with patch(
-            "arac.main.run_simulation_probe",
-            side_effect=AssertionError("menu exit must not run a probe"),
-        ):
-            exit_code, output = self.run_cli(
-                ["--interactive", "--language", "en", "--no-color"],
-                input_fn=lambda _prompt: next(values),
-            )
-
-        self.assertEqual(main.EXIT_OK, exit_code)
-        self.assertIn("Choose one of the displayed numbers", output)
-        self.assertIn("no camera or motor action", output)
-
-    def test_configuration_menu_is_finite_and_skips_simulation_probe(self):
-        with (
-            patch("arac.main.run_configuration_menu", return_value=0) as yaren,
-            patch(
-                "arac.main.run_simulation_probe",
-                side_effect=AssertionError("YAREN utility must not run the drive probe"),
-            ),
-        ):
-            exit_code, output = self.run_cli(
-                [
-                    "--auto",
-                    "--configuration",
-                    "--profile-root",
-                    "profiles/test",
-                    "--language",
-                    "en",
-                    "--no-color",
-                ]
-            )
-
-        self.assertEqual(main.EXIT_OK, exit_code)
-        yaren.assert_called_once()
-        self.assertIn("Opening YAREN", output)
-
-    def test_interactive_workbench_can_open_yaren(self):
-        with patch("arac.main.run_configuration_menu", return_value=0) as yaren:
-            exit_code, output = self.run_cli(
-                ["--interactive", "--language", "en", "--no-color"],
-                input_fn=lambda _prompt: "5",
-            )
-
-        self.assertEqual(main.EXIT_OK, exit_code)
-        yaren.assert_called_once()
-        self.assertIn("Manage calibration and settings", output)
-
-    def test_interactive_menu_interrupt_and_missing_input_fail_safely(self):
-        def interrupt(_prompt):
-            raise KeyboardInterrupt
-
-        def end_of_input(_prompt):
-            raise EOFError
-
-        interrupted, interrupted_output = self.run_cli(
-            ["--interactive", "--language", "en", "--no-color"],
-            input_fn=interrupt,
+        fault_stop = next(
+            index for index, event in enumerate(events)
+            if event[0] == "stop" and "drive fault" in event[1]
         )
-        missing, missing_output = self.run_cli(
-            ["--interactive", "--language", "en", "--no-color"],
-            input_fn=end_of_input,
+        fault_log = next(
+            index for index, event in enumerate(events)
+            if event == ("log", RecordKind.FAULT)
+        )
+        self.assertLess(fault_stop, fault_log)
+
+    def test_lost_lane_sends_zero_through_tawnt_and_driver(self):
+        class LostAnalyzer(StubAnalyzer):
+            def analyze(self, frame):
+                self.calls.append(frame.frame_id)
+                return lane_result(frame.frame_id, valid=frame.frame_id == 0)
+
+        driver = RecordingDriver()
+        options = self.options(
+            "drive", frames=1, operator="Ada Lovelace", confirm_output=True
+        )
+        main.run_drive(
+            options,
+            configuration=active_configuration(),
+            camera=StubCamera(2),
+            analyzer=LostAnalyzer(),
+            driver=driver,
+            input_fn=lambda _prompt: "",
+            output=StringIO(),
+        )
+        command = driver.applied[0].command
+        self.assertEqual((0.0, 0.0), (command.left, command.right))
+
+    def test_bench_is_real_bounded_output_even_with_unmeasured_trim(self):
+        driver = RecordingDriver()
+        options = self.options(
+            "bench",
+            operator="Ada Lovelace",
+            confirm_output=True,
+            bench_left=20,
+            bench_right=-15,
+            bench_seconds=0.05,
         )
 
-        self.assertEqual(main.EXIT_INTERRUPTED, interrupted)
-        self.assertIn("no hardware action was taken", interrupted_output)
-        self.assertEqual(main.EXIT_NOT_READY, missing)
-        self.assertIn("confirmation input was unavailable", missing_output)
+        class Clock:
+            def __init__(self):
+                self.value = 0.0
 
-    def test_vehicle_mode_refuses_before_record_or_replay(self):
-        with (
-            patch(
-                "arac.main.run_camera_recording",
-                side_effect=AssertionError("vehicle refusal must happen first"),
-            ),
-            patch(
-                "arac.main.run_replay_diagnostic",
-                side_effect=AssertionError("vehicle refusal must happen first"),
-            ),
-        ):
-            exit_code, output = self.run_cli(
-                [
-                    "--mode",
-                    "vehicle",
-                    "--auto",
-                    "--record-camera",
-                    "recordings/nope",
-                    "--no-color",
-                ]
+            def __call__(self):
+                self.value += 0.02
+                return self.value
+
+        result = main.run_bench(
+            options,
+            configuration=active_configuration(),
+            driver=driver,
+            clock=Clock(),
+            sleep=lambda _seconds: None,
+        )
+        self.assertEqual(main.EXIT_OK, result)
+        self.assertEqual((0.2, -0.15), (
+            driver.applied[0].command.left, driver.applied[0].command.right,
+        ))
+        self.assertTrue(driver.closed)
+
+    def test_direct_run_cannot_bypass_output_confirmation(self):
+        with self.assertRaisesRegex(ValueError, "confirmation"):
+            main.run_drive(
+                self.options("drive", operator="Ada"),
+                configuration=active_configuration(),
+                camera=StubCamera(),
+                analyzer=StubAnalyzer(),
+                driver=RecordingDriver(),
             )
 
-        self.assertEqual(main.EXIT_NOT_READY, exit_code)
-        self.assertIn("reddedildi", output)
+    def test_interactive_menu_keeps_yaren_cam_gateway(self):
+        options = self.options("interactive")
+        with patch("arac.main.run_configuration_menu", return_value=7) as gateway:
+            result = main.run(options, input_fn=lambda _prompt: "4", output=StringIO())
+        self.assertEqual(7, result)
+        gateway.assert_called_once()
+
+    def test_yaren_delegation_preserves_full_interactive_gateway(self):
+        options = self.options("yaren", profile_root=self.temp / "profiles")
+        with patch("arac.main.run_yaren_cli", return_value=0) as yaren:
+            result = main.run_configuration_menu(options, output=StringIO())
+        self.assertEqual(0, result)
+        arguments = yaren.call_args.args[0]
+        self.assertEqual([
+            "--root", str(self.temp / "profiles"), "interactive"
+        ], arguments)
 
 
 if __name__ == "__main__":

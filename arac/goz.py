@@ -3,7 +3,8 @@ STARTECH-KASIM (CAMILA)
 Kamera Akışı Sağlama ve İletim Modülü
 Camera Acquisition and Monitoring Interface Layer Adapter
 
-This module will own camera acquisition. Hardware access is not implemented yet.
+It provides the existing Pi camera path and a Windows/Linux USB-camera path.
+Both adapters deliver RGB frames so KEREM has one production perception input.
 """
 
 from __future__ import annotations
@@ -35,6 +36,25 @@ class CameraExhausted(CameraError):
 
 class CameraReadFailure(CameraError):
     """Raised when an opened physical camera cannot return a usable new frame."""
+
+
+def _prepare_rgb_frame(payload: object, *, source_bgr: bool, rotate_180: bool) -> object:
+    """Normalize a NumPy camera image while leaving diagnostic fakes untouched."""
+
+    if type(payload).__module__.split(".")[0] != "numpy":
+        return payload
+    if not source_bgr and not rotate_180:
+        return payload
+    try:
+        cv2 = importlib.import_module("cv2")
+    except ImportError as exc:
+        raise CameraUnavailable("OpenCV is required for configured frame transforms") from exc
+    result = payload
+    if source_bgr:
+        result = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
+    if rotate_180:
+        result = cv2.rotate(result, cv2.ROTATE_180)
+    return result
 
 
 class CameraStatus(str, Enum):
@@ -219,6 +239,8 @@ class OpenCvUsbCamera:
         self,
         device_index: int = 0,
         *,
+        size: tuple[int, int] | None = None,
+        rotate_180: bool = False,
         capture_factory: Callable[[int], object] | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -229,6 +251,13 @@ class OpenCvUsbCamera:
         ):
             raise ValueError("USB camera index must be a non-negative integer")
         self.device_index = device_index
+        if size is not None and (
+            not isinstance(size, tuple) or len(size) != 2
+            or any(isinstance(item, bool) or not isinstance(item, int) or item <= 0 for item in size)
+        ):
+            raise ValueError("USB camera size must contain two positive integers")
+        self.size = size
+        self.rotate_180 = bool(rotate_180)
         self._capture_factory = capture_factory
         self._clock = clock
         self._capture: object | None = None
@@ -264,6 +293,16 @@ class OpenCvUsbCamera:
                 raise CameraUnavailable(
                     f"USB camera index {self.device_index} could not be opened"
                 )
+            if self.size is not None:
+                setter = getattr(capture, "set", None)
+                if callable(setter):
+                    try:
+                        cv2 = importlib.import_module("cv2")
+                        setter(cv2.CAP_PROP_FRAME_WIDTH, self.size[0])
+                        setter(cv2.CAP_PROP_FRAME_HEIGHT, self.size[1])
+                    except ImportError:
+                        # A custom capture can still provide the requested size.
+                        pass
         except CameraUnavailable:
             self._status = CameraStatus.FAILED
             raise
@@ -295,7 +334,16 @@ class OpenCvUsbCamera:
         if not received or payload is None:
             self._status = CameraStatus.FAILED
             raise CameraReadFailure("USB camera returned no frame")
-        _frame_dimensions(payload)
+        payload = _prepare_rgb_frame(
+            payload, source_bgr=True, rotate_180=self.rotate_180
+        )
+        dimensions = _frame_dimensions(payload)
+        if self.size is not None and dimensions != self.size:
+            self._status = CameraStatus.FAILED
+            raise CameraReadFailure(
+                f"USB camera produced {dimensions[0]}x{dimensions[1]}; "
+                f"active calibration requires {self.size[0]}x{self.size[1]}"
+            )
 
         packet = FramePacket(
             frame_id=self._next_frame_id,
@@ -328,6 +376,8 @@ class PiCamera2Source:
         camera_number: int = 0,
         *,
         size: tuple[int, int] = (640, 480),
+        bgr_output: bool = False,
+        rotate_180: bool = False,
         camera_factory: Callable[[int], object] | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -345,6 +395,8 @@ class PiCamera2Source:
             raise ValueError("Pi camera size must contain two positive integers")
         self.camera_number = camera_number
         self.size = size
+        self.bgr_output = bool(bgr_output)
+        self.rotate_180 = bool(rotate_180)
         self._camera_factory = camera_factory
         self._clock = clock
         self._camera: object | None = None
@@ -425,7 +477,16 @@ class PiCamera2Source:
         if payload is None:
             self._status = CameraStatus.FAILED
             raise CameraReadFailure("Raspberry Pi camera returned no frame")
-        _frame_dimensions(payload)
+        payload = _prepare_rgb_frame(
+            payload, source_bgr=self.bgr_output, rotate_180=self.rotate_180
+        )
+        dimensions = _frame_dimensions(payload)
+        if dimensions != self.size:
+            self._status = CameraStatus.FAILED
+            raise CameraReadFailure(
+                f"Raspberry Pi camera produced {dimensions[0]}x{dimensions[1]}; "
+                f"active calibration requires {self.size[0]}x{self.size[1]}"
+            )
 
         packet = FramePacket(
             frame_id=self._next_frame_id,
@@ -515,13 +576,26 @@ class PreferredCamera:
             raise first_error
 
 
-def build_preferred_camera(usb_index: int = 0) -> PreferredCamera:
-    """Build the requested USB-first, Raspberry-Pi-second camera chain."""
+def build_preferred_camera(
+    usb_index: int = 0,
+    *,
+    size: tuple[int, int] | None = None,
+    bgr_output: bool = False,
+    rotate_180: bool = False,
+) -> PreferredCamera:
+    """Build one live RGB camera chain for Windows/Linux USB and Raspberry Pi."""
 
     return PreferredCamera(
         (
-            OpenCvUsbCamera(device_index=usb_index),
-            PiCamera2Source(camera_number=0),
+            OpenCvUsbCamera(
+                device_index=usb_index, size=size, rotate_180=rotate_180
+            ),
+            PiCamera2Source(
+                camera_number=0,
+                size=size or (640, 480),
+                bgr_output=bgr_output,
+                rotate_180=rotate_180,
+            ),
         )
     )
 
