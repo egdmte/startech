@@ -60,16 +60,37 @@ class CamWorkflowTest(unittest.TestCase):
         self.assertEqual(302, response.status_code, response.get_data(as_text=True))
         return response
 
-    def test_sac_persists_each_step_then_publishes_downloadable_v2(self):
-        token = self.page_token("/new/SAC")
-        response = self.client.post(
-            "/new/SAC",
-            data={"csrf_token": token, "name": "School bench", "source": "DEFAULT"},
+    def start_sac(self, name: str = "School bench") -> str:
+        token = self.page_token("/sac/source")
+        source = self.client.post(
+            "/sac/source",
+            data={"csrf_token": token, "source": "DEFAULT"},
         )
-        self.assertEqual(302, response.status_code)
-        match = DRAFT_LOCATION.search(response.location)
+        self.assertEqual(302, source.status_code)
+        self.assertTrue(source.location.endswith("/sac/name"))
+
+        token = self.page_token("/sac/name")
+        named = self.client.post(
+            "/sac/name",
+            data={"csrf_token": token, "name": name},
+        )
+        self.assertEqual(302, named.status_code)
+        match = DRAFT_LOCATION.search(named.location)
         self.assertIsNotNone(match)
         draft_id = match.group(2)
+        self.assertTrue(named.location.endswith(f"/sac/{draft_id}/preflight"))
+
+        token = self.page_token(named.location)
+        preflight = self.client.post(
+            named.location,
+            data={"csrf_token": token},
+        )
+        self.assertEqual(302, preflight.status_code)
+        self.assertTrue(preflight.location.endswith(f"/sac/{draft_id}/components"))
+        return draft_id
+
+    def test_sac_persists_each_step_then_publishes_downloadable_v2(self):
+        draft_id = self.start_sac()
         base = f"/sac/{draft_id}"
 
         self.post_section(
@@ -114,9 +135,10 @@ class CamWorkflowTest(unittest.TestCase):
                 "sac_niyeti.tekerlek.sag_yon": "normal",
             },
         )
-        self.assertTrue(response.location.endswith(f"/sac/{draft_id}/summary"))
+        self.assertTrue(response.location.endswith(f"/sac/{draft_id}/components"))
 
-        summary = self.client.get(response.location)
+        summary_path = f"/sac/{draft_id}/summary"
+        summary = self.client.get(summary_path)
         self.assertIn(b"Create", summary.data)
         self.assertIn(b"camera, power, compute, drive, wheel", summary.data)
         token = TOKEN.search(summary.data).group(1).decode("ascii")
@@ -184,12 +206,7 @@ class CamWorkflowTest(unittest.TestCase):
         self.assertEqual(tag, lineage["parent_tag"])
 
     def test_sac_creation_is_blocked_until_every_section_is_reviewed(self):
-        token = self.page_token("/new/SAC")
-        response = self.client.post(
-            "/new/SAC",
-            data={"csrf_token": token, "name": "Incomplete", "source": "DEFAULT"},
-        )
-        draft_id = DRAFT_LOCATION.search(response.location).group(2)
+        draft_id = self.start_sac("Incomplete")
         summary_path = f"/sac/{draft_id}/summary"
         summary = self.client.get(summary_path)
         self.assertIn(b"Review required", summary.data)
