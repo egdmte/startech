@@ -1,21 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}CAM{% endblock %}
 {% block content %}
-<section class="center-card dashboard-card">
-  <p>Welcome to Calibration Arrangement and Management Tool (CAM)</p>
-  <h1>Select an option to begin.</h1>
-  <div class="button-stack">
-    <a class="primary-button" href="{{ url_for('cam.new_configuration', workflow='sac') }}">Create a SAC <span>(Service Assisted Calibration)</span></a>
-    <a class="secondary-button" href="{{ url_for('cam.new_configuration', workflow='mac') }}">Create a MAC <span>(Manual Assisted Calibration)</span></a>
-    <a class="text-button" href="{{ url_for('cam.history') }}">Access version history →</a>
+<section class="cam-center-panel" aria-labelledby="cam-title">
+  <header class="cam-page-heading" data-motion data-motion-delay="1">
+    <p id="cam-title">Welcome to Calibration Arrangement and Management Tool (CAM)</p>
+    <strong>Select an option to begin.</strong>
+  </header>
+  <div class="cam-action-stack" aria-label="Calibration options" data-motion data-motion-delay="2">
+    <a class="cam-action cam-action--primary" href="{{ url_for('cam.sac_source') }}">Create a SAC (Service Assisted Calibration)</a>
+    <a class="cam-action cam-action--secondary" href="{{ url_for('cam.new_configuration', workflow='mac') }}">Create a MAC (Manual Assisted Calibration)</a>
   </div>
+  <a class="cam-tertiary-action" href="{{ url_for('cam.history') }}">Access version history <span aria-hidden="true">→</span></a>
   {% if calibrations %}
-  <div class="recent-list">
-    <h2>Recent configurations</h2>
-    {% for item in calibrations %}
-      <a href="{{ url_for('cam.download', tag=item.tag) }}"><strong>{{ item.tag }}</strong> {{ item.name }} · {{ item.workflow }}</a>
-    {% endfor %}
-  </div>
+    <p class="dashboard-recent">{{ calibrations|length }} recent configuration{{ '' if calibrations|length == 1 else 's' }} available in version history.</p>
   {% endif %}
 </section>
 {% endblock %}

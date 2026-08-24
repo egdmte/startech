@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Name this calibration{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css') }}">{% endblock %}
+{% block content %}
+<section class="cam-center-panel cam-stage-panel name-panel" aria-labelledby="name-title">
+  <header class="cam-page-heading" data-motion data-motion-delay="1">
+    <h1 id="name-title">Please enter a name for this calibration.</h1>
+    <p>Your legal name is used to determine the owner. Naming a calibration helps you organize it; it does not affect how STARTECH references calibrations.</p>
+  </header>
+  <form class="sac-name-form" method="post" data-motion data-motion-delay="2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="visually-hidden" for="calibration-name">Calibration name</label>
+    <input class="cam-input" id="calibration-name" name="name" maxlength="80" placeholder="MySAC" required value="{{ entered_name or '' }}">
+    <div class="sac-name-actions">
+      <button class="cam-action cam-action--primary" type="submit">Agree</button>
+      <a class="cam-action cam-action--secondary" href="{{ url_for('cam.sac_source') }}">Choose another source</a>
+    </div>
+  </form>
+</section>
+{% endblock %}
+{% block session_footer %}
+<footer class="cam-workflow-footer">
+  <div class="cam-session"><span>Your session will expire in</span><strong class="cam-session-time" data-session-clock data-session-expires-at="{{ session_expires_at }}">15:00</strong></div>
+  <div class="cam-progress" role="progressbar" aria-label="SAC progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><span class="cam-progress__value" style="--cam-progress: 8%"></span></div>
+</footer>
+{% endblock %}

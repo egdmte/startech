@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Choose a car section{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css') }}">{% endblock %}
+{% block content %}
+<section class="components-page" aria-labelledby="components-title">
+  <header class="components-heading" data-motion data-motion-delay="1">
+    <h1 id="components-title">Which part would you like to be assisted with?</h1>
+    <p>Click or touch the relevant section to review what can be changed.</p>
+  </header>
+  <div class="components-workspace" data-motion data-motion-delay="2">
+    <div class="car-map" aria-label="Selectable car sections">
+      <img src="{{ url_for('static', filename='assets/car.png') }}" alt="STARTECH prototype car">
+      <a class="car-hotspot car-hotspot--power {{ 'is-saved' if 'power' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='power') }}" data-component-name="Battery and power" data-component-copy="Set minimum and maximum software speed limits." aria-label="Edit battery and power settings"></a>
+      <a class="car-hotspot car-hotspot--compute {{ 'is-saved' if 'compute' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='compute') }}" data-component-name="Raspberry Pi and services" data-component-copy="Choose startup validation and enabled STARTECH modules." aria-label="Edit compute settings"></a>
+      <a class="car-hotspot car-hotspot--camera {{ 'is-saved' if 'camera' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='camera') }}" data-component-name="Camera" data-component-copy="Choose capture, orientation and recognition intent." aria-label="Edit camera settings"></a>
+      <a class="car-hotspot car-hotspot--drive {{ 'is-saved' if 'drive' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='drive') }}" data-component-name="Drive and steering" data-component-copy="Set command-loss policy and steering limits." aria-label="Edit drive settings"></a>
+      <a class="car-hotspot car-hotspot--wheel {{ 'is-saved' if 'wheel' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='wheel') }}" data-component-name="Wheels" data-component-copy="Set wheel correction and direction intent." aria-label="Edit wheel settings"></a>
+    </div>
+    <aside class="component-detail" aria-live="polite">
+      <h2 data-component-title>{{ 'ALL PARTS REVIEWED' if complete else 'NO PARTS SELECTED' }}</h2>
+      <p data-component-description>{{ 'You can now review and create this calibration.' if complete else 'Select a blue area to inspect or edit that part.' }}</p>
+      <ul class="component-status-list">
+        {% for key, definition in definitions.items() %}
+        <li class="{{ 'is-saved' if key in touched else '' }}"><span>{{ '✓' if key in touched else '○' }}</span>{{ definition[0] }}</li>
+        {% endfor %}
+      </ul>
+      {% if complete %}
+      <a class="cam-action cam-action--primary component-summary-action" href="{{ url_for('cam.summary', workflow='sac', draft_id=draft_id) }}">Review calibration</a>
+      {% else %}
+      <button class="cam-action cam-action--secondary component-summary-action" type="button" disabled>Review every section first</button>
+      {% endif %}
+    </aside>
+  </div>
+</section>
+{% endblock %}
+{% block session_footer %}
+<footer class="cam-workflow-footer">
+  <div class="cam-session"><span>Your session will expire in</span><strong class="cam-session-time" data-session-clock data-session-expires-at="{{ session_expires_at }}">15:00</strong></div>
+  <div class="cam-progress" role="progressbar" aria-label="SAC progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ 24 + (touched|length * 12) }}"><span class="cam-progress__value" style="--cam-progress: {{ 24 + (touched|length * 12) }}%"></span></div>
+</footer>
+{% endblock %}

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}SAC · {{ title }}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css') }}">{% endblock %}
+{% block content %}
+<a class="sac-back-link" href="{{ url_for('cam.sac_components', draft_id=draft_id) }}">← Return to the car</a>
+<section class="sac-editor-panel sac-editor-panel--{{ section }}" aria-labelledby="section-title">
+  <header class="sac-editor-heading" data-motion data-motion-delay="1">
+    <h1 id="section-title">Edit {{ title|lower }} settings</h1>
+    <p>{{ description }}</p>
+  </header>
+
+  <form class="sac-section-form" method="post" data-motion data-motion-delay="2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {% if section == 'power' %}
+      <div class="sac-warning-strip">Selected limits are software policy. They are not a voltage measurement or physical safety test.</div>
+      <div class="dual-controls">
+        <label class="range-control">
+          <span><b>Minimum speed</b><output data-range-output>{{ values['sac_niyeti.guc.minimum_hiz_yuzde'] }}%</output></span>
+          <input type="range" name="sac_niyeti.guc.minimum_hiz_yuzde" min="0" max="100" step="1" value="{{ values['sac_niyeti.guc.minimum_hiz_yuzde'] }}" data-range data-range-suffix="%">
+          <small><span>0% — Zero speed</span><span>100% — Full request</span></small>
+        </label>
+        <label class="range-control">
+          <span><b>Maximum speed</b><output data-range-output>{{ values['sac_niyeti.guc.maksimum_hiz_yuzde'] }}%</output></span>
+          <input type="range" name="sac_niyeti.guc.maksimum_hiz_yuzde" min="0" max="100" step="1" value="{{ values['sac_niyeti.guc.maksimum_hiz_yuzde'] }}" data-range data-range-suffix="%">
+          <small><span>0% — Zero speed</span><span>100% — Full request</span></small>
+        </label>
+      </div>
+
+    {% elif section == 'camera' %}
+      <p class="availability-line"><span aria-hidden="true">✓</span> KASIM settings are available. No live frame is shown by CAM.</p>
+      <div class="camera-layout">
+        <fieldset class="orientation-control">
+          <legend>Frame orientation</legend>
+          <div class="orientation-preview"><span data-orientation-preview>{{ values['sac_niyeti.kamera.yon_derecesi'] }}°</span></div>
+          <div class="inline-choices">
+            {% for value, label in fields[0].choices %}
+            <label><input type="radio" name="sac_niyeti.kamera.yon_derecesi" value="{{ value }}" {% if values['sac_niyeti.kamera.yon_derecesi']|string == value %}checked{% endif %}> {{ label }}</label>
+            {% endfor %}
+          </div>
+        </fieldset>
+        <div class="camera-choices">
+          <fieldset>
+            <legend>Capture profile</legend>
+            {% for value, label in fields[1].choices %}
+            <label class="choice"><input type="radio" name="sac_niyeti.kamera.yakalama_profili" value="{{ value }}" {% if values['sac_niyeti.kamera.yakalama_profili'] == value %}checked{% endif %}> {{ label }}</label>
+            {% endfor %}
+          </fieldset>
+          <fieldset>
+            <legend>Recognition sensitivity</legend>
+            {% for value, label in fields[2].choices %}
+            <label class="choice"><input type="radio" name="sac_niyeti.kamera.tanima_hassasiyeti" value="{{ value }}" {% if values['sac_niyeti.kamera.tanima_hassasiyeti'] == value %}checked{% endif %}> {{ label }}</label>
+            {% endfor %}
+          </fieldset>
+        </div>
+      </div>
+      <label class="choice centered-choice"><input type="checkbox" name="sac_niyeti.kamera.raspberry_pi_oncelikli" {% if values['sac_niyeti.kamera.raspberry_pi_oncelikli'] %}checked{% endif %}> Prioritize Raspberry Pi Camera before USB</label>
+
+    {% elif section == 'compute' %}
+      <p class="availability-line"><span aria-hidden="true">✓</span> Raspberry Pi policy is ready. Temperature and running processes are unavailable to the web server.</p>
+      <div class="compute-grid">
+        <fieldset>
+          <legend>Start-up precaution level</legend>
+          {% for value, label in fields[0].choices %}
+          <label class="choice"><input type="radio" name="sac_niyeti.hesaplama.baslangic_onlemi" value="{{ value }}" {% if values['sac_niyeti.hesaplama.baslangic_onlemi'] == value %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </fieldset>
+        <fieldset>
+          <legend>Service status</legend>
+          {% for value, label in fields[1].choices %}
+          <label class="choice"><input type="radio" name="sac_niyeti.hesaplama.servis_durumu" value="{{ value }}" {% if values['sac_niyeti.hesaplama.servis_durumu'] == value %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </fieldset>
+        <fieldset>
+          <legend>M3TH strictness</legend>
+          {% for value, label in fields[2].choices %}
+          <label class="choice"><input type="radio" name="sac_niyeti.hesaplama.m3th_sikiligi" value="{{ value }}" {% if values['sac_niyeti.hesaplama.m3th_sikiligi'] == value %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </fieldset>
+        <fieldset>
+          <legend>Enabled modules</legend>
+          <div class="module-grid">
+            {% for value, label in fields[3].choices %}
+            <label class="choice"><input type="checkbox" name="sac_niyeti.hesaplama.etkin_moduller" value="{{ value }}" {% if value in values['sac_niyeti.hesaplama.etkin_moduller'] %}checked{% endif %}> {{ label }}</label>
+            {% endfor %}
+          </div>
+        </fieldset>
+      </div>
+
+    {% elif section == 'drive' %}
+      <div class="drive-grid">
+        <fieldset>
+          <legend>Loss-of-command action</legend>
+          {% for value, label in fields[0].choices %}
+          <label class="choice"><input type="radio" name="sac_niyeti.surus.komut_kaybi_eylemi" value="{{ value }}" {% if values['sac_niyeti.surus.komut_kaybi_eylemi'] == value %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </fieldset>
+        <fieldset data-output-mode>
+          <legend>Driver output mode</legend>
+          {% for value, label in fields[1].choices %}
+          <label class="choice"><input type="radio" name="sac_niyeti.surus.surucu_cikis_modu" value="{{ value }}" {% if values['sac_niyeti.surus.surucu_cikis_modu'] == value %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </fieldset>
+      </div>
+      <div class="dual-controls">
+        <label class="range-control">
+          <span><b>Steering center</b><output data-range-output>{{ values['sac_niyeti.surus.direksiyon_merkez_yuzde'] }}%</output></span>
+          <input type="range" name="sac_niyeti.surus.direksiyon_merkez_yuzde" min="-30" max="30" step="1" value="{{ values['sac_niyeti.surus.direksiyon_merkez_yuzde'] }}" data-range data-range-suffix="%">
+        </label>
+        <label class="range-control">
+          <span><b>Maximum steering travel</b><output data-range-output>{{ values['sac_niyeti.surus.direksiyon_azami_hareket_yuzde'] }}%</output></span>
+          <input type="range" name="sac_niyeti.surus.direksiyon_azami_hareket_yuzde" min="10" max="100" step="1" value="{{ values['sac_niyeti.surus.direksiyon_azami_hareket_yuzde'] }}" data-range data-range-suffix="%">
+        </label>
+      </div>
+      <div class="full-output-gate" data-full-output-gate>
+        <strong>Full output requires explicit acknowledgement.</strong>
+        <label class="choice"><input type="checkbox" name="oturum_kaniti.tam_cikis_onaylandi" {% if values['oturum_kaniti.tam_cikis_onaylandi'] %}checked{% endif %}> I explicitly acknowledge the requested full-output profile.</label>
+        <label class="choice"><input type="checkbox" name="oturum_kaniti.prototip_kilidi_onaylandi" {% if values['oturum_kaniti.prototip_kilidi_onaylandi'] %}checked{% endif %}> I understand that CAM does not arm or physically test the car.</label>
+      </div>
+
+    {% elif section == 'wheel' %}
+      <div class="wheel-visual" aria-hidden="true">
+        <span>LEFT</span><div class="wheel-axis"></div><span>RIGHT</span>
+      </div>
+      <div class="dual-controls">
+        <label class="range-control">
+          <span><b>Left correction</b><output data-range-output>{{ values['sac_niyeti.tekerlek.sol_duzeltme_yuzde'] }}%</output></span>
+          <input type="range" name="sac_niyeti.tekerlek.sol_duzeltme_yuzde" min="-20" max="20" step="1" value="{{ values['sac_niyeti.tekerlek.sol_duzeltme_yuzde'] }}" data-range data-range-suffix="%">
+        </label>
+        <label class="range-control">
+          <span><b>Right correction</b><output data-range-output>{{ values['sac_niyeti.tekerlek.sag_duzeltme_yuzde'] }}%</output></span>
+          <input type="range" name="sac_niyeti.tekerlek.sag_duzeltme_yuzde" min="-20" max="20" step="1" value="{{ values['sac_niyeti.tekerlek.sag_duzeltme_yuzde'] }}" data-range data-range-suffix="%">
+        </label>
+      </div>
+      <div class="drive-grid">
+        <fieldset>
+          <legend>Left wheel direction</legend>
+          {% for value, label in fields[2].choices %}
+          <label class="choice"><input type="radio" name="sac_niyeti.tekerlek.sol_yon" value="{{ value }}" {% if values['sac_niyeti.tekerlek.sol_yon'] == value %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </fieldset>
+        <fieldset>
+          <legend>Right wheel direction</legend>
+          {% for value, label in fields[3].choices %}
+          <label class="choice"><input type="radio" name="sac_niyeti.tekerlek.sag_yon" value="{{ value }}" {% if values['sac_niyeti.tekerlek.sag_yon'] == value %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </fieldset>
+      </div>
+    {% endif %}
+
+    <p class="sac-editor-note">These values remain unverified until supervised physical testing records evidence.</p>
+    <button class="cam-action cam-action--primary sac-save-action" type="submit">Save changes and return</button>
+  </form>
+</section>
+{% endblock %}
+{% block session_footer %}
+<footer class="cam-workflow-footer">
+  <div class="cam-session"><span>Your session will expire in</span><strong class="cam-session-time" data-session-clock data-session-expires-at="{{ session_expires_at }}">15:00</strong></div>
+  <div class="cam-progress" role="progressbar" aria-label="SAC progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ 36 + (touched|length * 12) }}"><span class="cam-progress__value" style="--cam-progress: {{ 36 + (touched|length * 12) }}%"></span></div>
+</footer>
+{% endblock %}

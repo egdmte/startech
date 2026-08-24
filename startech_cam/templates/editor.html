@@ -2,6 +2,10 @@
 {% block title %}{{ workflow }} · {{ title }}{% endblock %}
 {% block frame_class %}editor-frame{% endblock %}
 {% block content %}
+<header class="mac-topbar">
+  <strong>Manual Assisted Calibration - Interface v0.1</strong>
+  <a class="text-button" href="{{ url_for('cam.summary', workflow=workflow.lower(), draft_id=draft_id) }}">Review and publish</a>
+</header>
 <div class="editor-layout">
   <aside class="editor-sidebar">
     <strong>{{ workflow }} editor</strong>

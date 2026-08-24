@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Calibration {{ tag }} created{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css') }}">{% endblock %}
+{% block page %}
+<main class="finish-shell" data-page>
+  <aside class="finish-identity" aria-label="Current session">
+    <header class="finish-welcome" data-motion data-motion-delay="1"><span>Welcome</span><strong>{{ current_actor }}</strong></header>
+    <footer class="finish-session-footer" data-motion data-motion-delay="3">
+      <img class="finish-school-logo" src="{{ url_for('static', filename='assets/school-logo.png') }}" alt="STARTECH school mark" width="29" height="28">
+      <div class="finish-session-status"><span class="finish-session-label">Your session will expire in</span><div class="finish-timer"><span class="finish-timer-part" data-session-minutes>15</span><span class="finish-timer-part" data-session-seconds>00</span><span class="visually-hidden" data-session-clock data-session-expires-at="{{ session_expires_at }}">15:00</span></div></div>
+    </footer>
+  </aside>
+  <section class="finish-stage" aria-labelledby="created-title">
+    <div class="finish-result-layout" data-motion data-motion-delay="2">
+      <header class="finish-copy">
+        <span class="finish-icon finish-icon--success" aria-hidden="true">✓</span>
+        <h1 id="created-title">Calibration created!</h1>
+        <p>A new calibration with tag <strong>{{ tag }}</strong> has been created.</p>
+        <p>There are other variables that cannot be edited using Service Assisted Calibration.</p>
+      </header>
+      <div class="finish-result-actions">
+        <form method="post" action="{{ url_for('cam.edit_with_mac', tag=tag) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="cam-action cam-action--primary" type="submit">Edit {{ tag }} with MAC</button>
+        </form>
+        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.download', tag=tag) }}">Download merged JSON</a>
+        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.dashboard') }}">Main Menu</a>
+      </div>
+    </div>
+  </section>
+</main>
+{% endblock %}

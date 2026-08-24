@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}New {{ workflow }}{% endblock %}
+{% block frame_class %}editor-frame{% endblock %}
 {% block content %}
+<header class="mac-topbar"><strong>Manual Assisted Calibration - Interface v0.1</strong><span>Choose a source</span></header>
 <section class="center-card medium">
   <h1>Please enter a name for this calibration.</h1>
   <p>Your legal name determines the owner. The display name helps organize versions and does not change schema identity.</p>

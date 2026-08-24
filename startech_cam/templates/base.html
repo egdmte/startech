@@ -4,50 +4,40 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
+  <meta name="description" content="STARTECH Calibration Arrangement and Management Tool">
   <title>{% block title %}CAM{% endblock %} · STARTECH</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='cam.css') }}">
+  {% block styles %}{% endblock %}
   <script defer src="{{ url_for('static', filename='cam.js') }}"></script>
+  {% block scripts %}{% endblock %}
 </head>
-<body>
-  <div class="app-frame {% block frame_class %}{% endblock %}">
-    {% if session.get('authenticated') %}
-      <header class="app-header">
-        <a class="brand" href="{{ url_for('cam.dashboard') }}">Calibration Arrangement and Management Tool (CAM)</a>
-        <div class="header-actions">
-          <span class="connection-state {{ 'connected' if has_car_access else '' }}">
-            {{ 'YAREN connected' if has_car_access else 'Offline' }}
-          </span>
-          <form method="post" action="{{ url_for('auth.logout') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="text-button" type="submit">Sign out</button>
-          </form>
-        </div>
-      </header>
+<body class="{% block body_class %}{% endblock %}">
+  {% if session.get('authenticated') %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}" data-page-csrf>{% endif %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-stack" role="status" aria-live="polite">
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
     {% endif %}
+  {% endwith %}
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flash-stack" role="status">
-          {% for category, message in messages %}
-            <div class="flash {{ category }}">{{ message }}</div>
-          {% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
-
-    <main class="page-content">
+  {% block page %}
+    <main class="cam-frame {% block frame_class %}{% endblock %}" data-page>
       {% block content %}{% endblock %}
+      {% block session_footer %}
+        {% if session.get('authenticated') %}
+          <footer class="cam-session" aria-live="polite">
+            <span>Your session will expire in</span>
+            <strong class="cam-session-time" data-session-clock data-session-expires-at="{{ session_expires_at }}">15:00</strong>
+          </footer>
+        {% endif %}
+      {% endblock %}
     </main>
-
-    {% if session.get('authenticated') %}
-      <footer class="session-footer">
-        <span>Your session will expire in <strong data-session-clock data-session-expires-at="{{ session_expires_at }}">15:00</strong></span>
-        <div class="session-track" aria-hidden="true"><span data-session-progress></span></div>
-      </footer>
-    {% endif %}
-  </div>
+  {% endblock %}
 </body>
 </html>

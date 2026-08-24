@@ -1,18 +1,47 @@
 {% extends "base.html" %}
-{% block title %}YAREN access{% endblock %}
-{% block content %}
-<section class="center-card narrow">
-  <div class="message-icon" aria-hidden="true">▣</div>
-  <h1>Prove that you possess the code.</h1>
-  <p>Open YAREN, request a web code, and enter its eight characters here. Codes expire after fifteen minutes and work once.</p>
-  <form class="inline-code-form" method="post">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input name="access_code" aria-label="YAREN access code" autocomplete="one-time-code" maxlength="12" required>
-    <button class="primary-button compact" type="submit" aria-label="Submit code">↗</button>
-  </form>
-  <form method="post" action="{{ url_for('auth.continue_offline') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="text-button spacious" type="submit">Continue without access to the car →</button>
-  </form>
-</section>
+{% block title %}Prove that you possess the code{% endblock %}
+{% block body_class %}access-page{% endblock %}
+{% block page %}
+<main class="access-shell" data-page>
+  <aside class="identity-panel" aria-label="Current session">
+    <header class="welcome-copy" data-motion data-motion-delay="1">
+      <span>Welcome</span>
+      <strong>{{ current_actor }}</strong>
+    </header>
+    <footer class="identity-session-footer" data-motion data-motion-delay="3">
+      <img class="school-logo" src="{{ url_for('static', filename='assets/school-logo.png') }}" alt="STARTECH school mark" width="29" height="28">
+      <div class="session-status">
+        <span class="session-label">Your session will expire in</span>
+        <div class="timer" aria-label="Session expiration countdown">
+          <span class="timer-part" data-session-minutes>15</span>
+          <span class="timer-part" data-session-seconds>00</span>
+          <span class="visually-hidden" data-session-clock data-session-expires-at="{{ session_expires_at }}">15:00</span>
+        </div>
+      </div>
+    </footer>
+  </aside>
+
+  <section class="access-panel" aria-labelledby="access-title">
+    <div class="access-content" data-motion data-motion-delay="2">
+      <img class="access-icon" src="{{ url_for('static', filename='assets/email.png') }}" alt="" width="39" height="39">
+      <h1 id="access-title">Prove that you possess the code.</h1>
+      <p class="access-explanation">Open YAREN, select the 10th action and enter the code it outputted here. It will be disabled in 15 minutes.</p>
+      <form class="code-form" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="code-entry">
+          <label class="visually-hidden" for="web-code">Temporary YAREN web code</label>
+          <input id="web-code" name="access_code" type="text" autocomplete="one-time-code" spellcheck="false" maxlength="12" required>
+          <button class="send-action" type="submit" aria-label="Verify web code">
+            <img src="{{ url_for('static', filename='assets/send.png') }}" alt="" width="24" height="24">
+          </button>
+        </div>
+      </form>
+      <form method="post" action="{{ url_for('auth.continue_offline') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="offline-action" type="submit">Continue without access to the car <span aria-hidden="true">→</span></button>
+      </form>
+    </div>
+    <p class="reassurance" data-motion data-motion-delay="3">You can always change your mind.</p>
+  </section>
+</main>
 {% endblock %}

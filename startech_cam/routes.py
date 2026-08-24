@@ -15,6 +15,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    session,
     url_for,
 )
 
@@ -77,6 +78,146 @@ def dashboard() -> str:
     )
 
 
+def _sac_pending_source() -> tuple[str, str | None]:
+    source = session.get("sac_pending_source")
+    previous_tag = session.get("sac_pending_previous_tag")
+    if source not in {"DEFAULT", "PREVIOUS"}:
+        return "", None
+    if previous_tag is not None and not isinstance(previous_tag, str):
+        return "", None
+    return source, previous_tag
+
+
+@cam_blueprint.route("/sac/source", methods=["GET", "POST"])
+@login_required
+def sac_source() -> Any:
+    calibrations = list_calibrations()
+    if request.method == "GET":
+        return render_template("sac_source.html", calibrations=calibrations)
+
+    source = request.form.get("source", "").upper()
+    if source == "CAR":
+        if not has_car_access():
+            flash(
+                "A current YAREN code is required before CAM can contact the car.",
+                "error",
+            )
+        else:
+            flash(
+                "YAREN access is active, but downloading a configuration from the car is not connected yet.",
+                "error",
+            )
+        return render_template("sac_source.html", calibrations=calibrations), 400
+    if source == "PREVIOUS":
+        previous_tag = request.form.get("previous_tag", "")
+        try:
+            get_calibration(previous_tag)
+        except CalibrationNotFound:
+            flash("Choose an existing calibration to copy.", "error")
+            return render_template("sac_source.html", calibrations=calibrations), 400
+        session["sac_pending_previous_tag"] = previous_tag
+    elif source == "DEFAULT":
+        session.pop("sac_pending_previous_tag", None)
+    else:
+        flash("Choose a supported calibration source.", "error")
+        return render_template("sac_source.html", calibrations=calibrations), 400
+
+    session["sac_pending_source"] = source
+    return redirect(url_for("cam.sac_name"))
+
+
+@cam_blueprint.route("/sac/name", methods=["GET", "POST"])
+@login_required
+def sac_name() -> Any:
+    source, previous_tag = _sac_pending_source()
+    if not source:
+        return redirect(url_for("cam.sac_source"))
+    if request.method == "GET":
+        return render_template("sac_name.html", source=source)
+
+    name = request.form.get("name", "").strip()
+    source_document: dict[str, Any] | None = None
+    try:
+        if source == "PREVIOUS":
+            if previous_tag is None:
+                raise InvalidDocument("the selected previous calibration is unavailable")
+            source_document = get_calibration(previous_tag)
+        draft_id = create_draft(
+            owner=current_actor(),
+            workflow="SAC",
+            name=name,
+            source=source,
+            source_document=source_document,
+            parent_tag=previous_tag,
+        )
+    except (ValueError, InvalidDocument, CalibrationNotFound) as exc:
+        flash(str(exc), "error")
+        return render_template(
+            "sac_name.html", source=source, entered_name=name
+        ), 400
+
+    session.pop("sac_pending_source", None)
+    session.pop("sac_pending_previous_tag", None)
+    return redirect(url_for("cam.sac_preflight", draft_id=draft_id))
+
+
+@cam_blueprint.route("/sac/<draft_id>/preflight", methods=["GET", "POST"])
+@login_required
+def sac_preflight(draft_id: str) -> Any:
+    _document, _touched, workflow = get_draft(draft_id, current_actor())
+    if workflow != "SAC":
+        abort(404)
+    if request.method == "POST":
+        return redirect(url_for("cam.sac_components", draft_id=draft_id))
+    checks = (
+        (
+            "YAREN session",
+            "available" if has_car_access() else "offline",
+            "CAM has a current signed device session."
+            if has_car_access()
+            else "Continuing without live car access.",
+        ),
+        (
+            "Camera",
+            "unavailable",
+            "The web server does not probe the Raspberry Pi camera.",
+        ),
+        (
+            "Camera recognition",
+            "configured",
+            "KASIM settings can be edited; no frame has been physically tested.",
+        ),
+        ("Motor driver", "unavailable", "No motor command is sent from this page."),
+        (
+            "Steering system",
+            "unavailable",
+            "Steering values are recorded only.",
+        ),
+        (
+            "Black box and M3TH",
+            "configured",
+            "Validation policy is available; hardware behaviour remains unverified.",
+        ),
+    )
+    return render_template("sac_preflight.html", draft_id=draft_id, checks=checks)
+
+
+@cam_blueprint.get("/sac/<draft_id>/components")
+@login_required
+def sac_components(draft_id: str) -> str:
+    document, touched, workflow = get_draft(draft_id, current_actor())
+    if workflow != "SAC":
+        abort(404)
+    return render_template(
+        "sac_components.html",
+        draft_id=draft_id,
+        document=document,
+        touched=touched,
+        definitions=SAC_STEPS,
+        complete=all(section in touched for section in SAC_STEPS),
+    )
+
+
 def _uploaded_document() -> dict[str, Any] | None:
     upload = request.files.get("configuration")
     if upload is None or not upload.filename:
@@ -98,6 +239,8 @@ def new_configuration(workflow: str) -> Any:
     if workflow not in {"SAC", "MAC"}:
         abort(404)
     if request.method == "GET":
+        if workflow == "SAC":
+            return redirect(url_for("cam.sac_source"))
         return render_template(
             "new.html",
             workflow=workflow,
@@ -243,7 +386,7 @@ def edit_section(workflow: str, draft_id: str, section: str) -> Any:
                 elif field.kind == "checkbox":
                     values[field.path] = field.path in request.form
             return render_template(
-                "editor.html",
+                "sac_editor.html" if workflow_upper == "SAC" else "editor.html",
                 workflow=workflow_upper,
                 draft_id=draft_id,
                 section=section,
@@ -254,6 +397,8 @@ def edit_section(workflow: str, draft_id: str, section: str) -> Any:
                 values=values,
                 touched=touched,
             ), 400
+        if workflow_upper == "SAC":
+            return redirect(url_for("cam.sac_components", draft_id=draft_id))
         keys = list(definitions)
         position = keys.index(section)
         if position + 1 < len(keys):
@@ -261,7 +406,7 @@ def edit_section(workflow: str, draft_id: str, section: str) -> Any:
         return redirect(url_for("cam.summary", workflow=workflow, draft_id=draft_id))
 
     return render_template(
-        "editor.html",
+        "sac_editor.html" if workflow_upper == "SAC" else "editor.html",
         workflow=workflow_upper,
         draft_id=draft_id,
         section=section,
@@ -311,7 +456,7 @@ def summary(workflow: str, draft_id: str) -> str:
         else []
     )
     return render_template(
-        "summary.html",
+        "sac_summary.html" if stored_workflow == "SAC" else "summary.html",
         workflow=stored_workflow,
         draft_id=draft_id,
         document=document,
@@ -341,7 +486,13 @@ def publish(workflow: str, draft_id: str) -> Any:
 @login_required
 def created(tag: str) -> str:
     document = get_calibration(tag)
-    return render_template("created.html", tag=tag, document=document)
+    return render_template(
+        "sac_created.html"
+        if document["profil"]["is_akisi"] == "SAC"
+        else "created.html",
+        tag=tag,
+        document=document,
+    )
 
 
 @cam_blueprint.post("/calibrations/<tag>/edit-mac")

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Safety and hardware preflight{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css') }}">{% endblock %}
+{% block content %}
+<section class="preflight-panel" aria-labelledby="preflight-title">
+  <header class="preflight-heading" data-motion data-motion-delay="1">
+    <h1 id="preflight-title">Please wait while we check your car’s integrity.</h1>
+    <p>CAM can verify the configuration session. Physical hardware remains unavailable until YAREN reports it.</p>
+  </header>
+  <ol class="preflight-list" data-motion data-motion-delay="2">
+    {% for label, state, detail in checks %}
+    <li class="preflight-item preflight-item--{{ state }}">
+      <span class="preflight-state" aria-hidden="true">{{ '✓' if state == 'available' else '→' if state == 'configured' else '—' }}</span>
+      <span><strong>{{ label }}</strong><small>{{ detail }}</small></span>
+      <em>{{ state }}</em>
+    </li>
+    {% endfor %}
+  </ol>
+  <p class="preflight-note">CAM will not arm, move, steer, or test the car from this screen.</p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="cam-action cam-action--primary preflight-continue" type="submit">Continue</button>
+  </form>
+</section>
+{% endblock %}
+{% block session_footer %}
+<footer class="cam-workflow-footer">
+  <div class="cam-session"><span>Your session will expire in</span><strong class="cam-session-time" data-session-clock data-session-expires-at="{{ session_expires_at }}">15:00</strong></div>
+  <div class="cam-progress" role="progressbar" aria-label="SAC progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="16"><span class="cam-progress__value" style="--cam-progress: 16%"></span></div>
+</footer>
+{% endblock %}
