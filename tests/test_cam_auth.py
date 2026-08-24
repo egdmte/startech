@@ -9,7 +9,7 @@ from pathlib import Path
 
 from startech_cam import create_app
 from startech_cam.db import get_db
-from startech_cam.security import issue_access_code
+from startech_cam.security import issue_access_code, revoke_access_code
 
 
 TOKEN = re.compile(rb'name="csrf_token" value="([^"]+)"')
@@ -97,6 +97,105 @@ class CamAuthTest(unittest.TestCase):
             data={"csrf_token": token, "legal_name": "Egemen", "password": "wrong"},
         )
         self.assertEqual(429, limited.status_code)
+
+    def test_session_deadline_is_enforced_and_not_visually_reset(self):
+        self.login()
+        dashboard = self.client.get("/dashboard")
+        self.assertEqual(200, dashboard.status_code)
+        with self.client.session_transaction() as browser_session:
+            deadline = browser_session["session_expires_at"]
+        self.assertIn(
+            f'data-session-expires-at="{deadline}"'.encode(), dashboard.data
+        )
+
+        with self.client.session_transaction() as browser_session:
+            browser_session["session_expires_at"] = 0
+        expired = self.client.get("/dashboard")
+        self.assertEqual(302, expired.status_code)
+        self.assertIn("/login?next=/dashboard", expired.location)
+        with self.client.session_transaction() as browser_session:
+            self.assertNotIn("authenticated", browser_session)
+
+    def test_external_and_backslash_login_redirects_are_rejected(self):
+        for target in ("//example.com", "/%5c%5cexample.com", "https://example.com"):
+            client = self.app.test_client()
+            page = client.get(f"/login?next={target}")
+            token = TOKEN.search(page.data).group(1).decode("ascii")
+            response = client.post(
+                f"/login?next={target}",
+                data={
+                    "csrf_token": token,
+                    "legal_name": "Egemen",
+                    "password": "school-password",
+                },
+            )
+            self.assertEqual(302, response.status_code)
+            self.assertTrue(response.location.endswith("/access"), target)
+
+    def test_invalid_access_codes_are_rate_limited_separately(self):
+        self.login()
+        token = self.csrf("/access")
+        for _attempt in range(8):
+            rejected = self.client.post(
+                "/access",
+                data={"csrf_token": token, "access_code": "NOTVALID"},
+            )
+            self.assertEqual(400, rejected.status_code)
+        limited = self.client.post(
+            "/access",
+            data={"csrf_token": token, "access_code": "NOTVALID"},
+        )
+        self.assertEqual(429, limited.status_code)
+
+    def test_expired_and_revoked_codes_fail_closed(self):
+        self.login()
+        with self.app.app_context():
+            revoked = issue_access_code("YAREN-revoked")
+            self.assertTrue(revoke_access_code(revoked, "school-admin"))
+            expired = issue_access_code("YAREN-expired")
+            get_db().execute(
+                "UPDATE access_codes SET expires_at = 0 WHERE device_id = ?",
+                ("YAREN-expired",),
+            )
+            get_db().commit()
+
+        token = self.csrf("/access")
+        for code in (revoked, expired):
+            response = self.client.post(
+                "/access", data={"csrf_token": token, "access_code": code}
+            )
+            self.assertEqual(400, response.status_code)
+
+    def test_logout_and_security_headers(self):
+        login_page = self.client.get("/login")
+        self.assertEqual("DENY", login_page.headers["X-Frame-Options"])
+        self.assertIn("default-src 'self'", login_page.headers["Content-Security-Policy"])
+        self.login()
+        token = self.csrf("/dashboard")
+        response = self.client.post("/logout", data={"csrf_token": token})
+        self.assertEqual(302, response.status_code)
+        self.assertTrue(response.location.endswith("/login"))
+        protected = self.client.get("/dashboard")
+        self.assertEqual(302, protected.status_code)
+
+    def test_administrative_code_cli_issues_revokes_and_prunes(self):
+        runner = self.app.test_cli_runner()
+        issued = runner.invoke(args=["issue-access-code", "--device", "YAREN-cli"])
+        self.assertEqual(0, issued.exit_code, issued.output)
+        code = issued.output.strip()
+        self.assertRegex(code, r"^[A-Z0-9]{8}$")
+
+        revoked = runner.invoke(
+            args=["revoke-access-code", "--code", code, "--actor", "test-admin"]
+        )
+        self.assertEqual(0, revoked.exit_code, revoked.output)
+        self.assertIn("revoked", revoked.output.lower())
+        with self.app.app_context():
+            get_db().execute("UPDATE access_codes SET expires_at = 0")
+            get_db().commit()
+        pruned = runner.invoke(args=["prune-security-records", "--retain-days", "0"])
+        self.assertEqual(0, pruned.exit_code, pruned.output)
+        self.assertIn("access_codes=1", pruned.output)
 
 
 if __name__ == "__main__":

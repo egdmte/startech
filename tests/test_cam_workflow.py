@@ -11,6 +11,7 @@ from pathlib import Path
 from startech.configuration.combined import combined_config_errors
 from startech.configuration.validation import kisa_ozet_hesapla
 from startech_cam import create_app
+from startech_cam.db import get_db
 from startech_cam.repository import get_draft
 
 
@@ -169,6 +170,84 @@ class CamWorkflowTest(unittest.TestCase):
             kisa_ozet_hesapla(mac_document["kalibrasyon"]),
             mac_document["kalibrasyon"]["damga"]["ozet"],
         )
+        summary_path = f"/mac/{mac_draft_id}/summary"
+        token = self.page_token(summary_path)
+        mac_created = self.client.post(
+            f"/mac/{mac_draft_id}/publish", data={"csrf_token": token}
+        )
+        self.assertEqual(302, mac_created.status_code)
+        mac_tag = mac_created.location.rsplit("/", 1)[-1]
+        with self.app.app_context():
+            lineage = get_db().execute(
+                "SELECT parent_tag FROM calibrations WHERE tag = ?", (mac_tag,)
+            ).fetchone()
+        self.assertEqual(tag, lineage["parent_tag"])
+
+    def test_sac_creation_is_blocked_until_every_section_is_reviewed(self):
+        token = self.page_token("/new/SAC")
+        response = self.client.post(
+            "/new/SAC",
+            data={"csrf_token": token, "name": "Incomplete", "source": "DEFAULT"},
+        )
+        draft_id = DRAFT_LOCATION.search(response.location).group(2)
+        summary_path = f"/sac/{draft_id}/summary"
+        summary = self.client.get(summary_path)
+        self.assertIn(b"Review required", summary.data)
+        self.assertIn(b"camera, power, compute, drive, wheel", summary.data)
+        self.assertRegex(summary.data, rb"<button[^>]+disabled[^>]*>Create</button>")
+
+        token = TOKEN.search(summary.data).group(1).decode("ascii")
+        rejected = self.client.post(
+            f"/sac/{draft_id}/publish", data={"csrf_token": token}
+        )
+        self.assertEqual(302, rejected.status_code)
+        self.assertTrue(rejected.location.endswith(summary_path))
+        with self.app.app_context():
+            self.assertEqual(
+                0, get_db().execute("SELECT COUNT(*) FROM calibrations").fetchone()[0]
+            )
+            self.assertEqual(
+                1, get_db().execute("SELECT COUNT(*) FROM drafts").fetchone()[0]
+            )
+
+    def test_mac_uses_the_shared_summary_without_requiring_every_section(self):
+        token = self.page_token("/new/MAC")
+        response = self.client.post(
+            "/new/MAC",
+            data={"csrf_token": token, "name": "Selective MAC", "source": "DEFAULT"},
+        )
+        draft_id = DRAFT_LOCATION.search(response.location).group(2)
+        summary_path = f"/mac/{draft_id}/summary"
+        summary = self.client.get(summary_path)
+        self.assertNotIn(b"Review required", summary.data)
+        self.assertNotRegex(summary.data, rb"<button[^>]+disabled[^>]*>Create</button>")
+        token = TOKEN.search(summary.data).group(1).decode("ascii")
+        created = self.client.post(
+            f"/mac/{draft_id}/publish", data={"csrf_token": token}
+        )
+        self.assertEqual(302, created.status_code)
+        self.assertIn("/created/", created.location)
+
+    def test_drafts_are_isolated_by_legal_name(self):
+        token = self.page_token("/new/MAC")
+        response = self.client.post(
+            "/new/MAC",
+            data={"csrf_token": token, "name": "Owner only", "source": "DEFAULT"},
+        )
+        draft_id = DRAFT_LOCATION.search(response.location).group(2)
+
+        second = self.app.test_client()
+        page = second.get("/login")
+        token = TOKEN.search(page.data).group(1).decode("ascii")
+        second.post(
+            "/login",
+            data={"csrf_token": token, "legal_name": "T", "password": "school-password"},
+        )
+        page = second.get("/access")
+        token = TOKEN.search(page.data).group(1).decode("ascii")
+        second.post("/access/offline", data={"csrf_token": token})
+        unavailable = second.get(f"/mac/{draft_id}/overview")
+        self.assertEqual(404, unavailable.status_code)
 
     def test_variable_manager_rejects_invalid_document_without_replacing_draft(self):
         token = self.page_token("/new/MAC")
@@ -187,6 +266,17 @@ class CamWorkflowTest(unittest.TestCase):
         current = self.client.get(path)
         self.assertIn(b'&#34;profil&#34;', current.data)
         self.assertNotIn(b'&#34;unknown&#34;: true', current.data)
+
+        for invalid in (
+            '{"sema_surumu": 2, "sema_surumu": 2}',
+            '{"sema_surumu": NaN}',
+        ):
+            token = self.page_token(path)
+            rejected = self.client.post(
+                path,
+                data={"csrf_token": token, "document_json": invalid},
+            )
+            self.assertEqual(400, rejected.status_code)
 
 
 if __name__ == "__main__":
