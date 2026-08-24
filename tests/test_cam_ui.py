@@ -12,6 +12,7 @@ from startech_cam import create_app
 
 TOKEN = re.compile(rb'name="csrf_token" value="([^"]+)"')
 DRAFT_LOCATION = re.compile(r"/sac/([0-9a-f]{32})/preflight$")
+ASSET_VERSION = re.compile(rb"/static/cam\.css\?v=([0-9a-f]{12})")
 
 
 class CamInterfaceTest(unittest.TestCase):
@@ -86,6 +87,12 @@ class CamInterfaceTest(unittest.TestCase):
         self.assertIn(b'name="legal_name"', login.data)
         self.assertIn(b'name="password"', login.data)
         self.assertIn(b"family=Inter:opsz,wght@14..32,400..700", login.data)
+        version = ASSET_VERSION.search(login.data)
+        self.assertIsNotNone(version)
+        self.assertIn(
+            b'/static/cam.js?v=' + version.group(1),
+            login.data,
+        )
 
         token = TOKEN.search(login.data).group(1).decode("ascii")
         self.client.post(
@@ -115,6 +122,12 @@ class CamInterfaceTest(unittest.TestCase):
     def test_sac_stage_flow_preserves_assets_hotspots_and_saved_state(self):
         self.authenticate()
         source = self.client.get("/sac/source")
+        version = ASSET_VERSION.search(source.data)
+        self.assertIsNotNone(version)
+        self.assertIn(
+            b'/static/sac.css?v=' + version.group(1),
+            source.data,
+        )
         for asset in (b"updatecar.png", b"default.png"):
             self.assertIn(asset, source.data)
 

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Safety and hardware preflight{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css') }}">{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css', v=cam_asset_version) }}">{% endblock %}
 {% block content %}
 <section class="preflight-panel" aria-labelledby="preflight-title">
   <header class="preflight-heading" data-motion data-motion-delay="1">

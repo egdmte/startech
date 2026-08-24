@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Select a SAC target{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css') }}">{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css', v=cam_asset_version) }}">{% endblock %}
 {% block content %}
 <a class="sac-abort" href="{{ url_for('cam.dashboard') }}"><span aria-hidden="true">←</span> Abort</a>
 <section class="cam-center-panel cam-stage-panel source-panel" aria-labelledby="source-title">

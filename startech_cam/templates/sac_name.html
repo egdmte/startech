@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Name this calibration{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css') }}">{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css', v=cam_asset_version) }}">{% endblock %}
 {% block content %}
 <section class="cam-center-panel cam-stage-panel name-panel" aria-labelledby="name-title">
   <header class="cam-page-heading" data-motion data-motion-delay="1">

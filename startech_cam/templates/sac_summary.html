@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Review calibration{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css') }}">{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css', v=cam_asset_version) }}">{% endblock %}
 {% block page %}
 <main class="finish-shell" data-page>
   <aside class="finish-identity" aria-label="Current session">

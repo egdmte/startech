@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}SAC · {{ title }}{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css') }}">{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css', v=cam_asset_version) }}">{% endblock %}
 {% block content %}
 <a class="sac-back-link" href="{{ url_for('cam.sac_components', draft_id=draft_id) }}">← Return to the car</a>
 <section class="sac-editor-panel sac-editor-panel--{{ section }}" aria-labelledby="section-title">

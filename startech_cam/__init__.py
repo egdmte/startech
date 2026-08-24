@@ -7,6 +7,7 @@ the vehicle driver layer and no route that can arm or move the physical car.
 from __future__ import annotations
 
 from datetime import timedelta
+import hashlib
 import os
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,17 @@ def _positive_integer(name: str, default: int) -> int:
     if value <= 0:
         raise RuntimeError(f"{name} must be a positive integer")
     return value
+
+
+def _static_asset_version(app: Flask) -> str:
+    """Return one stable version for the CSS and JavaScript interface bundle."""
+
+    static_root = Path(app.static_folder or "")
+    digest = hashlib.sha256()
+    for filename in ("cam.css", "sac.css", "cam.js"):
+        digest.update(filename.encode("utf-8"))
+        digest.update((static_root / filename).read_bytes())
+    return digest.hexdigest()[:12]
 
 
 def create_app(test_config: dict[str, Any] | None = None) -> Flask:
@@ -86,6 +98,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.register_blueprint(auth_blueprint)
     app.register_blueprint(device_api_blueprint)
     app.register_blueprint(cam_blueprint)
+    app.jinja_env.globals["cam_asset_version"] = _static_asset_version(app)
 
     @app.after_request
     def security_headers(response):

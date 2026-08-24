@@ -9,9 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='cam.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='cam.css', v=cam_asset_version) }}">
   {% block styles %}{% endblock %}
-  <script defer src="{{ url_for('static', filename='cam.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='cam.js', v=cam_asset_version) }}"></script>
   {% block scripts %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
