@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import base64
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+import hashlib
+import importlib
 import json
 import math
 from pathlib import Path
@@ -16,6 +19,7 @@ from startech.configuration.combined import merge_v1_pair
 from startech.configuration.profiles import ProfileStore
 
 from .atolye import WorkshopCommand, WorkshopReceipt, execute_workshop_command
+from .goz import CameraSource, build_preferred_camera
 from .yaren_diagnostics import collect_capability_report
 from .yaren_web import WebAccessCode, default_server_url
 
@@ -25,12 +29,14 @@ SNAPSHOT_PATH = "/api/device/v1/link/snapshot"
 CAPABILITIES_PATH = "/api/device/v1/link/capabilities"
 RECEIPT_PATH = "/api/device/v1/link/receipt"
 CLOSE_PATH = "/api/device/v1/link/close"
+MAX_CALIBRATION_JPEG_BYTES = 650_000
 ALLOWED_OPERATIONS = frozenset(
     {
         "REQUEST_ACTIVE_CONFIGURATION",
         "REQUEST_CAPABILITY_REPORT",
         "INSTALL_INACTIVE_CONFIGURATION",
         "RUN_BOUNDED_WORKSHOP_COMMAND",
+        "CAPTURE_CALIBRATION_FRAME",
     }
 )
 WORKSHOP_INSPECTION = frozenset(
@@ -64,6 +70,95 @@ class LinkRunResult:
 LinkTransport = Callable[[str, Mapping[str, Any], str, float], dict[str, Any]]
 StatusCallback = Callable[[str], None]
 WorkshopExecutor = Callable[..., WorkshopReceipt]
+CalibrationFrameCollector = Callable[..., dict[str, Any]]
+
+
+def collect_calibration_frame(
+    *,
+    profile_root: str | Path | None,
+    usb_index: int = 0,
+    camera_builder: Callable[..., CameraSource] = build_preferred_camera,
+) -> dict[str, Any]:
+    """Capture and encode one real frame using the selected YAREN profile.
+
+    There is deliberately no generated or recorded fallback here.  If neither
+    configured live camera can supply a frame, the CAM job is rejected.
+    """
+
+    store = ProfileStore(profile_root)
+    active = store.load_active_profile()
+    camera_config = active.calibration["kamera"]
+    width = int(camera_config["genislik"])
+    height = int(camera_config["yukseklik"])
+    camera = camera_builder(
+        usb_index,
+        size=(width, height),
+        bgr_output=bool(camera_config["bgr_cikis"]),
+        rotate_180=bool(camera_config["dondur_180"]),
+    )
+    try:
+        camera.open()
+        packet = camera.read_frame()
+    finally:
+        camera.close()
+
+    shape = getattr(packet.payload, "shape", None)
+    if not isinstance(shape, tuple) or len(shape) < 2:
+        raise YarenLinkError("live calibration frame has no image dimensions")
+    actual_height, actual_width = int(shape[0]), int(shape[1])
+    if (actual_width, actual_height) != (width, height):
+        raise YarenLinkError("live calibration frame does not match the active profile")
+
+    try:
+        cv2 = importlib.import_module("cv2")
+        bgr = cv2.cvtColor(packet.payload, cv2.COLOR_RGB2BGR)
+    except (ImportError, AttributeError, TypeError, ValueError) as exc:
+        raise YarenLinkError(f"live calibration frame could not be encoded: {exc}") from exc
+
+    encoded_bytes = b""
+    for quality in (85, 70, 55):
+        accepted, encoded = cv2.imencode(
+            ".jpg", bgr, [int(cv2.IMWRITE_JPEG_QUALITY), quality]
+        )
+        if not accepted or encoded is None:
+            continue
+        encoded_bytes = encoded.tobytes()
+        if 0 < len(encoded_bytes) <= MAX_CALIBRATION_JPEG_BYTES:
+            break
+    if not encoded_bytes:
+        raise YarenLinkError("OpenCV refused to encode the live calibration frame")
+    if len(encoded_bytes) > MAX_CALIBRATION_JPEG_BYTES:
+        raise YarenLinkError("live calibration frame exceeds CAM's transfer limit")
+
+    return {
+        "format": "jpeg",
+        "width": actual_width,
+        "height": actual_height,
+        "source": packet.source,
+        "frame_id": packet.frame_id,
+        "captured_at": packet.captured_at,
+        "sha256": hashlib.sha256(encoded_bytes).hexdigest(),
+        "image_b64": base64.b64encode(encoded_bytes).decode("ascii"),
+    }
+
+
+def _validate_calibration_frame_request(
+    payload: Mapping[str, Any], *, now: int
+) -> None:
+    if set(payload) != {"draft_id", "requested_at"}:
+        raise YarenLinkError("calibration frame job has unexpected fields")
+    draft_id = payload["draft_id"]
+    requested_at = payload["requested_at"]
+    if (
+        not isinstance(draft_id, str)
+        or len(draft_id) != 32
+        or any(character not in "0123456789abcdef" for character in draft_id)
+    ):
+        raise YarenLinkError("calibration frame draft id is invalid")
+    if isinstance(requested_at, bool) or not isinstance(requested_at, int):
+        raise YarenLinkError("calibration frame request time is invalid")
+    if requested_at > now + 5 or requested_at < now - 60:
+        raise YarenLinkError("calibration frame request is outside its live window")
 
 
 def _workshop_command(
@@ -329,6 +424,8 @@ def run_temporary_link(
     transport: LinkTransport | None = None,
     capability_collector: Callable[..., dict[str, Any]] = collect_capability_report,
     workshop_executor: WorkshopExecutor = execute_workshop_command,
+    calibration_frame_collector: CalibrationFrameCollector = collect_calibration_frame,
+    usb_index: int = 0,
     workshop_log_dir: str | Path = Path("runs"),
     status: StatusCallback = lambda _message: None,
     epoch: Callable[[], int] = lambda: int(time.time()),
@@ -340,6 +437,8 @@ def run_temporary_link(
         raise YarenLinkError("timeout must be greater than zero and at most 60 seconds")
     if poll_interval < 0.1 or poll_interval > 30:
         raise YarenLinkError("poll interval must be between 0.1 and 30 seconds")
+    if isinstance(usb_index, bool) or not isinstance(usb_index, int) or usb_index < 0:
+        raise YarenLinkError("USB camera index must be a non-negative integer")
     server = _server_root(server_url or default_server_url())
     selected_transport = transport or _http_transport
     store = ProfileStore(profile_root)
@@ -418,6 +517,16 @@ def run_temporary_link(
                         "installed": True,
                         "active": False,
                     }
+                elif operation == "CAPTURE_CALIBRATION_FRAME":
+                    _validate_calibration_frame_request(payload, now=epoch())
+                    receipt = calibration_frame_collector(
+                        profile_root=profile_root,
+                        usb_index=usb_index,
+                    )
+                    if not isinstance(receipt, dict):
+                        raise YarenLinkError(
+                            "calibration frame collector returned an invalid receipt"
+                        )
                 else:
                     command = _workshop_command(job_id, payload, now=epoch())
                     executed = workshop_executor(
@@ -461,12 +570,14 @@ __all__ = [
     "ALLOWED_OPERATIONS",
     "CAPABILITIES_PATH",
     "CLOSE_PATH",
+    "MAX_CALIBRATION_JPEG_BYTES",
     "LinkRunResult",
     "POLL_PATH",
     "RECEIPT_PATH",
     "SNAPSHOT_PATH",
     "YarenLinkError",
     "active_configuration_document",
+    "collect_calibration_frame",
     "close_temporary_link",
     "run_temporary_link",
 ]

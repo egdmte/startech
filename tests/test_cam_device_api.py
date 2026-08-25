@@ -187,6 +187,14 @@ class CamDeviceApiTest(unittest.TestCase):
                 lifetime_seconds=20,
             )
             self.assertEqual(32, len(job_id))
+            frame_job_id = queue_device_job(
+                "1" * 32,
+                "YAREN-legacy",
+                "CAPTURE_CALIBRATION_FRAME",
+                {"draft_id": "4" * 32, "requested_at": 1},
+                lifetime_seconds=20,
+            )
+            self.assertEqual(32, len(frame_job_id))
 
     def test_code_activates_closed_configuration_link_and_close_revokes_it(self):
         challenge = self.challenge().get_json()["challenge"]

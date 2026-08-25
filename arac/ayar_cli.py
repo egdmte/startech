@@ -216,6 +216,12 @@ def build_parser() -> argparse.ArgumentParser:
     web_code.add_argument("--identity-file", type=Path)
     web_code.add_argument("--timeout", type=float, default=10.0)
     web_code.add_argument("--poll-interval", type=float, default=2.0)
+    web_code.add_argument(
+        "--usb-index",
+        type=int,
+        default=0,
+        help="USB camera index used when CAM requests a live calibration frame",
+    )
     return parser
 
 
@@ -417,6 +423,7 @@ def _run_command(args, console: TerminalUI, store: ProfileStore) -> int:
                 server_url=args.server,
                 timeout=args.timeout,
                 poll_interval=args.poll_interval,
+                usb_index=args.usb_index,
                 status=lambda message: console.write(message, style=TerminalUI.MUTED),
             )
         except KeyboardInterrupt:
