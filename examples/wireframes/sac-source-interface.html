@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Standalone wireframe for the first STARTECH SAC screen">
+  <title>SAC starting point wireframe · STARTECH CAM</title>
+  <style>
+    :root {
+      --ink: #0a0a0b;
+      --muted: #65676c;
+      --quiet: #8a8d93;
+      --canvas: #e3e3e3;
+      --paper: #f7f7f5;
+      --card: #fff;
+      --line: #d2d3d5;
+      --line-strong: #9da0a5;
+      --blue: #075dff;
+      --blue-soft: #e9f0ff;
+      --green: #087a3f;
+      --green-soft: #e8f6ee;
+      --danger: #c5161d;
+      --primary-top: #055cff;
+      --primary-bottom: #5d7dfd;
+      --secondary-top: #a9c0e9;
+      --secondary-bottom: #c3d0e5;
+      --radius: 10px;
+      --shadow: 0 16px 42px rgb(0 0 0 / 9%);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      min-width: 320px;
+      min-height: 100%;
+      background: var(--canvas);
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 4%, rgb(255 255 255 / 65%), transparent 31rem),
+        var(--canvas);
+      font-family: Inter, Arial, Helvetica, sans-serif;
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    button, select { color: inherit; font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, select:focus-visible, a:focus-visible {
+      outline: 3px solid rgb(7 93 255 / 35%);
+      outline-offset: 3px;
+    }
+
+    .wireframe-note {
+      display: flex;
+      min-height: 32px;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 18px;
+      color: #fff;
+      background: #111;
+      font-size: 12px;
+      letter-spacing: .035em;
+      text-align: center;
+    }
+
+    .app {
+      display: grid;
+      min-height: calc(100vh - 32px);
+      grid-template-rows: 62px minmax(0, 1fr);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 0 24px;
+      border-bottom: 1px solid #cdcdcd;
+      background: rgb(247 247 245 / 92%);
+      backdrop-filter: blur(16px);
+    }
+
+    .brand {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      border-radius: 8px;
+      color: #fff;
+      background: #0a0a0b;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: -.04em;
+    }
+
+    .brand-copy { display: grid; min-width: 0; }
+    .brand-copy strong { font-size: 14px; line-height: 1.1; }
+    .brand-copy span { color: var(--muted); font-size: 12px; }
+
+    .account-nav {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 5px;
+      padding: 4px;
+      border: 1px solid #c8c8c8;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 3px 12px rgb(0 0 0 / 6%);
+    }
+
+    .nav-action {
+      min-height: 31px;
+      padding: 5px 9px;
+      color: #3f3f3f;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .nav-action:hover { color: #000; background: #ededed; }
+    .nav-action.is-linked { color: var(--green); font-weight: 700; }
+
+    .layout {
+      display: grid;
+      min-height: 0;
+      grid-template-columns: 290px minmax(0, 1fr);
+      padding: 14px;
+      gap: 14px;
+    }
+
+    .rail, .stage {
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .rail {
+      display: flex;
+      flex-direction: column;
+      padding: 24px 22px 20px;
+    }
+
+    .abort {
+      display: inline-flex;
+      align-self: flex-start;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 0;
+      color: var(--danger);
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: none;
+    }
+
+    .abort:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+    .rail-heading { margin: 48px 0 30px; }
+    .eyebrow {
+      margin: 0 0 9px;
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .rail-heading h1 {
+      max-width: 220px;
+      margin: 0;
+      font-size: 25px;
+      letter-spacing: -.045em;
+      line-height: 1.06;
+    }
+
+    .rail-heading p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .steps {
+      display: grid;
+      margin: 0;
+      padding: 0;
+      gap: 3px;
+      list-style: none;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 31px minmax(0, 1fr);
+      align-items: center;
+      gap: 9px;
+      padding: 8px;
+      color: var(--quiet);
+      border-radius: 7px;
+      font-size: 13px;
+    }
+
+    .step-number {
+      display: grid;
+      width: 27px;
+      height: 27px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .step.is-current { color: var(--ink); background: var(--blue-soft); font-weight: 700; }
+    .step.is-current .step-number { color: #fff; border-color: var(--blue); background: var(--blue); }
+
+    .rail-status {
+      display: grid;
+      margin-top: auto;
+      padding: 13px;
+      gap: 3px;
+      border: 1px solid #b8dfca;
+      border-radius: 8px;
+      background: var(--green-soft);
+    }
+
+    .rail-status strong { color: var(--green); font-size: 13px; }
+    .rail-status span { color: #466052; font-size: 12px; }
+
+    .stage {
+      position: relative;
+      display: grid;
+      min-height: 640px;
+      grid-template-rows: minmax(0, 1fr) auto;
+      background:
+        linear-gradient(135deg, rgb(255 255 255 / 90%), rgb(247 247 245 / 92%)),
+        var(--paper);
+    }
+
+    .stage-content {
+      display: grid;
+      width: min(920px, calc(100% - 56px));
+      align-self: center;
+      justify-self: center;
+      padding: 48px 0 38px;
+    }
+
+    .stage-heading {
+      display: grid;
+      max-width: 720px;
+      margin-bottom: 30px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 24px;
+    }
+
+    .stage-heading h2 {
+      margin: 0;
+      font-size: clamp(27px, 3vw, 43px);
+      letter-spacing: -.055em;
+      line-height: 1.02;
+    }
+
+    .stage-heading p {
+      max-width: 600px;
+      margin: 13px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .step-count {
+      padding-bottom: 6px;
+      color: var(--quiet);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .sources {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .source-card {
+      position: relative;
+      display: flex;
+      min-width: 0;
+      min-height: 212px;
+      flex-direction: column;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgb(255 255 255 / 84%);
+      transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+    }
+
+    .source-card:hover {
+      border-color: #aaaeb5;
+      box-shadow: 0 8px 24px rgb(0 0 0 / 7%);
+      transform: translateY(-2px);
+    }
+
+    .source-card.is-selected {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgb(7 93 255 / 12%);
+    }
+
+    .source-card--car {
+      min-height: 190px;
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(250px, 38%);
+      align-items: center;
+      gap: 30px;
+    }
+
+    .source-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 13px;
+    }
+
+    .source-label strong { font-size: 17px; }
+    .pill {
+      flex: 0 0 auto;
+      padding: 4px 7px;
+      border-radius: 999px;
+      color: var(--green);
+      background: var(--green-soft);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .source-card p { margin: 0; color: var(--muted); font-size: 14px; }
+    .source-meta {
+      display: flex;
+      flex-wrap: wrap;
+      margin: 18px 0 0;
+      padding: 0;
+      gap: 6px 13px;
+      color: var(--quiet);
+      font-size: 11px;
+      list-style: none;
+    }
+
+    .source-meta li::before { margin-right: 5px; color: var(--green); content: "✓"; font-weight: 800; }
+    .source-actions { display: grid; align-self: end; margin-top: auto; gap: 8px; }
+
+    .cam-action {
+      position: relative;
+      display: inline-grid;
+      width: 100%;
+      min-height: 45px;
+      place-items: center;
+      padding: 9px 20px;
+      border: 0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 17px;
+      line-height: 1.15;
+      text-align: center;
+      text-decoration: none;
+      box-shadow: inset 0 0 2px rgb(0 0 0 / 78%), 0 0 1.2px #000;
+      transition: filter 130ms ease, transform 130ms ease, box-shadow 130ms ease;
+    }
+
+    .cam-action--primary {
+      color: #fff;
+      background: linear-gradient(180deg, var(--primary-top), var(--primary-bottom));
+      font-weight: 600;
+      text-shadow: 0 1px 1px rgb(0 0 0 / 22%);
+    }
+
+    .cam-action--secondary {
+      color: var(--ink);
+      background: linear-gradient(180deg, var(--secondary-top), var(--secondary-bottom));
+      font-weight: 400;
+    }
+
+    .cam-action:hover {
+      filter: brightness(1.045) saturate(1.04);
+      transform: translateY(-1px);
+      box-shadow: inset 0 0 2px rgb(0 0 0 / 72%), 0 1px 1.2px #000;
+    }
+
+    .cam-action:active { filter: brightness(.97); transform: translateY(1px); }
+    .cam-action__content { display: inline-flex; align-items: center; justify-content: center; gap: 12px; }
+    .cam-action__content img { width: 24px; height: 24px; object-fit: contain; }
+
+    .version-select {
+      width: 100%;
+      height: 38px;
+      padding: 5px 10px;
+      border: 1px solid #999;
+      border-radius: 5px;
+      background: #fff;
+      font-size: 13px;
+    }
+
+    .stage-footer {
+      display: grid;
+      padding: 16px 24px 18px;
+      grid-template-columns: minmax(0, 1fr) max-content;
+      align-items: center;
+      gap: 24px;
+      border-top: 1px solid var(--line);
+      background: rgb(250 250 249 / 90%);
+    }
+
+    .progress-wrap { display: grid; gap: 7px; }
+    .progress-copy { display: flex; justify-content: space-between; color: var(--quiet); font-size: 11px; }
+    .progress { height: 6px; overflow: hidden; border-radius: 999px; background: #d5d5d5; }
+    .progress span { display: block; width: 12%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #006a9e, #91aebb); }
+    .truth-note { max-width: 410px; color: var(--muted); font-size: 11px; text-align: right; }
+
+    .toast {
+      position: fixed;
+      z-index: 20;
+      right: 24px;
+      bottom: 24px;
+      width: min(390px, calc(100vw - 32px));
+      padding: 14px 16px;
+      color: #fff;
+      border-radius: 8px;
+      background: #111;
+      box-shadow: 0 12px 34px rgb(0 0 0 / 24%);
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .toast.is-visible { opacity: 1; transform: translateY(0); }
+    .toast strong { display: block; margin-bottom: 2px; }
+
+    @media (max-width: 840px) {
+      .layout { grid-template-columns: 1fr; }
+      .rail { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 16px; }
+      .abort { grid-column: 2; grid-row: 1; }
+      .rail-heading { margin: 0; }
+      .rail-heading h1 { max-width: none; font-size: 20px; }
+      .rail-heading p, .rail-status { display: none; }
+      .steps { grid-column: 1 / -1; grid-template-columns: repeat(5, 1fr); margin-top: 14px; }
+      .step { display: grid; grid-template-columns: 1fr; justify-items: center; padding: 5px; text-align: center; }
+      .step-number { width: 24px; height: 24px; }
+      .stage { min-height: 0; }
+      .stage-content { width: min(700px, calc(100% - 34px)); padding-top: 38px; }
+      .source-card--car { grid-template-columns: 1fr; gap: 20px; }
+    }
+
+    @media (max-width: 610px) {
+      .wireframe-note { min-height: 38px; }
+      .app { min-height: calc(100vh - 38px); grid-template-rows: auto minmax(0, 1fr); }
+      .topbar { min-height: 58px; padding: 8px 12px; }
+      .brand-copy span { display: none; }
+      .account-nav .nav-action:first-child { display: none; }
+      .nav-action { padding: 5px 7px; font-size: 11px; }
+      .layout { padding: 7px; gap: 7px; }
+      .rail { padding: 12px; }
+      .rail-heading .eyebrow { margin-bottom: 5px; }
+      .rail-heading h1 { font-size: 18px; }
+      .step span:last-child { display: none; }
+      .stage-content { width: calc(100% - 24px); padding: 30px 0 24px; }
+      .stage-heading { grid-template-columns: 1fr; gap: 5px; margin-bottom: 22px; }
+      .stage-heading h2 { font-size: 30px; }
+      .stage-heading p { font-size: 14px; }
+      .step-count { grid-row: 1; }
+      .sources { grid-template-columns: 1fr; }
+      .source-card, .source-card--car { min-height: 0; grid-column: auto; padding: 16px; }
+      .source-card--car { grid-column: 1; }
+      .source-meta { display: none; }
+      .source-actions { margin-top: 20px; }
+      .stage-footer { grid-template-columns: 1fr; padding: 13px; gap: 8px; }
+      .truth-note { text-align: left; }
+      .toast { right: 16px; bottom: 16px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wireframe-note" role="note">UI WIREFRAME · No server request or vehicle command is sent from this file.</div>
+
+  <div class="app">
+    <header class="topbar">
+      <div class="brand" aria-label="STARTECH CAM">
+        <span class="brand-mark" aria-hidden="true">ST</span>
+        <span class="brand-copy"><strong>CAM</strong><span>Calibration Arrangement and Management</span></span>
+      </div>
+      <nav class="account-nav" aria-label="Example account navigation">
+        <button class="nav-action" type="button" data-demo-action="CAM dashboard">CAM</button>
+        <button class="nav-action is-linked" type="button" data-demo-action="YAREN connection manager">Example: YAREN connected</button>
+        <button class="nav-action" type="button" data-demo-action="Log out">Log out</button>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <aside class="rail" aria-labelledby="sac-title">
+        <button class="abort" type="button" data-demo-action="Abort SAC"><span aria-hidden="true">←</span> Abort SAC</button>
+        <header class="rail-heading">
+          <p class="eyebrow">Service assisted</p>
+          <h1 id="sac-title">Build one calibration with the car.</h1>
+          <p>CAM guides the choices. Nothing is activated or physically verified by opening this workflow.</p>
+        </header>
+
+        <ol class="steps" aria-label="SAC steps">
+          <li class="step is-current" aria-current="step"><span class="step-number">01</span><span>Starting point</span></li>
+          <li class="step"><span class="step-number">02</span><span>Name</span></li>
+          <li class="step"><span class="step-number">03</span><span>Live checks</span></li>
+          <li class="step"><span class="step-number">04</span><span>Configure</span></li>
+          <li class="step"><span class="step-number">05</span><span>Review</span></li>
+        </ol>
+
+        <div class="rail-status">
+          <strong>Example link available</strong>
+          <span>A connected YAREN can provide the car's current active configuration.</span>
+        </div>
+      </aside>
+
+      <section class="stage" aria-labelledby="source-title">
+        <div class="stage-content">
+          <header class="stage-heading">
+            <div>
+              <p class="eyebrow">Choose a source</p>
+              <h2 id="source-title">Where should this calibration begin?</h2>
+              <p>Start from the car when it is available. The other choices remain useful for preparation and comparison.</p>
+            </div>
+            <span class="step-count">Step 1 of 5</span>
+          </header>
+
+          <div class="sources" aria-label="Calibration starting points">
+            <article class="source-card source-card--car" data-card="car">
+              <div>
+                <div class="source-label"><strong>Current car configuration</strong><span class="pill">Recommended</span></div>
+                <p>Request the active immutable profile through the connected YAREN link. This reads configuration; it does not arm or move the car.</p>
+                <ul class="source-meta"><li>Linked source</li><li>Current active profile</li><li>Best for workshop use</li></ul>
+              </div>
+              <div class="source-actions">
+                <button class="cam-action cam-action--primary" type="button" data-source="car">
+                  <span class="cam-action__content"><img src="../../startech_cam/static/assets/updatecar.png" alt=""><span>Update from the car</span></span>
+                </button>
+              </div>
+            </article>
+
+            <article class="source-card" data-card="default">
+              <div class="source-label"><strong>Clean baseline</strong></div>
+              <p>Begin with CAM's maintained default values and review every assisted section yourself.</p>
+              <div class="source-actions">
+                <button class="cam-action cam-action--secondary" type="button" data-source="default">
+                  <span class="cam-action__content"><img src="../../startech_cam/static/assets/default.png" alt=""><span>Use the default model</span></span>
+                </button>
+              </div>
+            </article>
+
+            <article class="source-card" data-card="previous">
+              <div class="source-label"><strong>Existing calibration</strong></div>
+              <p>Duplicate a known version, then adjust it without changing the original record.</p>
+              <div class="source-actions">
+                <label for="previous-version" style="position:absolute;clip:rect(0 0 0 0);clip-path:inset(50%);width:1px;height:1px;overflow:hidden">Version to copy</label>
+                <select class="version-select" id="previous-version">
+                  <option>school-baseline-v4 · School baseline</option>
+                  <option>workshop-camera-v2 · Camera workshop</option>
+                  <option>race-day-2026-05-04 · Last race record</option>
+                </select>
+                <button class="cam-action cam-action--secondary" type="button" data-source="previous">
+                  <span class="cam-action__content"><img src="../../startech_cam/static/assets/copy.png" alt=""><span>Copy an old version</span></span>
+                </button>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <footer class="stage-footer">
+          <div class="progress-wrap">
+            <div class="progress-copy"><span>SAC progress</span><span>Starting point</span></div>
+            <div class="progress" role="progressbar" aria-label="SAC wireframe progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="12"><span></span></div>
+          </div>
+          <div class="truth-note">Selecting a source creates no physical evidence and changes no active vehicle profile.</div>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" role="status" aria-live="polite" aria-atomic="true">
+    <strong id="toast-title">Wireframe action</strong>
+    <span id="toast-copy">No request was sent.</span>
+  </div>
+
+  <script>
+    (() => {
+      const toast = document.querySelector(".toast");
+      const toastTitle = document.querySelector("#toast-title");
+      const toastCopy = document.querySelector("#toast-copy");
+      let toastTimer;
+
+      const showToast = (title, copy) => {
+        window.clearTimeout(toastTimer);
+        toastTitle.textContent = title;
+        toastCopy.textContent = copy;
+        toast.classList.add("is-visible");
+        toastTimer = window.setTimeout(() => toast.classList.remove("is-visible"), 3400);
+      };
+
+      document.querySelectorAll("[data-source]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const source = button.dataset.source;
+          document.querySelectorAll("[data-card]").forEach((card) => {
+            card.classList.toggle("is-selected", card.dataset.card === source);
+          });
+          const labels = {
+            car: "Update from the car",
+            default: "Use the default model",
+            previous: "Copy an old version",
+          };
+          const detail = source === "previous"
+            ? `Selected ${document.querySelector("#previous-version").value}. Production CAM would continue to naming.`
+            : "Production CAM would continue to the naming screen.";
+          showToast(labels[source], `${detail} No server request was sent.`);
+        });
+      });
+
+      document.querySelectorAll("[data-demo-action]").forEach((button) => {
+        button.addEventListener("click", () => {
+          showToast(button.dataset.demoAction, "Navigation is intentionally disabled in this standalone wireframe.");
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
