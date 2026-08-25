@@ -183,7 +183,7 @@ pretend-path removals. The most relevant baseline commits are `a6c4845`, `536a0a
 | Windows/Linux USB camera acquisition | `IMPLEMENTED` | KASIM checks plus a limited laptop USB acquisition observed on 24 August 2026 | The school camera arrangement is `PHYSICALLY UNVERIFIED` |
 | Raspberry Pi Picamera2 acquisition | `IMPLEMENTED` | Import-protected real adapter and contract checks | Pi camera, cable, mount, resolution, and timing are `PHYSICALLY UNVERIFIED` |
 | Finite real-camera recording and strict replay | `IMPLEMENTED` | Manifest, hash, order, interruption, and decode checks | A replay is not a current live-camera result |
-| Lane detection on real RGB frames | `IMPLEMENTED` | KEREM checks on controlled and captured frame inputs | School-track recognition is `PHYSICALLY UNVERIFIED` |
+| Lane detection on real RGB frames | `IMPLEMENTED` | KEREM checks on generated RGB regression frames and the live-camera diagnostic path | No captured school-track session is retained; school-track recognition is `PHYSICALLY UNVERIFIED` |
 | Lane controller | `IMPLEMENTED` | Controller/request checks and LEGACY-compatible sign convention | Gain, trim, dead-zone, steering direction, and traction are `PHYSICALLY UNVERIFIED` |
 | DORA vehicle state transitions | `IMPLEMENTED` | Transition and invalid/stale-event checks | State text does not prove motion |
 | KADER memory and JSONL records | `IMPLEMENTED` | Ordering, validation, and persistence checks | Pi disk endurance and recovery are `PHYSICALLY UNVERIFIED` |
@@ -356,6 +356,11 @@ KEREM currently performs real lane analysis from KASIM RGB frames using the sele
 YAREN calibration. Its observation carries lane validity, normalized and pixel error,
 confidence, lane centers, brightness, frame identity, and a reason when no reliable lane
 is available.
+
+Lane memory narrows the search for a line that returns and may complete the missing side
+when the current frame still sees another line. Memory alone cannot make an observation
+valid: a frame with no current near/far lane evidence produces zero-confidence lane loss,
+which the controller converts to zero motion intent.
 
 The current controller sign convention is inherited from the working LEGACY car:
 positive lane error asks for a left correction. That convention is implemented, but its

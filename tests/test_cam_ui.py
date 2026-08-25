@@ -193,9 +193,11 @@ class CamInterfaceTest(unittest.TestCase):
         self.assertIn(b"data-workshop-cancel", preflight.data)
         self.assertIn(b"NOT RUN / NOT OBSERVED", preflight.data)
         script = self.client.get("/static/cam.js")
-        self.assertIn(b"HTMLFormElement.prototype.submit.call(form)", script.data)
-        self.assertIn(b"window.clearInterval", script.data)
-        self.assertIn(b"const workshopDelaySeconds = 7", script.data)
+        script_data = script.get_data()
+        script.close()
+        self.assertIn(b"HTMLFormElement.prototype.submit.call(form)", script_data)
+        self.assertIn(b"window.clearInterval", script_data)
+        self.assertIn(b"const workshopDelaySeconds = 7", script_data)
 
     def test_mac_editor_routes_remain_available(self):
         self.authenticate()

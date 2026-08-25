@@ -59,7 +59,7 @@ def lane_frame(left: tuple[int, int] | None, right: tuple[int, int] | None) -> n
 
 
 class LiveLaneAnalyzerTest(unittest.TestCase):
-    def test_two_real_image_lanes_produce_centered_observation(self):
+    def test_two_drawn_image_lanes_produce_centered_observation(self):
         analyzer = LaneVisionAnalyzer(calibration())
         result = analyzer.analyze(
             FramePacket(0, 1.0, lane_frame((65, 75), (245, 255)), "camera")
@@ -98,6 +98,26 @@ class LiveLaneAnalyzerTest(unittest.TestCase):
         self.assertFalse(result.valid)
         self.assertIsNone(result.error_px)
         self.assertEqual("no lane signal", result.reason)
+
+    def test_remembered_lanes_cannot_validate_an_empty_current_frame(self):
+        analyzer = LaneVisionAnalyzer(calibration())
+        first = analyzer.analyze(
+            FramePacket(0, 1.0, lane_frame((65, 75), (245, 255)), "camera")
+        )
+        result = analyzer.analyze(
+            FramePacket(1, 2.0, lane_frame(None, None), "camera")
+        )
+
+        self.assertTrue(first.valid)
+        self.assertFalse(result.valid)
+        self.assertIsNone(result.error_px)
+        self.assertIsNone(result.normalized_error)
+        self.assertEqual(0.0, result.confidence)
+        self.assertIsNone(result.left_lane_px)
+        self.assertIsNone(result.right_lane_px)
+        self.assertEqual(
+            "lane memory has no current-frame evidence", result.reason
+        )
 
     def test_resolution_mismatch_and_stale_frames_are_rejected(self):
         analyzer = LaneVisionAnalyzer(calibration())

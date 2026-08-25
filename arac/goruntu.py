@@ -243,14 +243,27 @@ class LaneVisionAnalyzer:
         far_right, far_right_seen, far_right_quality = self._find_peak(
             far_histogram, midpoint, self.bird_width, None
         )
-        near_center = self._lane_center(
-            near_left, left_valid, near_right, right_valid
+        current_signal_seen = any((
+            near_left_seen,
+            near_right_seen,
+            far_left_seen,
+            far_right_seen,
+        ))
+        near_center = (
+            self._lane_center(near_left, left_valid, near_right, right_valid)
+            if near_left_seen or near_right_seen
+            else None
         )
         far_center = self._lane_center(
             far_left, far_left_seen, far_right, far_right_seen
         )
 
-        if near_center is None and far_center is None:
+        if not current_signal_seen or (near_center is None and far_center is None):
+            reason = (
+                "lane memory has no current-frame evidence"
+                if left_valid or right_valid
+                else "no lane signal"
+            )
             return LaneObservation(
                 frame_id=frame.frame_id,
                 captured_at=frame.captured_at,
@@ -259,10 +272,10 @@ class LaneVisionAnalyzer:
                 normalized_error=None,
                 confidence=0.0,
                 lane_center_px=None,
-                left_lane_px=near_left if left_valid else None,
-                right_lane_px=near_right if right_valid else None,
+                left_lane_px=None,
+                right_lane_px=None,
                 brightness=brightness,
-                reason="no lane signal",
+                reason=reason,
                 debug_frame=self._draw_debug(processed, mask, None, None, None),
             )
 
