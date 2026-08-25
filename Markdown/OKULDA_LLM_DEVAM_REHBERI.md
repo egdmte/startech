@@ -1,6 +1,6 @@
 # STARTECH school workshop handoff
 
-Last source review: 24 August 2026.
+Last source review: 25 August 2026.
 
 This guide describes the current code. It is not proof that the car was physically
 tested. The car exists and its wiring is documented, but the team does not possess it
@@ -81,12 +81,17 @@ Open ARDA's YAREN gateway:
 py -m arac.main --yaren
 ```
 
-The signed, temporary link exposes only four operations:
+The signed, temporary link exposes only five operations:
 
 1. read the active configuration;
 2. run a real camera and active lane-detector report;
-3. install a validated configuration as inactive;
-4. run one bounded SAC workshop motor command.
+3. capture one current real camera JPEG for CAM's perspective/HSV editor;
+4. install a validated configuration as inactive;
+5. run one bounded SAC workshop motor command.
+
+The calibration capture fails if KASIM cannot open a physical camera. It has no
+generated or recorded-frame fallback. Saving the edited values creates an inactive,
+physically-unverified profile; it does not select the profile or prove track behavior.
 
 The motor form requires the operator's CAM-session legal name, CAM server time, an
 unexpired job, the complete physical checklist and a seven-second browser countdown.

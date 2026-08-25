@@ -123,6 +123,176 @@
     window.setTimeout(poll, 800);
   }
 
+  const frameJob = document.querySelector("[data-frame-job]");
+  if (frameJob && ["PENDING", "CLAIMED"].includes(frameJob.dataset.jobStatus)) {
+    const poll = async () => {
+      try {
+        const response = await fetch(frameJob.dataset.statusUrl, { headers: { Accept: "application/json" } });
+        if (response.ok) {
+          const result = await response.json();
+          const status = frameJob.querySelector("[data-frame-job-status]");
+          if (status) status.textContent = result.status;
+          if (["ACCEPTED", "REJECTED", "EXPIRED"].includes(result.status)) {
+            window.location.reload();
+            return;
+          }
+        }
+      } catch (_error) {
+        // The job has a server-side expiry; a later poll can recover.
+      }
+      window.setTimeout(poll, 800);
+    };
+    window.setTimeout(poll, 500);
+  }
+
+  const calibration = document.querySelector("[data-camera-calibration]");
+  const sourceImage = calibration?.querySelector("[data-calibration-image]");
+  const perspectiveCanvas = calibration?.querySelector("[data-perspective-canvas]");
+  const maskCanvas = calibration?.querySelector("[data-hsv-canvas]");
+  const pointInput = calibration?.querySelector("[data-perspective-points]");
+  if (calibration && sourceImage && perspectiveCanvas && maskCanvas && pointInput) {
+    const targets = JSON.parse(calibration.dataset.hsvTargets);
+    let points = JSON.parse(pointInput.value);
+    let draggedPoint = null;
+    let maskFrame = null;
+    let maskScheduled = false;
+    const perspectiveContext = perspectiveCanvas.getContext("2d");
+    const maskContext = maskCanvas.getContext("2d");
+    const targetSelect = calibration.querySelector("[data-hsv-target]");
+    const hsvInputs = Object.fromEntries(
+      [...calibration.querySelectorAll("[data-hsv-range]")].map((input) => [input.dataset.hsvRange, input])
+    );
+
+    const drawPerspective = () => {
+      perspectiveContext.clearRect(0, 0, perspectiveCanvas.width, perspectiveCanvas.height);
+      perspectiveContext.drawImage(sourceImage, 0, 0, perspectiveCanvas.width, perspectiveCanvas.height);
+      perspectiveContext.lineWidth = Math.max(3, perspectiveCanvas.width / 280);
+      perspectiveContext.strokeStyle = "#1464ff";
+      perspectiveContext.fillStyle = "rgba(20, 100, 255, .18)";
+      perspectiveContext.beginPath();
+      perspectiveContext.moveTo(points[0][0], points[0][1]);
+      perspectiveContext.lineTo(points[1][0], points[1][1]);
+      perspectiveContext.lineTo(points[3][0], points[3][1]);
+      perspectiveContext.lineTo(points[2][0], points[2][1]);
+      perspectiveContext.closePath();
+      perspectiveContext.fill();
+      perspectiveContext.stroke();
+      points.forEach((point, index) => {
+        perspectiveContext.beginPath();
+        perspectiveContext.fillStyle = "#ffffff";
+        perspectiveContext.strokeStyle = "#075dff";
+        perspectiveContext.arc(point[0], point[1], Math.max(9, perspectiveCanvas.width / 70), 0, Math.PI * 2);
+        perspectiveContext.fill();
+        perspectiveContext.stroke();
+        perspectiveContext.fillStyle = "#075dff";
+        perspectiveContext.font = `700 ${Math.max(12, perspectiveCanvas.width / 55)}px Inter, sans-serif`;
+        perspectiveContext.textAlign = "center";
+        perspectiveContext.textBaseline = "middle";
+        perspectiveContext.fillText(String(index + 1), point[0], point[1]);
+      });
+      pointInput.value = JSON.stringify(points);
+    };
+
+    const canvasPoint = (event) => {
+      const bounds = perspectiveCanvas.getBoundingClientRect();
+      return [
+        Math.round((event.clientX - bounds.left) * perspectiveCanvas.width / bounds.width),
+        Math.round((event.clientY - bounds.top) * perspectiveCanvas.height / bounds.height),
+      ];
+    };
+    perspectiveCanvas.addEventListener("pointerdown", (event) => {
+      const selected = canvasPoint(event);
+      draggedPoint = points
+        .map((point, index) => ({ index, distance: Math.hypot(point[0] - selected[0], point[1] - selected[1]) }))
+        .sort((left, right) => left.distance - right.distance)[0].index;
+      perspectiveCanvas.setPointerCapture(event.pointerId);
+      points[draggedPoint] = selected;
+      drawPerspective();
+    });
+    perspectiveCanvas.addEventListener("pointermove", (event) => {
+      if (draggedPoint === null) return;
+      const selected = canvasPoint(event);
+      points[draggedPoint] = [
+        Math.max(0, Math.min(perspectiveCanvas.width, selected[0])),
+        Math.max(0, Math.min(perspectiveCanvas.height, selected[1])),
+      ];
+      drawPerspective();
+    });
+    const stopDragging = () => { draggedPoint = null; };
+    perspectiveCanvas.addEventListener("pointerup", stopDragging);
+    perspectiveCanvas.addEventListener("pointercancel", stopDragging);
+
+    const rgbToHsv = (red, green, blue) => {
+      const r = red / 255;
+      const g = green / 255;
+      const b = blue / 255;
+      const maximum = Math.max(r, g, b);
+      const minimum = Math.min(r, g, b);
+      const difference = maximum - minimum;
+      let hue = 0;
+      if (difference !== 0) {
+        if (maximum === r) hue = ((g - b) / difference) % 6;
+        else if (maximum === g) hue = (b - r) / difference + 2;
+        else hue = (r - g) / difference + 4;
+      }
+      hue = Math.round(((hue * 60 + 360) % 360) / 2);
+      const saturation = maximum === 0 ? 0 : Math.round((difference / maximum) * 255);
+      return [hue, saturation, Math.round(maximum * 255)];
+    };
+
+    const drawMask = () => {
+      maskScheduled = false;
+      if (!maskFrame) return;
+      const lower = [Number(hsvInputs.lower_h.value), Number(hsvInputs.lower_s.value), Number(hsvInputs.lower_v.value)];
+      const upper = [Number(hsvInputs.upper_h.value), Number(hsvInputs.upper_s.value), Number(hsvInputs.upper_v.value)];
+      const result = maskContext.createImageData(maskCanvas.width, maskCanvas.height);
+      for (let index = 0; index < maskFrame.data.length; index += 4) {
+        const hsv = rgbToHsv(maskFrame.data[index], maskFrame.data[index + 1], maskFrame.data[index + 2]);
+        const matched = hsv.every((value, channel) => value >= lower[channel] && value <= upper[channel]);
+        const shade = matched ? 255 : 0;
+        result.data[index] = shade;
+        result.data[index + 1] = shade;
+        result.data[index + 2] = shade;
+        result.data[index + 3] = 255;
+      }
+      maskContext.putImageData(result, 0, 0);
+    };
+    const scheduleMask = () => {
+      if (maskScheduled) return;
+      maskScheduled = true;
+      window.requestAnimationFrame(drawMask);
+    };
+    const selectTarget = () => {
+      const target = targets[targetSelect.value];
+      ["lower_h", "lower_s", "lower_v"].forEach((name, index) => { hsvInputs[name].value = target.lower[index]; });
+      ["upper_h", "upper_s", "upper_v"].forEach((name, index) => { hsvInputs[name].value = target.upper[index]; });
+      Object.values(hsvInputs).forEach((input) => {
+        const output = input.closest("label")?.querySelector("[data-hsv-output]");
+        if (output) output.textContent = input.value;
+      });
+      scheduleMask();
+    };
+    targetSelect.addEventListener("change", selectTarget);
+    Object.values(hsvInputs).forEach((input) => input.addEventListener("input", () => {
+      const output = input.closest("label")?.querySelector("[data-hsv-output]");
+      if (output) output.textContent = input.value;
+      scheduleMask();
+    }));
+
+    const initializeCalibration = () => {
+      drawPerspective();
+      const offscreen = document.createElement("canvas");
+      offscreen.width = maskCanvas.width;
+      offscreen.height = maskCanvas.height;
+      const context = offscreen.getContext("2d", { willReadFrequently: true });
+      context.drawImage(sourceImage, 0, 0, offscreen.width, offscreen.height);
+      maskFrame = context.getImageData(0, 0, offscreen.width, offscreen.height);
+      selectTarget();
+    };
+    if (sourceImage.complete) initializeCalibration();
+    else sourceImage.addEventListener("load", initializeCalibration, { once: true });
+  }
+
   document.addEventListener("click", (event) => {
     const anchor = event.target.closest("a[href]");
     if (!anchor || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

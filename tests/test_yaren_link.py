@@ -226,6 +226,58 @@ class YarenTemporaryLinkTest(unittest.TestCase):
         self.assertTrue(receipts[0]["receipt"]["stop_requested"])
         self.assertFalse(receipts[0]["receipt"]["physical_motion_observed"])
 
+    def test_calibration_frame_job_uses_injected_live_collector(self):
+        polls = [
+            {
+                "state": "ACTIVE",
+                "job": {
+                    "job_id": "a" * 32,
+                    "operation": "CAPTURE_CALIBRATION_FRAME",
+                    "payload": {"draft_id": "d" * 32, "requested_at": 1000},
+                },
+            }
+        ]
+        receipts = []
+        collector_calls = []
+        moment = [1000]
+
+        def transport(url, body, _token, _timeout):
+            if url.endswith("/poll"):
+                return polls.pop(0)
+            if url.endswith("/receipt"):
+                receipts.append(dict(body))
+            return {"accepted": True}
+
+        def collector(**kwargs):
+            collector_calls.append(kwargs)
+            return {
+                "format": "jpeg",
+                "width": 840,
+                "height": 630,
+                "source": "usb:0",
+                "frame_id": 4,
+                "captured_at": 55.5,
+                "sha256": "b" * 64,
+                "image_b64": "/9j/2Q==",
+            }
+
+        result = run_temporary_link(
+            self.access,
+            profile_root=self.root,
+            server_url="https://cam.example.test",
+            transport=transport,
+            capability_collector=self.capabilities,
+            calibration_frame_collector=collector,
+            usb_index=2,
+            epoch=lambda: moment[0],
+            sleep=lambda _seconds: moment.__setitem__(0, moment[0] + 5),
+        )
+
+        self.assertEqual(LinkRunResult("EXPIRED", 1, 0), result)
+        self.assertEqual(2, collector_calls[0]["usb_index"])
+        self.assertEqual("usb:0", receipts[0]["receipt"]["source"])
+        self.assertTrue(receipts[0]["accepted"])
+
     def test_expired_workshop_job_is_rejected_before_the_executor(self):
         polls = [{"state": "ACTIVE", "job": {
             "job_id": "f" * 32,

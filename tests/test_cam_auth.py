@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import tempfile
 import unittest
@@ -56,6 +57,50 @@ class CamAuthTest(unittest.TestCase):
             data={"legal_name": "Egemen", "password": "school-password"},
         )
         self.assertEqual(400, response.status_code)
+
+    def test_health_reports_the_exact_configured_release(self):
+        self.app.config["CAM_RELEASE"] = "a" * 40
+        response = self.client.get("/health")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            {"status": "ok", "release": "a" * 40}, response.get_json()
+        )
+
+    def test_configured_single_proxy_sets_the_rate_limit_client_address(self):
+        proxy_app = create_app(
+            {
+                "TESTING": True,
+                "DATABASE": str(Path(self.temporary.name) / "proxy.sqlite3"),
+                "SECRET_KEY": "proxy-secret-that-is-long-enough-for-tests",
+                "CAM_PASSWORD": "school-password",
+                "CAM_PASSWORD_HASH": "",
+                "SESSION_COOKIE_SECURE": False,
+                "CAM_TRUST_PROXY": True,
+            }
+        )
+        client = proxy_app.test_client()
+        headers = {
+            "X-Forwarded-For": "203.0.113.9",
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Host": "dymtal.avartech.net",
+        }
+        page = client.get("/login", headers=headers)
+        token = TOKEN.search(page.data).group(1).decode("ascii")
+        rejected = client.post(
+            "/login",
+            data={
+                "csrf_token": token,
+                "legal_name": "Proxy Test",
+                "password": "wrong",
+            },
+            headers=headers,
+        )
+        self.assertEqual(401, rejected.status_code)
+        with proxy_app.app_context():
+            recorded = get_db().execute(
+                "SELECT remote_address FROM login_attempts ORDER BY id DESC LIMIT 1"
+            ).fetchone()["remote_address"]
+        self.assertEqual("203.0.113.9", recorded)
 
     def test_password_session_and_single_use_access_code(self):
         response = self.login()
@@ -179,6 +224,21 @@ class CamAuthTest(unittest.TestCase):
         self.assertIn("/login?next=/dashboard", expired.location)
         with self.client.session_transaction() as browser_session:
             self.assertNotIn("authenticated", browser_session)
+
+    def test_diagnostic_bundle_is_authenticated_and_excludes_credentials(self):
+        self.login()
+        token = self.csrf("/access")
+        self.client.post("/access/offline", data={"csrf_token": token})
+        response = self.client.get("/diagnostics/cam-bundle.json")
+        self.assertEqual(200, response.status_code)
+        self.assertIn("attachment", response.headers["Content-Disposition"])
+        bundle = json.loads(response.get_data(as_text=True))
+        self.assertEqual("startech-cam-diagnostic-v1", bundle["format"])
+        self.assertEqual("ok", bundle["database"]["integrity"])
+        self.assertIsNone(bundle["linked_device"])
+        body = response.get_data(as_text=True)
+        self.assertNotIn("school-password", body)
+        self.assertNotIn("remote_address", body)
 
     def test_external_and_backslash_login_redirects_are_rejected(self):
         for target in ("//example.com", "/%5c%5cexample.com", "https://example.com"):

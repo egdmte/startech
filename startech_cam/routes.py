@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from datetime import datetime, timezone
 import json
 import math
 from typing import Any
@@ -11,6 +12,7 @@ from flask import (
     Blueprint,
     Response,
     abort,
+    current_app,
     flash,
     jsonify,
     redirect,
@@ -30,6 +32,7 @@ from .device_link import (
     get_device_job,
     get_device_snapshot,
     queue_device_job,
+    validate_calibration_frame_receipt,
 )
 from .fields import Field, MAC_SECTIONS, SAC_STEPS
 from .repository import (
@@ -78,7 +81,12 @@ def _current_device_snapshot() -> dict[str, Any] | None:
 @cam_blueprint.get("/health")
 def health() -> Response:
     get_db().execute("SELECT 1").fetchone()
-    return Response('{"status":"ok"}\n', mimetype="application/json")
+    return jsonify(
+        {
+            "status": "ok",
+            "release": str(current_app.config["CAM_RELEASE"]),
+        }
+    )
 
 
 @cam_blueprint.app_errorhandler(DraftNotFound)
@@ -102,6 +110,412 @@ def dashboard() -> str:
     return render_template(
         "dashboard.html",
         calibrations=list_calibrations()[:5],
+        car_linked=_session_device_link() is not None,
+    )
+
+
+@cam_blueprint.get("/diagnostics/cam-bundle.json")
+@login_required
+def download_cam_diagnostic_bundle() -> Response:
+    """Download support evidence without credentials or claimed car telemetry."""
+
+    selected = _session_device_link()
+    jobs: list[dict[str, Any]] = []
+    snapshot = None
+    capabilities = None
+    if selected is not None:
+        snapshot = get_device_snapshot(*selected)
+        capabilities = get_capability_report(*selected)
+        rows = get_db().execute(
+            """
+            SELECT job_id, operation, status, payload_json, receipt_json,
+                   created_at, completed_at
+            FROM device_jobs WHERE link_id = ? AND device_id = ?
+            ORDER BY created_at DESC, job_id DESC LIMIT 25
+            """,
+            selected,
+        ).fetchall()
+        for row in rows:
+            payload = json.loads(str(row["payload_json"]))
+            receipt = (
+                None
+                if row["receipt_json"] is None
+                else json.loads(str(row["receipt_json"]))
+            )
+            if str(row["operation"]) == "CAPTURE_CALIBRATION_FRAME" and isinstance(
+                receipt, dict
+            ):
+                receipt.pop("image_b64", None)
+            jobs.append(
+                {
+                    "job_id": str(row["job_id"]),
+                    "operation": str(row["operation"]),
+                    "status": str(row["status"]),
+                    "payload": payload,
+                    "receipt": receipt,
+                    "created_at": int(row["created_at"]),
+                    "completed_at": row["completed_at"],
+                }
+            )
+
+    connection = get_db()
+    integrity = str(connection.execute("PRAGMA integrity_check").fetchone()[0])
+    counts = {
+        table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+        for table in ("calibrations", "drafts", "device_jobs", "audit_events")
+    }
+    bundle = {
+        "format": "startech-cam-diagnostic-v1",
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "release": str(current_app.config.get("CAM_RELEASE", "development")),
+        "scope": "CAM server records and the current temporary YAREN link",
+        "limitations": [
+            "No physical motion is inferred from software receipts.",
+            "KADER vehicle logs are not uploaded by the current link protocol.",
+            "Camera JPEG bytes, credentials, access codes, session data, and remote addresses are excluded.",
+        ],
+        "database": {"integrity": integrity, "counts": counts},
+        "linked_device": None
+        if selected is None
+        else {
+            "link_id": selected[0],
+            "device_id": selected[1],
+            "active_configuration": snapshot,
+            "capabilities": capabilities,
+            "jobs": jobs,
+        },
+        "recent_calibrations": list_calibrations()[:25],
+    }
+    body = json.dumps(bundle, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
+    response = Response(body, mimetype="application/json")
+    response.headers["Content-Disposition"] = (
+        "attachment; filename=startech-cam-diagnostic.json"
+    )
+    return response
+
+
+HSV_TARGETS: dict[str, tuple[str, tuple[str | int, ...]]] = {
+    "lane-default": (
+        "White lane — default",
+        ("serit", "beyaz_profiller", "varsayilan"),
+    ),
+    "lane-dark": (
+        "White lane — dark",
+        ("serit", "beyaz_profiller", "karanlik"),
+    ),
+    "lane-normal": (
+        "White lane — normal",
+        ("serit", "beyaz_profiller", "normal"),
+    ),
+    "lane-bright": (
+        "White lane — bright",
+        ("serit", "beyaz_profiller", "parlak"),
+    ),
+    "orange-car": (
+        "Orange car",
+        ("renkler", "turuncu_arac", "araliklar", 0),
+    ),
+    "yellow-car": (
+        "Yellow car",
+        ("renkler", "sari_arac", "araliklar", 0),
+    ),
+    "red-light-low": (
+        "Red light — low hue",
+        ("renkler", "kirmizi_isik", "araliklar", 0),
+    ),
+    "red-light-high": (
+        "Red light — high hue",
+        ("renkler", "kirmizi_isik", "araliklar", 1),
+    ),
+    "green-light": (
+        "Green light",
+        ("renkler", "yesil_isik", "araliklar", 0),
+    ),
+    "blue-sign": (
+        "Blue sign",
+        ("renkler", "mavi_levha", "araliklar", 0),
+    ),
+    "red-parking-low": (
+        "Red parking — low hue",
+        ("renkler", "kirmizi_park", "araliklar", 0),
+    ),
+    "red-parking-high": (
+        "Red parking — high hue",
+        ("renkler", "kirmizi_park", "araliklar", 1),
+    ),
+}
+
+
+def _hsv_range(document: dict[str, Any], target: str) -> dict[str, Any]:
+    definition = HSV_TARGETS.get(target)
+    if definition is None:
+        raise InvalidDocument("choose a supported HSV target")
+    current: Any = document["kalibrasyon"]
+    for part in definition[1]:
+        current = current[part]
+    if not isinstance(current, dict) or set(current) != {"alt", "ust"}:
+        raise InvalidDocument("the selected HSV target is malformed")
+    return current
+
+
+def _calibration_frame_job(
+    draft_id: str, job_id: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    selected = _session_device_link()
+    if selected is None:
+        raise DeviceLinkError("the YAREN link is no longer available")
+    job = get_device_job(job_id, *selected)
+    if (
+        job is None
+        or job["operation"] != "CAPTURE_CALIBRATION_FRAME"
+        or job["payload"].get("draft_id") != draft_id
+    ):
+        raise DeviceLinkError("calibration frame job is unavailable")
+    if job["status"] != "ACCEPTED" or not isinstance(job["receipt"], dict):
+        raise DeviceLinkError("the live calibration frame has not arrived")
+    return job, validate_calibration_frame_receipt(job["receipt"])
+
+
+@cam_blueprint.route("/camera-calibration", methods=["GET", "POST"])
+@login_required
+def camera_calibration_start() -> Any:
+    snapshot = _current_device_snapshot()
+    if snapshot is None:
+        flash("Connect YAREN and wait for its active configuration first.", "error")
+        return redirect(url_for("cam.dashboard"))
+    if request.method == "GET":
+        return render_template("camera_calibration_start.html")
+    name = request.form.get("name", "").strip()
+    try:
+        draft_id = create_draft(
+            owner=current_actor(),
+            workflow="MAC",
+            name=name,
+            source="CAR",
+            source_document=snapshot,
+        )
+    except (ValueError, InvalidDocument) as exc:
+        flash(str(exc), "error")
+        return render_template(
+            "camera_calibration_start.html", entered_name=name
+        ), 400
+    return redirect(url_for("cam.camera_calibration_editor", draft_id=draft_id))
+
+
+@cam_blueprint.post("/camera-calibration/<draft_id>/capture")
+@login_required
+def capture_camera_calibration_frame(draft_id: str) -> Any:
+    _document, _touched, workflow = get_draft(draft_id, current_actor())
+    if workflow != "MAC":
+        abort(404)
+    selected = _session_device_link()
+    if selected is None:
+        flash("Connect YAREN before requesting a live frame.", "error")
+        return redirect(url_for("cam.camera_calibration_editor", draft_id=draft_id))
+    requested_at = now_epoch()
+    try:
+        job_id = queue_device_job(
+            *selected,
+            "CAPTURE_CALIBRATION_FRAME",
+            {"draft_id": draft_id, "requested_at": requested_at},
+            actor=current_actor(),
+            lifetime_seconds=30,
+        )
+    except DeviceLinkError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("cam.camera_calibration_editor", draft_id=draft_id))
+    return redirect(
+        url_for("cam.camera_calibration_editor", draft_id=draft_id, job=job_id)
+    )
+
+
+@cam_blueprint.get("/camera-calibration/<draft_id>/jobs/<job_id>")
+@login_required
+def camera_calibration_job_status(draft_id: str, job_id: str) -> Any:
+    _document, _touched, workflow = get_draft(draft_id, current_actor())
+    if workflow != "MAC":
+        abort(404)
+    selected = _session_device_link()
+    if selected is None:
+        return jsonify({"error": "device link unavailable"}), 409
+    job = get_device_job(job_id, *selected)
+    if (
+        job is None
+        or job["operation"] != "CAPTURE_CALIBRATION_FRAME"
+        or job["payload"].get("draft_id") != draft_id
+    ):
+        abort(404)
+    return jsonify({"job_id": job_id, "status": job["status"]})
+
+
+def _points_from_form(width: int, height: int) -> list[list[int]]:
+    try:
+        points = json.loads(request.form.get("points_json", ""))
+    except json.JSONDecodeError as exc:
+        raise InvalidDocument("perspective points are not valid JSON") from exc
+    if (
+        not isinstance(points, list)
+        or len(points) != 4
+        or any(not isinstance(point, list) or len(point) != 2 for point in points)
+        or any(
+            isinstance(value, bool) or not isinstance(value, int)
+            for point in points
+            for value in point
+        )
+    ):
+        raise InvalidDocument("perspective needs four integer [x, y] points")
+    if any(
+        not 0 <= point[0] <= width or not 0 <= point[1] <= height
+        for point in points
+    ):
+        raise InvalidDocument("perspective points must stay inside the live frame")
+    return points
+
+
+def _hsv_values_from_form() -> tuple[list[int], list[int]]:
+    values: list[int] = []
+    for name, maximum in (
+        ("lower_h", 180),
+        ("lower_s", 255),
+        ("lower_v", 255),
+        ("upper_h", 180),
+        ("upper_s", 255),
+        ("upper_v", 255),
+    ):
+        raw = request.form.get(name, "").strip()
+        try:
+            value = int(raw)
+        except ValueError as exc:
+            raise InvalidDocument(f"{name} must be a whole number") from exc
+        if not 0 <= value <= maximum:
+            raise InvalidDocument(f"{name} must be between 0 and {maximum}")
+        values.append(value)
+    lower, upper = values[:3], values[3:]
+    if any(lower[index] > upper[index] for index in range(3)) or lower == upper:
+        raise InvalidDocument("HSV lower values must remain below the upper values")
+    return lower, upper
+
+
+@cam_blueprint.route("/camera-calibration/<draft_id>", methods=["GET", "POST"])
+@login_required
+def camera_calibration_editor(draft_id: str) -> Any:
+    document, _touched, workflow = get_draft(draft_id, current_actor())
+    if workflow != "MAC":
+        abort(404)
+    job_id = request.args.get("job", "") or request.form.get("job_id", "")
+    job = None
+    frame = None
+    if job_id:
+        selected = _session_device_link()
+        if selected is not None:
+            candidate = get_device_job(job_id, *selected)
+            if (
+                candidate is not None
+                and candidate["operation"] == "CAPTURE_CALIBRATION_FRAME"
+                and candidate["payload"].get("draft_id") == draft_id
+            ):
+                job = candidate
+                if job["status"] == "ACCEPTED" and isinstance(job["receipt"], dict):
+                    try:
+                        frame = validate_calibration_frame_receipt(job["receipt"])
+                    except DeviceLinkError as exc:
+                        flash(str(exc), "error")
+
+    calibration = document["kalibrasyon"]
+    targets = {
+        key: {
+            "label": label,
+            "lower": list(_hsv_range(document, key)["alt"]),
+            "upper": list(_hsv_range(document, key)["ust"]),
+        }
+        for key, (label, _path) in HSV_TARGETS.items()
+    }
+    if request.method == "POST":
+        try:
+            if not job_id:
+                raise InvalidDocument("capture a live frame before saving")
+            _frame_job, frame = _calibration_frame_job(draft_id, job_id)
+            width, height = int(frame["width"]), int(frame["height"])
+            camera = calibration["kamera"]
+            if [width, height] != [camera["genislik"], camera["yukseklik"]]:
+                raise InvalidDocument(
+                    "the live frame resolution no longer matches the active profile"
+                )
+            points = _points_from_form(width, height)
+            target = request.form.get("hsv_target", "")
+            lower, upper = _hsv_values_from_form()
+            updated = copy.deepcopy(document)
+            perspective = updated["kalibrasyon"]["perspektif"]
+            perspective["olculen_cozunurluk"] = [width, height]
+            perspective["kaynak_noktalar"] = points
+            selected_range = _hsv_range(updated, target)
+            selected_range["alt"] = lower
+            selected_range["ust"] = upper
+            evidence = updated["oturum_kaniti"]
+            evidence.update(
+                {
+                    "fiziksel_cikis_aktif": False,
+                    "fiziksel_dogrulama_yapildi": False,
+                    "tam_cikis_onaylandi": False,
+                    "prototip_kilidi_onaylandi": False,
+                    "mekanik_inceleme": [],
+                    "fiziksel_hizalama_dogrulandi": False,
+                }
+            )
+            stamp = updated["kalibrasyon"]["damga"]
+            existing_note = str(stamp.get("not") or "").strip()
+            evidence_note = (
+                f"CAM real frame {frame['sha256']} from {frame['source']} "
+                f"at {width}x{height}; driving remains physically unverified."
+            )
+            stamp["not"] = (
+                f"{existing_note} {evidence_note}".strip()
+                if existing_note
+                else evidence_note
+            )
+            refresh_calibration_stamp(updated)
+            updated["kalibrasyon"]["damga"]["olusturan"] = "CAM real-frame calibration"
+            save_draft(
+                draft_id,
+                current_actor(),
+                updated,
+                section="camera-calibration",
+            )
+            tag = publish_draft(draft_id, current_actor())
+            selected = _session_device_link()
+            install_job = None
+            if selected is not None:
+                try:
+                    install_job = queue_device_job(
+                        *selected,
+                        "INSTALL_INACTIVE_CONFIGURATION",
+                        {"deployment_id": tag, "configuration": get_calibration(tag)},
+                        actor=current_actor(),
+                    )
+                except DeviceLinkError as exc:
+                    flash(
+                        f"The calibration was created, but YAREN did not accept the "
+                        f"inactive-profile job: {exc}",
+                        "error",
+                    )
+            flash(
+                "Real-frame calibration created and queued as an inactive YAREN profile."
+                if install_job
+                else "Real-frame calibration created; reconnect YAREN to sideload it.",
+                "success",
+            )
+            return redirect(url_for("cam.created", tag=tag, job=install_job or ""))
+        except (InvalidDocument, DeviceLinkError, ValueError) as exc:
+            flash(str(exc), "error")
+
+    return render_template(
+        "camera_calibration_editor.html",
+        draft_id=draft_id,
+        document=document,
+        points=calibration["perspektif"]["kaynak_noktalar"],
+        targets=targets,
+        frame=frame,
+        frame_job=job,
     )
 
 

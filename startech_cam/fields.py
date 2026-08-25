@@ -21,7 +21,7 @@ class Field:
 SAC_STEPS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
     "camera": (
         "Camera",
-        "Choose the stable capture intent. This does not claim that a camera was physically measured.",
+        "Recorded intent only. These fields do not configure KASIM; use the linked-camera editor for real camera and recognition values.",
         (
             Field("sac_niyeti.kamera.yon_derecesi", "Frame rotation", "select", choices=(("0", "0°"), ("90", "90°"), ("180", "180°"), ("270", "270°"))),
             Field("sac_niyeti.kamera.yakalama_profili", "Capture profile", "select", choices=(("640x480", "640×480 — performance"), ("1280x720", "1280×720 — balanced"), ("1920x1080", "1920×1080 — quality"))),
@@ -31,7 +31,7 @@ SAC_STEPS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
     ),
     "power": (
         "Power limits",
-        "These are selected software limits, not measured motor voltage or proof of safe motion.",
+        "Runtime-backed software limits. Saving projects these values into ayarlar.hiz, which ARDA reads; they remain neither voltage measurements nor proof of safe motion.",
         (
             Field("sac_niyeti.guc.minimum_hiz_yuzde", "Minimum speed %", "range", 0, 100, 1),
             Field("sac_niyeti.guc.maksimum_hiz_yuzde", "Maximum speed %", "range", 0, 100, 1),
@@ -39,7 +39,7 @@ SAC_STEPS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
     ),
     "compute": (
         "Compute and validation",
-        "Select startup validation and module policy.",
+        "Recorded intent only. Current ARDA startup and module loading do not read these SAC fields.",
         (
             Field("sac_niyeti.hesaplama.baslangic_onlemi", "Startup precaution", "select", choices=(("individual-buttons", "Validate each segment"), ("single-button", "Validate all segments with one button"), ("keyboard-vnc", "Validate with keyboard/VNC"))),
             Field("sac_niyeti.hesaplama.servis_durumu", "ARDA service", "select", choices=(("on", "Launch on startup"), ("off", "Manual launch"))),
@@ -49,7 +49,7 @@ SAC_STEPS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
     ),
     "drive": (
         "Command response",
-        "Record runtime policy. Physical SAC checks are separate, short workshop commands and never start autonomous driving.",
+        "Publishing policy only. Full-output acknowledgements are validated, but these SAC fields do not arm, steer, or configure the live driver.",
         (
             Field("sac_niyeti.surus.komut_kaybi_eylemi", "Loss-of-command action", "select", choices=(("invalidate-request", "Invalidate request"), ("disarm-wait", "Disarm and wait"), ("refer-validated-commands", "Refer to validated commands"))),
             Field("sac_niyeti.surus.surucu_cikis_modu", "Driver output mode", "select", choices=(("off", "Off — no motor output"), ("semi", "Semi — steering only"), ("full", "Full — full car control"))),
@@ -61,7 +61,7 @@ SAC_STEPS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
     ),
     "wheel": (
         "Wheel intent",
-        "Corrections remain unmeasured intent until supervised physical testing records evidence.",
+        "Recorded intent only. These values do not change OSMAN wiring or kalibrasyon.motor trims.",
         (
             Field("sac_niyeti.tekerlek.sol_duzeltme_yuzde", "Left correction %", "range", -20, 20, 1),
             Field("sac_niyeti.tekerlek.sag_duzeltme_yuzde", "Right correction %", "range", -20, 20, 1),

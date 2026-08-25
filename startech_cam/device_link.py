@@ -7,10 +7,12 @@ SAC workshop command validated again by YAREN, ARDA, TAWNT and OSMAN.
 
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
 import hashlib
 import hmac
 import json
+import math
 import secrets
 import sqlite3
 from typing import Any, Mapping
@@ -30,6 +32,7 @@ ALLOWED_OPERATIONS = frozenset(
         "REQUEST_CAPABILITY_REPORT",
         "INSTALL_INACTIVE_CONFIGURATION",
         "RUN_BOUNDED_WORKSHOP_COMMAND",
+        "CAPTURE_CALIBRATION_FRAME",
     }
 )
 CAPABILITY_STATUSES = frozenset(
@@ -42,6 +45,7 @@ CAPABILITY_STATUSES = frozenset(
     }
 )
 MAX_JSON_BYTES = 1_000_000
+MAX_CALIBRATION_JPEG_BYTES = 650_000
 
 
 class DeviceLinkError(ValueError):
@@ -54,6 +58,70 @@ class DeviceLinkCredentials:
     link_token: str
     device_id: str
     expires_at: int
+
+
+def validate_calibration_frame_receipt(
+    receipt: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Validate one real JPEG receipt before CAM stores or displays it."""
+
+    expected = {
+        "format",
+        "width",
+        "height",
+        "source",
+        "frame_id",
+        "captured_at",
+        "sha256",
+        "image_b64",
+    }
+    if not isinstance(receipt, Mapping) or set(receipt) != expected:
+        raise DeviceLinkError("calibration frame receipt has unexpected fields")
+    if receipt["format"] != "jpeg":
+        raise DeviceLinkError("calibration frame must use JPEG")
+    for name, maximum in (("width", 7680), ("height", 4320)):
+        value = receipt[name]
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or not 1 <= value <= maximum
+        ):
+            raise DeviceLinkError(f"calibration frame {name} is invalid")
+    source = receipt["source"]
+    if not isinstance(source, str) or not source.strip() or len(source) > 120:
+        raise DeviceLinkError("calibration frame source is invalid")
+    frame_id = receipt["frame_id"]
+    if isinstance(frame_id, bool) or not isinstance(frame_id, int) or frame_id < 0:
+        raise DeviceLinkError("calibration frame id is invalid")
+    captured_at = receipt["captured_at"]
+    if (
+        isinstance(captured_at, bool)
+        or not isinstance(captured_at, (int, float))
+        or not math.isfinite(float(captured_at))
+        or captured_at < 0
+    ):
+        raise DeviceLinkError("calibration frame capture time is invalid")
+    digest = receipt["sha256"]
+    if (
+        not isinstance(digest, str)
+        or len(digest) != 64
+        or any(character not in "0123456789abcdef" for character in digest)
+    ):
+        raise DeviceLinkError("calibration frame digest is invalid")
+    encoded = receipt["image_b64"]
+    if not isinstance(encoded, str) or not encoded:
+        raise DeviceLinkError("calibration frame image is missing")
+    try:
+        image = base64.b64decode(encoded, validate=True)
+    except (ValueError, TypeError) as exc:
+        raise DeviceLinkError("calibration frame image is not valid base64") from exc
+    if not 4 <= len(image) <= MAX_CALIBRATION_JPEG_BYTES:
+        raise DeviceLinkError("calibration frame JPEG size is invalid")
+    if not image.startswith(b"\xff\xd8") or not image.endswith(b"\xff\xd9"):
+        raise DeviceLinkError("calibration frame payload is not a complete JPEG")
+    if not hmac.compare_digest(hashlib.sha256(image).hexdigest(), digest):
+        raise DeviceLinkError("calibration frame digest does not match the JPEG")
+    return dict(receipt)
 
 
 def _canonical_json(value: Mapping[str, Any]) -> str:
@@ -435,6 +503,17 @@ def complete_device_job(
     accepted: bool,
     receipt: Mapping[str, Any],
 ) -> bool:
+    job = get_db().execute(
+        """
+        SELECT operation FROM device_jobs
+        WHERE job_id = ? AND link_id = ? AND device_id = ? AND status = 'CLAIMED'
+        """,
+        (job_id, link_id, device_id),
+    ).fetchone()
+    if job is None:
+        return False
+    if str(job["operation"]) == "CAPTURE_CALIBRATION_FRAME":
+        receipt = validate_calibration_frame_receipt(receipt)
     receipt_json = _canonical_json(receipt)
     connection = get_db()
     changed = connection.execute(
@@ -497,4 +576,5 @@ __all__ = [
     "revoke_device_link",
     "store_capability_report",
     "store_device_snapshot",
+    "validate_calibration_frame_receipt",
 ]

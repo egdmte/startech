@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import re
 import tempfile
@@ -13,7 +15,7 @@ from startech.configuration.validation import kisa_ozet_hesapla
 from startech_cam import create_app
 from startech_cam.db import get_db
 from startech_cam.device_link import claim_next_device_job, complete_device_job
-from startech_cam.repository import get_draft
+from startech_cam.repository import DEFAULT_DOCUMENT, get_draft
 from startech_cam.security import now_epoch
 
 
@@ -120,6 +122,101 @@ class CamWorkflowTest(unittest.TestCase):
             browser_session["device_link_id"] = link_id
             browser_session["car_access_expires_at"] = current + 600
         return link_id, device_id
+
+    def report_active_configuration(self, link_id: str, device_id: str) -> None:
+        document = DEFAULT_DOCUMENT.read_text(encoding="utf-8")
+        current = now_epoch()
+        with self.app.app_context():
+            get_db().execute(
+                """
+                INSERT INTO device_snapshots(
+                    link_id, device_id, captured_at, received_at, payload_json
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (link_id, device_id, current, current, document),
+            )
+            get_db().commit()
+
+    def test_live_camera_editor_creates_and_queues_one_inactive_profile(self):
+        link_id, device_id = self.connect_device()
+        self.report_active_configuration(link_id, device_id)
+        start = self.client.get("/camera-calibration")
+        token = TOKEN.search(start.data).group(1).decode("ascii")
+        created_draft = self.client.post(
+            "/camera-calibration",
+            data={"csrf_token": token, "name": "Real workshop frame"},
+        )
+        self.assertEqual(302, created_draft.status_code)
+        draft_id = created_draft.location.rsplit("/", 1)[-1]
+
+        token = self.page_token(created_draft.location)
+        queued = self.client.post(
+            f"/camera-calibration/{draft_id}/capture",
+            data={"csrf_token": token},
+        )
+        self.assertEqual(302, queued.status_code)
+        job_id = queued.location.rsplit("job=", 1)[1]
+        jpeg = b"\xff\xd8real-camera-pixels\xff\xd9"
+        with self.app.app_context():
+            claimed = claim_next_device_job(link_id, device_id)
+            self.assertEqual("CAPTURE_CALIBRATION_FRAME", claimed["operation"])
+            self.assertTrue(
+                complete_device_job(
+                    link_id,
+                    device_id,
+                    job_id,
+                    accepted=True,
+                    receipt={
+                        "format": "jpeg",
+                        "width": 840,
+                        "height": 630,
+                        "source": "usb:0",
+                        "frame_id": 7,
+                        "captured_at": 123.5,
+                        "sha256": hashlib.sha256(jpeg).hexdigest(),
+                        "image_b64": base64.b64encode(jpeg).decode("ascii"),
+                    },
+                )
+            )
+
+        editor = self.client.get(queued.location)
+        self.assertEqual(200, editor.status_code)
+        self.assertIn(b"usb:0", editor.data)
+        self.assertIn(b"data-perspective-canvas", editor.data)
+        token = TOKEN.search(editor.data).group(1).decode("ascii")
+        saved = self.client.post(
+            queued.location,
+            data={
+                "csrf_token": token,
+                "job_id": job_id,
+                "points_json": "[[199,410],[633,413],[0,630],[840,630]]",
+                "hsv_target": "lane-normal",
+                "lower_h": "0",
+                "lower_s": "0",
+                "lower_v": "95",
+                "upper_h": "180",
+                "upper_s": "110",
+                "upper_v": "255",
+            },
+        )
+        self.assertEqual(302, saved.status_code, saved.get_data(as_text=True))
+        self.assertRegex(saved.location, r"/created/[0-9a-f]{6}\?job=[0-9a-f]{32}$")
+        tag = saved.location.split("/created/", 1)[1].split("?", 1)[0]
+        with self.app.app_context():
+            row = get_db().execute(
+                "SELECT payload_json FROM calibrations WHERE tag = ?", (tag,)
+            ).fetchone()
+            document = json.loads(row["payload_json"])
+            self.assertIn(hashlib.sha256(jpeg).hexdigest(), document["kalibrasyon"]["damga"]["not"])
+            self.assertEqual(
+                [0, 0, 95],
+                document["kalibrasyon"]["serit"]["beyaz_profiller"]["normal"]["alt"],
+            )
+            self.assertFalse(document["oturum_kaniti"]["fiziksel_dogrulama_yapildi"])
+            install = get_db().execute(
+                "SELECT status FROM device_jobs WHERE operation = 'INSTALL_INACTIVE_CONFIGURATION'"
+            ).fetchone()
+            self.assertEqual("PENDING", install["status"])
 
     def test_sac_queues_one_bounded_real_command_and_records_human_observation(self):
         draft_id = self.start_sac("Physical workshop")

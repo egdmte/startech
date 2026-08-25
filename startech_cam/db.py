@@ -118,7 +118,8 @@ CREATE TABLE IF NOT EXISTS device_jobs (
         'REQUEST_ACTIVE_CONFIGURATION',
         'REQUEST_CAPABILITY_REPORT',
         'INSTALL_INACTIVE_CONFIGURATION',
-        'RUN_BOUNDED_WORKSHOP_COMMAND'
+        'RUN_BOUNDED_WORKSHOP_COMMAND',
+        'CAPTURE_CALIBRATION_FRAME'
     )),
     payload_json TEXT NOT NULL,
     created_at INTEGER NOT NULL,
@@ -224,7 +225,10 @@ def _migrate_existing_database(connection: sqlite3.Connection) -> None:
         "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'device_jobs'"
     ).fetchone()
     jobs_sql = "" if jobs_sql_row is None else str(jobs_sql_row[0] or "")
-    if "RUN_BOUNDED_WORKSHOP_COMMAND" not in jobs_sql:
+    if (
+        "RUN_BOUNDED_WORKSHOP_COMMAND" not in jobs_sql
+        or "CAPTURE_CALIBRATION_FRAME" not in jobs_sql
+    ):
         connection.execute("ALTER TABLE device_jobs RENAME TO device_jobs_legacy")
         connection.execute(
             """
@@ -236,7 +240,8 @@ def _migrate_existing_database(connection: sqlite3.Connection) -> None:
                     'REQUEST_ACTIVE_CONFIGURATION',
                     'REQUEST_CAPABILITY_REPORT',
                     'INSTALL_INACTIVE_CONFIGURATION',
-                    'RUN_BOUNDED_WORKSHOP_COMMAND'
+                    'RUN_BOUNDED_WORKSHOP_COMMAND',
+                    'CAPTURE_CALIBRATION_FRAME'
                 )),
                 payload_json TEXT NOT NULL,
                 created_at INTEGER NOT NULL,

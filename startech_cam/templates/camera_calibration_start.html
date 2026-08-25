@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Live camera calibration{% endblock %}
+{% block content %}
+<section class="center-card medium">
+  <h1>Calibrate from the linked car</h1>
+  <p>CAM will copy YAREN's active configuration, request one real camera frame, and create a new profile. The current profile is never changed or activated.</p>
+  <form class="form-stack" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>
+      <span>New profile name</span>
+      <input name="name" maxlength="80" required value="{{ entered_name or '' }}" placeholder="Workshop camera calibration">
+    </label>
+    <div class="calibration-truth-note">
+      <strong>What this proves</strong>
+      <span>The pixels came from the linked YAREN camera. It does not prove lane accuracy, steering, motor motion, or driving safety.</span>
+    </div>
+    <button class="primary-button" type="submit">Continue to live frame</button>
+    <a class="secondary-button" href="{{ url_for('cam.dashboard') }}">Go back</a>
+  </form>
+</section>
+{% endblock %}

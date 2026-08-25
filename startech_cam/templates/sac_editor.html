@@ -12,6 +12,11 @@
   <form class="sac-section-form" method="post" data-motion data-motion-delay="2">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
+    <div class="sac-authority-strip sac-authority-strip--{{ 'runtime' if section == 'power' else 'recorded' }}">
+      <strong>{{ 'RUNTIME-BACKED' if section == 'power' else ('PUBLISHING POLICY ONLY' if section == 'drive' else 'RECORDED INTENT ONLY') }}</strong>
+      <span>{{ description }}</span>
+    </div>
+
     {% if section == 'power' %}
       <div class="sac-warning-strip">Selected limits are software policy. They are not a voltage measurement or physical safety test.</div>
       <div class="dual-controls">
@@ -28,7 +33,7 @@
       </div>
 
     {% elif section == 'camera' %}
-      <p class="availability-line"><span aria-hidden="true">✓</span> KASIM settings are available. No live frame is shown by CAM.</p>
+      <p class="availability-line availability-line--neutral">These choices are notes for later implementation. They do not alter KASIM's active camera profile.</p>
       <div class="camera-layout">
         <fieldset class="orientation-control">
           <legend>Frame orientation</legend>
@@ -57,7 +62,7 @@
       <label class="choice centered-choice"><input type="checkbox" name="sac_niyeti.kamera.raspberry_pi_oncelikli" {% if values['sac_niyeti.kamera.raspberry_pi_oncelikli'] %}checked{% endif %}> Prioritize Raspberry Pi Camera before USB</label>
 
     {% elif section == 'compute' %}
-      <p class="availability-line"><span aria-hidden="true">✓</span> Raspberry Pi policy is ready. Temperature and running processes are unavailable to the web server.</p>
+      <p class="availability-line availability-line--neutral">CAM stores these selections. It does not change Raspberry Pi services, processes, or TAWNT policy.</p>
       <div class="compute-grid">
         <fieldset>
           <legend>Start-up precaution level</legend>
@@ -148,7 +153,7 @@
       </div>
     {% endif %}
 
-    <p class="sac-editor-note">These values remain unverified until supervised physical testing records evidence.</p>
+    <p class="sac-editor-note">CAM stores exactly what this screen says it stores. No save action on this page claims a physical test.</p>
     <button class="cam-action cam-action--primary sac-save-action" type="submit">Save changes and return</button>
   </form>
 </section>

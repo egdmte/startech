@@ -1,46 +1,36 @@
-# CAM VPS kurulumu
+# CAM VPS operations
 
-Bu klasör, üretim CAM uygulamasını `dymtal.avartech.net` üzerinde çalıştırmak
-için gereken örnekleri içerir. CAM yalnız yapılandırma dosyası üretir. Araç
-sürücüsünü içe aktarmaz, aracı silahlandırmaz ve motor komutu göndermez.
+This directory describes the production service at `dymtal.avartech.net`. CAM
+creates and stores real configuration documents. A temporary authenticated YAREN
+link can report the active profile, run bounded capability checks, capture one
+live calibration frame, install an inactive profile, and execute one explicitly
+requested SAC workshop motor command. CAM cannot select a profile, start the
+autonomous runtime, or turn a software receipt into physical evidence.
 
-## 1. Dizinleri hazırla
+The public wiki at `wiki.avartech.net` is a separate service. Do not mix its files,
+database, proxy rules, or deployment lifecycle with CAM.
 
-Bu komutlar VPS üzerinde `egemen` kullanıcısıyla çalıştırılır. `sudo` parolasını
-yalnız terminale yazın; hiçbir dosyaya veya sohbete yazmayın.
+## Initial directories and environment
+
+Run these commands as `egemen`; enter sudo passwords only in the terminal.
 
 ```bash
 sudo install -d -o egemen -g egemen -m 0750 /srv/startech-cam
 sudo install -d -o egemen -g egemen -m 0700 /srv/startech-cam/shared
+git clone <repository> /srv/startech-cam/app
+python3 -m venv /srv/startech-cam/venv
+/srv/startech-cam/venv/bin/pip install -r /srv/startech-cam/app/requirements.txt
 ```
 
-Depoyu `/srv/startech-cam/app` olarak klonlayın veya doğrulanmış çalışma ağacını
-bu konuma yerleştirin. Ardından bağımlılıkları kurun:
+Generate the session secret and password hash locally on the VPS:
 
 ```bash
-cd /srv/startech-cam
-python3 -m venv venv
-./venv/bin/python -m pip install --upgrade pip
-./venv/bin/pip install -r app/requirements.txt
+/srv/startech-cam/venv/bin/python -c 'import secrets; print(secrets.token_urlsafe(48))'
+/srv/startech-cam/venv/bin/python -c 'import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass("CAM password: ")))'
 ```
 
-## 2. Gizli değerleri üret
-
-Oturum anahtarı:
-
-```bash
-./venv/bin/python -c 'import secrets; print(secrets.token_urlsafe(48))'
-```
-
-Parolayı terminalde gizli biçimde alıp hash üretmek için:
-
-```bash
-./venv/bin/python -c 'import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass("CAM password: ")))' 
-```
-
-`deployment/startech-cam.env.example` dosyasını `/etc/startech-cam.env` olarak
-kopyalayın, iki çıktıyı ilgili alanlara `sudoedit /etc/startech-cam.env` ile
-yazın ve izinleri doğrulayın:
+Install `deployment/startech-cam.env.example` as `/etc/startech-cam.env`, fill
+the two secret values with `sudoedit`, and keep the file `root:root 0600`.
 
 ```bash
 sudo install -o root -g root -m 0600 deployment/startech-cam.env.example /etc/startech-cam.env
@@ -48,69 +38,56 @@ sudoedit /etc/startech-cam.env
 sudo stat -c '%U:%G %a %n' /etc/startech-cam.env
 ```
 
-Beklenen son satır: `root:root 600 /etc/startech-cam.env`.
-
-## 3. systemd hizmetini kur
+Install the service and verify the local endpoint:
 
 ```bash
-cd /srv/startech-cam/app
 sudo install -o root -g root -m 0644 deployment/startech-cam.service /etc/systemd/system/startech-cam.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now startech-cam.service
-systemctl status startech-cam.service --no-pager
 curl --fail --silent http://127.0.0.1:8765/health
 ```
 
-Sağlık yanıtı `{"status":"ok"}` olmalıdır. Hata varsa:
+`/health` returns `status` and the exact 40-character Git `release` loaded by the
+running workers. A healthy process at the wrong revision is a failed deployment.
+
+## Caddy and Cloudflare
+
+Do not overwrite the VPS Caddyfile: it also serves unrelated sites. Merge the
+single global block from `Caddyfile.startech-cam` into the existing top-level
+global block, then merge only the `dymtal.avartech.net` site block. The trusted
+proxy list accepts `CF-Connecting-IP` only when the direct peer belongs to a
+published Cloudflare range. This lets Flask rate-limit the visitor instead of a
+Cloudflare edge without trusting a header sent directly to the origin.
+
+The committed ranges were checked on 2026-08-25. Re-check Cloudflare's official
+IPv4 and IPv6 lists whenever CDN routing changes. Validate before reload:
 
 ```bash
-journalctl -u startech-cam.service -n 100 --no-pager
-```
-
-## 4. Caddy alan adını ekle
-
-Mevcut `/etc/caddy/Caddyfile` dosyasını ezmeyin. Önce yedekleyin, sonra
-`deployment/Caddyfile.startech-cam` içindeki site bloğunu mevcut dosyanın sonuna
-ekleyin. Cloudflare Origin sertifikası kullanılacaksa sertifikanın
-`*.avartech.net` alanını kapsadığı önce doğrulanmalıdır.
-
-```bash
-sudo cp -a /etc/caddy/Caddyfile /etc/caddy/Caddyfile.before-startech-cam
-sudoedit /etc/caddy/Caddyfile
 sudo caddy validate --config /etc/caddy/Caddyfile
 sudo systemctl reload caddy
-```
-
-Son doğrulama:
-
-```bash
 curl --fail --silent https://dymtal.avartech.net/health
 ```
 
-## 5. YAREN cihaz kimliğini bir kez oluştur ve kaydet
+Keep `CAM_TRUST_PROXY=1` only while Gunicorn remains reachable exclusively through
+the local Caddy hop at `127.0.0.1:8765`. After proxy changes, perform one failed
+login from a known external address and confirm the corresponding database audit
+address is that client—not `127.0.0.1`, the VPS address, or a Cloudflare edge.
+Never paste the address into a public issue or diagnostic bundle.
 
-Özel anahtar araçta kalır. YAREN bilgisayarında veya Raspberry Pi üzerinde şu
-komutu çalıştırın:
+## Register YAREN
+
+Create the private identity on the vehicle computer or Raspberry Pi:
 
 ```bash
 python3 -m arac.ayar_cli web-key --device school-car
 ```
 
-Komut iki dosya üretir:
-
-- `~/.startech/yaren-device.json`: özel kimlik; yalnız araçta kalır ve hiçbir
-  zaman CAM'e, Git'e, e-postaya veya sohbete yüklenmez.
-- `~/.startech/yaren-device.pub.json`: paylaşılabilir açık kimlik.
-
-Yalnız `.pub.json` dosyasını VPS'e kopyalayın. Örneğin YAREN bilgisayarından:
+`~/.startech/yaren-device.json` is private and remains on the car.
+`~/.startech/yaren-device.pub.json` may be copied to the VPS and registered:
 
 ```bash
 scp ~/.startech/yaren-device.pub.json startech-vps:/tmp/school-car.pub.json
-```
-
-VPS'te açık kimliği CAM veritabanına kaydedin:
-
-```bash
+ssh startech-vps
 cd /srv/startech-cam/app
 sudo systemd-run --pipe --wait --collect --quiet \
   --uid=egemen --gid=egemen \
@@ -121,76 +98,81 @@ sudo systemd-run --pipe --wait --collect --quiet \
 rm /tmp/school-car.pub.json
 ```
 
-`list-yaren-devices` komutu açık anahtarları göstermeden kayıt ve devre dışı
-durumunu listeler. Anahtarın sızdığından şüphelenilirse araçta `web-key
---replace` ile yeni çift oluşturun ve VPS'te `rotate-yaren-device-key` kullanın.
-Kayıp veya emekli bir cihaz için:
+Rotate or disable a registered device with the corresponding Flask CLI command;
+never copy the private key to CAM. YAREN starts a 15-minute link with:
 
 ```bash
-sudo systemd-run --pipe --wait --collect --quiet \
-  --uid=egemen --gid=egemen \
-  --working-directory=/srv/startech-cam/app \
-  --property=EnvironmentFile=/etc/startech-cam.env \
-  /srv/startech-cam/venv/bin/flask --app wsgi:app \
-  disable-yaren-device --device school-car --actor Egemen
+python3 -m arac.ayar_cli web-code --server https://dymtal.avartech.net --usb-index 0
 ```
 
-## 6. YAREN'den geçici web kodu iste
+Ctrl+C asks CAM to revoke the link. A live camera-frame request opens KASIM's
+configured camera chain, captures one current frame, closes the device, and fails
+if no physical camera responds. It has no generated-image fallback.
 
-Kayıt tamamlandıktan sonra araçtaki YAREN tek kullanımlık kodu doğrudan ister:
+## One-command deployment
 
-```bash
-python3 -m arac.ayar_cli web-code --server https://dymtal.avartech.net
-```
-
-İstek iki adımdır. CAM önce iki dakika geçerli tek kullanımlık bir rastgele değer
-üretir. YAREN istek gövdesini Ed25519 özel anahtarıyla imzalar. CAM imzayı kayıtlı
-açık anahtarla doğrular, rastgele değeri tüketir ve yalnız bundan sonra sekiz
-karakterli erişim kodu üretir. Aynı imza veya rastgele değer tekrar kullanılamaz.
-
-VPS kabuğundan elle kod üretme yolu acil yönetim seçeneği olarak kalır:
+The target must be the exact full commit already present in `origin/master`. The
+script refuses a dirty checkout, another branch, a non-master target, or a
+non-fast-forward update. It creates an online SQLite backup, fast-forwards,
+installs dependencies, runs the CAM/YAREN/configuration/workshop checks, reloads
+Gunicorn, and waits until `/health` reports the requested revision. The complete
+repository suite, including OpenCV vehicle perception, is run before the release is
+merged; those vehicle-only dependencies are not installed into CAM's VPS environment.
 
 ```bash
 cd /srv/startech-cam/app
-sudo systemd-run --pipe --wait --collect --quiet \
-  --uid=egemen --gid=egemen \
-  --working-directory=/srv/startech-cam/app \
-  --property=EnvironmentFile=/etc/startech-cam.env \
-  /srv/startech-cam/venv/bin/flask --app wsgi:app \
-  issue-access-code --device school-car
+deployment/deploy_cam.sh <full-40-character-master-commit>
 ```
 
-Çıktı sekiz karakterli, tek kullanımlık ve 15 dakika geçerli koddur. Uzun
-kodun düz metni veritabanında tutulmaz. İnternet uç noktası anonim kod üretmez;
-yalnız önceden kaydedilmiş ve devre dışı olmayan YAREN anahtarları kabul edilir.
+For the first deployment that introduces the script, fetch the target and inspect
+it before running its committed copy. Do not pipe an unreviewed remote script into
+a privileged shell.
 
-Kod üretildikten sonra YAREN aynı komut içinde dışarı doğru geçici bir HTTPS bağlantısı
-açar ve kodun kalan süresi boyunca güvenli yapılandırma işlerini bekler. Terminali açık
-tutun. Ctrl+C bağlantıyı CAM tarafında iptal eder. Bu kanal yalnız etkin yapılandırmayı
-okuma, sınırlı yetenek raporu ve doğrulanmış yapılandırmayı **etkin olmayan** profil
-olarak kurma işlemlerini kabul eder; motor, direksiyon, arm etme veya profil etkinleştirme
-işlemi kabul etmez.
+If a test or health check fails, the script prints the online-backup path and exits
+non-zero. It does not rewrite Git history or silently restore an older schema.
 
-## 7. Güncelleme ve geri alma
+## Backups and recovery
 
-Her güncellemeden önce paylaşılan veritabanını yedekleyin. Uygulama dizininde
-yalnız doğrulanmış commit'i alın, bağımlılıkları eşitleyin ve hizmeti yeniden
-başlatın:
+Create a consistent snapshot while CAM is running:
 
 ```bash
-sudo systemctl stop startech-cam.service
-cp -a /srv/startech-cam/shared/cam.sqlite3 \
-  "/srv/startech-cam/shared/cam.sqlite3.$(date -u +%Y%m%dT%H%M%SZ).bak"
 cd /srv/startech-cam/app
-git pull --ff-only origin master
-/srv/startech-cam/venv/bin/pip install -r requirements.txt
-sudo systemctl start startech-cam.service
-curl --fail --silent http://127.0.0.1:8765/health
+/srv/startech-cam/venv/bin/python deployment/backup_cam.py --label manual
 ```
 
-Başlatma sırasında mevcut SAC/MAC kalibrasyonları silinmez. Atölye komut türünü
-ekleyen geçiş, `device_jobs` tablosunu aynı satırları kopyalayarak yeni kapalı işlem
-listesiyle yeniden kurar; bu nedenle güncellemeden önce yukarıdaki veritabanı yedeği
-zorunludur. Geri almak gerekirse hizmeti durdurun, önceki commit'e ayrı bir doğrulanmış
-çalışma ağacı kurun ve yedek veritabanını kullanın. Çalışan paylaşılan veritabanını
-körlemesine eski şemaya açmayın.
+The command uses SQLite's online backup API, verifies source and destination
+integrity, writes mode `0600`, and creates a SHA-256 sidecar. A backup that exists
+only on this VPS is not an off-site backup.
+
+For encrypted at-rest export, install `age`, use a recipient whose private key is
+not on the VPS, and copy both encrypted output and checksum elsewhere:
+
+```bash
+# Run on the VPS and copy the printed absolute path.
+deployment/encrypt_cam_backup.sh '<age-recipient>'
+
+# Then run on the off-site workstation.
+scp startech-vps:/srv/startech-cam/shared/backups/<printed-name>.age* <encrypted-offsite-directory>/
+```
+
+SSH encrypts transport; the `.age` file preserves encryption at rest. Test a
+restore periodically on a separate database path. For a real recovery, stop CAM,
+preserve the failed database, verify the selected backup and checksum, install it
+with owner `egemen`, group `egemen`, mode `0600`, and start CAM. Never open a new
+schema using an older checkout. Put rollback code in a separate reviewed worktree
+and decide database compatibility before switching the service.
+
+## Diagnostics
+
+Authenticated CAM users can download `startech-cam-diagnostic.json` from the
+dashboard. It contains the running release, SQLite integrity/counts, recent
+calibration metadata, and current-link configuration/capability/job records. It
+excludes credentials, access codes, remote addresses, session data, and captured
+JPEG bytes. KADER vehicle logs are explicitly not uploaded by the current link.
+
+For service failures, inspect only what is needed:
+
+```bash
+systemctl status startech-cam.service --no-pager
+journalctl -u startech-cam.service -n 100 --no-pager
+```
