@@ -68,7 +68,20 @@ git merge --ff-only "$CAM_TARGET_COMMIT"
     tests.test_profiles \
     tests.test_yaren_link \
     tests.test_yaren_web
-sudo systemctl reload "$CAM_SERVICE"
+
+CAM_MAIN_PID=$(systemctl show --property MainPID --value "$CAM_SERVICE")
+case "$CAM_MAIN_PID" in
+    ''|*[!0-9]*|0)
+        echo "CAM service has no live main process to reload" >&2
+        exit 1
+        ;;
+esac
+CAM_MAIN_USER=$(ps -o user= -p "$CAM_MAIN_PID" | awk '{$1=$1; print}')
+if [ "$CAM_MAIN_USER" != "$(id -un)" ]; then
+    echo "CAM service belongs to $CAM_MAIN_USER, not the deployment account" >&2
+    exit 1
+fi
+kill -HUP "$CAM_MAIN_PID"
 
 CAM_HEALTH_OK=0
 CAM_ATTEMPT=0

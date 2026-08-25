@@ -118,6 +118,9 @@ installs dependencies, runs the CAM/YAREN/configuration/workshop checks, reloads
 Gunicorn, and waits until `/health` reports the requested revision. The complete
 repository suite, including OpenCV vehicle perception, is run before the release is
 merged; those vehicle-only dependencies are not installed into CAM's VPS environment.
+The script verifies that systemd's live Gunicorn master belongs to the deployment
+account, then sends the same `SIGHUP` configured by `ExecReload`; it refuses an owner
+mismatch instead of requiring root access.
 
 ```bash
 cd /srv/startech-cam/app
