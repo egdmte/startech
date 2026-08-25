@@ -25,6 +25,7 @@ from startech.configuration.combined import split_v2
 ROOT = Path(__file__).resolve().parent.parent
 HEX_COMMIT = re.compile(r"^[0-9a-f]{40}$")
 GIT_NAME = re.compile(r"^[A-Za-z0-9._/-]+$")
+PUBLISHED_REFERENCE_FORMAT = "startech-published-revision-v1"
 ARCHIVE_PATHS = (
     "arac",
     "startech",
@@ -131,6 +132,54 @@ def _revision(root: Path, reference: str, source: str, timeout: float) -> Revisi
     return Revision(commit, parsed.isoformat(timespec="seconds"), source)
 
 
+def _published_revision(
+    root: Path,
+    reference_file: Path,
+    source: str,
+    timeout: float,
+) -> Revision:
+    try:
+        raw = reference_file.read_bytes()
+    except OSError as exc:
+        raise VehicleReleaseError("published repository reference is unavailable") from exc
+    if len(raw) > 4096:
+        raise VehicleReleaseError("published repository reference is too large")
+
+    def reject_duplicate(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise VehicleReleaseError("published repository reference has duplicate fields")
+            result[key] = value
+        return result
+
+    try:
+        document = json.loads(raw.decode("utf-8"), object_pairs_hook=reject_duplicate)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise VehicleReleaseError("published repository reference is invalid") from exc
+    if not isinstance(document, dict) or set(document) != {
+        "format",
+        "commit",
+        "updated_at_utc",
+    }:
+        raise VehicleReleaseError("published repository reference fields are invalid")
+    if document["format"] != PUBLISHED_REFERENCE_FORMAT:
+        raise VehicleReleaseError("published repository reference format is unsupported")
+    commit = document["commit"]
+    updated = document["updated_at_utc"]
+    if not isinstance(commit, str) or not HEX_COMMIT.fullmatch(commit):
+        raise VehicleReleaseError("published repository commit is invalid")
+    if not isinstance(updated, str):
+        raise VehicleReleaseError("published repository reference time is invalid")
+    try:
+        parsed_update = datetime.fromisoformat(updated)
+    except ValueError as exc:
+        raise VehicleReleaseError("published repository reference time is invalid") from exc
+    if parsed_update.tzinfo is None:
+        raise VehicleReleaseError("published repository reference time needs a UTC offset")
+    return _revision(root, commit, source, timeout)
+
+
 def _is_ancestor(root: Path, older: str, newer: str, timeout: float) -> bool:
     try:
         result = subprocess.run(
@@ -155,6 +204,7 @@ def inspect_release_sources(
     remote: str = "origin",
     branch: str = "master",
     remote_label: str = "published repository",
+    reference_file: Path | None = None,
     refresh_remote: bool = True,
     timeout: float = 20.0,
 ) -> ReleaseSources:
@@ -179,8 +229,21 @@ def inspect_release_sources(
 
     remote_current = False
     remote_error: str | None = None
+    repository: Revision | None = None
     remote_reference = f"refs/remotes/{checked_remote}/{checked_branch}"
-    if refresh_remote:
+    if reference_file is not None and reference_file.is_file():
+        try:
+            repository = _published_revision(
+                resolved_root,
+                reference_file.expanduser().resolve(),
+                checked_label,
+                timeout,
+            )
+            remote_current = True
+        except VehicleReleaseError:
+            repository = None
+            remote_error = f"{checked_label} reference is invalid or stale."
+    elif refresh_remote:
         destination = f"+refs/heads/{checked_branch}:{remote_reference}"
         try:
             _git(
@@ -192,10 +255,16 @@ def inspect_release_sources(
         except VehicleReleaseError:
             remote_error = f"{checked_label} refresh failed or timed out."
 
-    try:
-        repository = _revision(resolved_root, remote_reference, checked_label, timeout)
-    except VehicleReleaseError:
+    else:
         repository = None
+
+    if repository is None and remote_error is None:
+        try:
+            repository = _revision(
+                resolved_root, remote_reference, checked_label, timeout
+            )
+        except VehicleReleaseError:
+            repository = None
 
     if repository is None:
         relation = "remote-unavailable"

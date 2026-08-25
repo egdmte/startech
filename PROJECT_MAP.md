@@ -149,6 +149,9 @@ records source/profile/
 dependency hashes, and audits the download. The ZIP does not install, activate, arm,
 run, or physically verify the car. Browser self-update is deliberately unavailable;
 `deployment/deploy_cam.sh` remains the reviewed compatibility-named deployment path.
+The sandboxed web worker does not write Git refs or read `/home`; deployment and the
+published repository hook update one atomic commit-reference file in the shared service
+directory, which KERİM verifies against its read-only Git objects.
 
 ## Camera sessions
 

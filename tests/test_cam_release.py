@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 import zipfile
 
+from deployment.write_release_reference import write_reference
 from startech_cam.repository import DEFAULT_DOCUMENT
 from startech_cam.release import resolve_release
 from startech_cam.vehicle_release import (
@@ -97,6 +98,25 @@ class KerimVehicleBundleTest(unittest.TestCase):
             self.assertEqual(commit, sources.repository.commit)
             self.assertEqual("same", sources.relation)
             self.assertFalse(sources.remote_current)
+
+    def test_published_reference_is_verified_without_web_worker_git_writes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            commit = self.make_repository(root)
+            reference = root / "shared" / "published-master.json"
+            write_reference(
+                git_directory=root / ".git",
+                output=reference,
+                commit=commit,
+            )
+            sources = inspect_release_sources(
+                root=root,
+                refresh_remote=False,
+                reference_file=reference,
+            )
+            self.assertTrue(sources.remote_current)
+            self.assertEqual(commit, sources.repository.commit)
+            self.assertEqual("same", sources.relation)
 
     def test_bundle_contains_only_committed_source_and_one_profile(self):
         with tempfile.TemporaryDirectory() as directory:

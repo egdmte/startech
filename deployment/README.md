@@ -162,6 +162,23 @@ Creating the ZIP does not install, activate, boot, arm, command, or physically v
 the car. The disabled update control is intentional: update the live server only with
 the backup-first, fast-forward-only deployment command above.
 
+The systemd sandbox intentionally makes the checkout read-only and hides `/home`, so
+the web worker never fetches or edits Git refs. `deploy_cam.sh` writes the initial strict
+published-revision file under `shared/`. Install the tracked post-receive hook once so a
+later push to the VPS bare `master` updates that file before deployment:
+
+```bash
+test ! -e /home/egemen/ototot.git/hooks/post-receive
+ln -s /srv/startech-cam/app/deployment/post-receive.release-reference \
+  /home/egemen/ototot.git/hooks/post-receive
+```
+
+Do not replace an existing hook without reviewing and combining its behavior. The hook
+verifies the new commit inside the bare repository and atomically writes mode `0600`.
+KERİM then verifies that commit exists in the deployed checkout's Git objects before it
+offers the published-repository button. An invalid or unavailable reference remains
+non-selectable.
+
 ## Backups and recovery
 
 Create a consistent snapshot while KERİM is running:

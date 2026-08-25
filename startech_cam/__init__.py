@@ -51,10 +51,11 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     """Create KERİM with explicit, fail-closed production configuration."""
 
     app = Flask(__name__, instance_relative_config=True)
+    database_path = _environment(
+        "CAM_DATABASE", str(Path(app.instance_path) / "cam.sqlite3")
+    )
     app.config.from_mapping(
-        DATABASE=_environment(
-            "CAM_DATABASE", str(Path(app.instance_path) / "cam.sqlite3")
-        ),
+        DATABASE=database_path,
         SECRET_KEY=_environment("CAM_SESSION_SECRET"),
         CAM_PASSWORD=_environment("CAM_PASSWORD"),
         CAM_PASSWORD_HASH=_environment("CAM_PASSWORD_HASH"),
@@ -82,6 +83,13 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         KERIM_RELEASE_BRANCH=_environment("KERIM_RELEASE_BRANCH", "master"),
         KERIM_RELEASE_LABEL=_environment(
             "KERIM_RELEASE_LABEL", "Published repository"
+        ),
+        KERIM_RELEASE_REFERENCE_FILE=_environment(
+            "KERIM_RELEASE_REFERENCE_FILE",
+            str(
+                Path(database_path).expanduser().resolve().parent
+                / "published-master.json"
+            ),
         ),
         KERIM_RELEASE_FETCH_REMOTE=_environment(
             "KERIM_RELEASE_FETCH_REMOTE", "1"

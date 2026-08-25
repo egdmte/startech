@@ -131,12 +131,16 @@ def _vehicle_release_sources() -> ReleaseSources:
         and all(character in "0123456789abcdef" for character in configured_release)
         else "HEAD"
     )
+    reference_value = str(
+        current_app.config.get("KERIM_RELEASE_REFERENCE_FILE") or ""
+    ).strip()
     return inspect_release_sources(
         root=Path(str(current_app.config["KERIM_RELEASE_ROOT"])),
         server_reference=server_reference,
         remote=str(current_app.config["KERIM_RELEASE_REMOTE"]),
         branch=str(current_app.config["KERIM_RELEASE_BRANCH"]),
         remote_label=str(current_app.config["KERIM_RELEASE_LABEL"]),
+        reference_file=Path(reference_value) if reference_value else None,
         refresh_remote=bool(current_app.config["KERIM_RELEASE_FETCH_REMOTE"]),
         timeout=float(current_app.config["KERIM_RELEASE_GIT_TIMEOUT_SECONDS"]),
     )

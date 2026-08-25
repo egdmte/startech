@@ -11,6 +11,7 @@ CAM_APP_DIR=${CAM_APP_DIR:-/srv/startech-cam/app}
 CAM_PYTHON=${CAM_PYTHON:-/srv/startech-cam/venv/bin/python}
 CAM_PIP=${CAM_PIP:-/srv/startech-cam/venv/bin/pip}
 CAM_SERVICE=${CAM_SERVICE:-startech-cam.service}
+KERIM_RELEASE_REFERENCE_FILE=${KERIM_RELEASE_REFERENCE_FILE:-/srv/startech-cam/shared/published-master.json}
 
 case "$CAM_TARGET_COMMIT" in
     *[!0-9a-f]*|'')
@@ -68,6 +69,12 @@ git merge --ff-only "$CAM_TARGET_COMMIT"
     tests.test_profiles \
     tests.test_yaren_link \
     tests.test_yaren_web
+
+CAM_PUBLISHED_COMMIT=$(git rev-parse --verify 'origin/master^{commit}')
+"$CAM_PYTHON" deployment/write_release_reference.py \
+    --git-dir "$CAM_APP_DIR/.git" \
+    --output "$KERIM_RELEASE_REFERENCE_FILE" \
+    --commit "$CAM_PUBLISHED_COMMIT"
 
 CAM_MAIN_PID=$(systemctl show --property MainPID --value "$CAM_SERVICE")
 case "$CAM_MAIN_PID" in

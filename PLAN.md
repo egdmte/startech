@@ -207,7 +207,7 @@ listed in the historical index.
 | Dead-end behavior | `NOT IMPLEMENTED` | No current real end-to-end path | Same boundary |
 | Overtaking behavior | `NOT IMPLEMENTED` | No current real end-to-end path | Same boundary; intentionally last |
 
-The full Python suite passed on 25 August 2026 with 250 tests. That result proves the
+The full Python suite passed on 25 August 2026 with 251 tests. That result proves the
 checked software contracts only. Run the current commands again after every relevant
 change instead of relying on this count.
 
@@ -521,8 +521,12 @@ KERİM/YAREN/configuration/workshop checks, reload the service, and require that
 revision from `/health`. Encrypted off-site export is a separate deliberate operation.
 
 The authenticated vehicle-release page compares the exact deployed commit with a freshly
-fetched `origin/master`, or labels cached remote information as non-current. It builds a
-ZIP from Git objects, so uncommitted server files stay untouched and excluded. The ZIP
+published `origin/master`, or labels cached remote information as non-current. The
+systemd web worker keeps its read-only checkout and hidden home-directory sandbox: the
+deployment command and published repository hook atomically write a strict commit
+reference under KERİM's shared directory, and the worker verifies that commit against
+its local Git objects before offering it. It builds a ZIP from Git objects, so
+uncommitted server files stay untouched and excluded. The ZIP
 contains the chosen immutable KERİM/YAREN document and split v1 pair plus a manifest with
 source, profile, and dependency-file hashes and `PHYSICALLY UNVERIFIED` boundaries. A
 revision/profile change between review and submission is rejected. The download is

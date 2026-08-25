@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+
+KERIM_APP_DIR=${KERIM_APP_DIR:-/srv/startech-cam/app}
+KERIM_PYTHON=${KERIM_PYTHON:-/srv/startech-cam/venv/bin/python}
+KERIM_PUBLISHED_GIT_DIR=${KERIM_PUBLISHED_GIT_DIR:-/home/egemen/ototot.git}
+KERIM_RELEASE_REFERENCE_FILE=${KERIM_RELEASE_REFERENCE_FILE:-/srv/startech-cam/shared/published-master.json}
+
+while read -r _old_revision new_revision reference; do
+    if [ "$reference" = "refs/heads/master" ]; then
+        case "$new_revision" in
+            0000000000000000000000000000000000000000)
+                echo "master deletion does not publish a KERİM release reference" >&2
+                ;;
+            *)
+                "$KERIM_PYTHON" "$KERIM_APP_DIR/deployment/write_release_reference.py" \
+                    --git-dir "$KERIM_PUBLISHED_GIT_DIR" \
+                    --output "$KERIM_RELEASE_REFERENCE_FILE" \
+                    --commit "$new_revision"
+                ;;
+        esac
+    fi
+done
