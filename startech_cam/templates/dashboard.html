@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}CAM{% endblock %}
+{% block title %}KERİM{% endblock %}
 {% block content %}
 <section class="cam-center-panel" aria-labelledby="cam-title">
   <header class="cam-page-heading" data-motion data-motion-delay="1">
-    <p id="cam-title">Welcome to Calibration Arrangement and Management Tool (CAM)</p>
+    <p id="cam-title">Welcome to Kalibrasyon Erişim, Revizyon İnceleme Merkezi (KERİM)</p>
     <strong>Select an option to begin.</strong>
   </header>
   <div class="cam-action-stack" aria-label="Calibration options" data-motion data-motion-delay="2">
@@ -11,9 +11,10 @@
     <a class="cam-action cam-action--secondary" href="{{ url_for('cam.new_configuration', workflow='mac') }}">Create a MAC (Manual Assisted Calibration)</a>
     {% if car_linked %}<a class="cam-action cam-action--secondary" href="{{ url_for('cam.camera_calibration_start') }}">Calibrate the linked camera</a>{% endif %}
     <a class="cam-action cam-action--secondary" href="{{ url_for('auth.access') }}">{{ 'Manage connected YAREN' if car_linked else 'Connect YAREN' }}</a>
+    <a class="cam-action cam-action--secondary" href="{{ url_for('cam.vehicle_release') }}">Build a vehicle release</a>
   </div>
   <a class="cam-tertiary-action" href="{{ url_for('cam.history') }}">Access version history <span aria-hidden="true">→</span></a>
-  <a class="cam-tertiary-action" href="{{ url_for('cam.download_cam_diagnostic_bundle') }}" download>Download CAM diagnostic bundle <span aria-hidden="true">↓</span></a>
+  <a class="cam-tertiary-action" href="{{ url_for('cam.download_cam_diagnostic_bundle') }}" download>Download KERİM diagnostic bundle <span aria-hidden="true">↓</span></a>
   {% if calibrations %}
     <p class="dashboard-recent">{{ calibrations|length }} recent configuration{{ '' if calibrations|length == 1 else 's' }} available in version history.</p>
   {% endif %}

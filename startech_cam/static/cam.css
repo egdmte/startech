@@ -176,6 +176,89 @@ h2, h3 { font-size: 15px; }
 .cam-tertiary-action:hover, .text-button:hover { color: var(--cam-ink); text-decoration: underline; }
 .dashboard-recent { margin: 28px 0 0; color: #888; font-size: 13px; text-align: center; }
 
+/* KERİM's real, immutable vehicle-release builder. */
+.release-shell {
+  display: grid;
+  width: min(930px, calc(100% - 48px));
+  min-height: calc(100vh - 150px);
+  align-content: center;
+  justify-items: stretch;
+  gap: 22px;
+  margin: 0 auto;
+  padding: 74px 0 105px;
+}
+.release-heading { text-align: center; }
+.release-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  margin: 0 auto 13px;
+  place-items: center;
+  border: 3px solid currentColor;
+  border-radius: 8px;
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1;
+}
+.release-heading h1, .release-progress h2 { margin: 0 0 14px; font-size: 20px; }
+.release-heading p { margin: 0 auto; color: #505050; font-size: 17px; }
+.release-heading p + p { margin-top: 2px; }
+.release-profile { display: grid; width: min(724px, 100%); gap: 7px; margin: 2px auto 0; }
+.release-profile > label { color: #4e4e4e; font-size: 14px; font-weight: 600; }
+.release-profile-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+.release-profile select {
+  width: 100%;
+  min-height: 42px;
+  padding: 7px 10px;
+  border: 1px solid #aaa;
+  border-radius: 7px;
+  background: #fff;
+}
+.release-evidence {
+  display: grid;
+  width: min(724px, 100%);
+  margin: 0 auto;
+  border-top: 1px solid #c6c6c6;
+  border-bottom: 1px solid #c6c6c6;
+}
+.release-evidence > div { display: grid; grid-template-columns: 180px 1fr; gap: 20px; padding: 9px 4px; }
+.release-evidence > div + div { border-top: 1px solid #ddd; }
+.release-evidence span { color: #666; }
+.release-evidence strong { overflow-wrap: anywhere; font-weight: 600; }
+.release-notice {
+  display: grid;
+  width: min(724px, 100%);
+  gap: 3px;
+  margin: 0 auto;
+  padding: 12px 14px;
+  border-left: 5px solid #1464ff;
+  background: #f2f6ff;
+  font-size: 14px;
+}
+.release-notice--error { border-left-color: var(--cam-danger); background: #fff2f2; }
+.release-actions { display: grid; width: min(724px, 100%); gap: 10px; margin: 2px auto 0; }
+.release-actions form { display: grid; margin: 0; }
+.release-update-disabled {
+  color: #555;
+  background: linear-gradient(180deg, #eee, #ddd);
+  font-weight: 600;
+}
+.release-boundary { width: min(724px, 100%); margin: -5px auto 0; color: #777; font-size: 13px; text-align: center; }
+.release-progress {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  align-content: center;
+  justify-items: center;
+  padding: 40px;
+  background: var(--cam-surface);
+  text-align: center;
+}
+.release-progress:not([hidden]) { display: grid; }
+.release-progress p { margin: 0; color: #555; font-size: 18px; }
+.release-progress-detail { margin-top: 5px !important; font-size: 14px !important; overflow-wrap: anywhere; }
+.release-progress .text-button { margin-top: 25px; }
+
 .cam-account-bar {
   position: fixed;
   z-index: 90;
@@ -559,6 +642,11 @@ dd { margin: 0; overflow-wrap: anywhere; }
   .camera-calibration-page { width: calc(100% - 24px); padding-top: 30px; }
   .hsv-editor { grid-template-columns: 1fr; }
   .hsv-target { grid-column: auto; }
+  .release-shell { width: calc(100% - 28px); align-content: start; padding-top: 72px; }
+  .release-heading p { font-size: 15px; }
+  .release-profile-row { grid-template-columns: 1fr; }
+  .release-evidence > div { grid-template-columns: 1fr; gap: 3px; }
+  .release-progress { padding: 24px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Vehicle release · KERİM{% endblock %}
+{% block content %}
+<section class="release-shell" aria-labelledby="release-title" data-release-page>
+  <header class="release-heading" data-motion>
+    <div class="release-icon" aria-hidden="true">⇩</div>
+    <h1 id="release-title">Build a car release.</h1>
+    <p>KERİM can bundle an exact committed car version with one immutable calibration and give you a download link.</p>
+    <p>Uncommitted server files are never placed in the bundle.</p>
+  </header>
+
+  <form class="release-profile" method="get" data-motion data-motion-delay="2">
+    <label for="release-profile">Calibration included in the bundle</label>
+    <div class="release-profile-row">
+      <select id="release-profile" name="profile" {% if not calibrations %}disabled{% endif %}>
+        {% for calibration in calibrations %}
+          <option value="{{ calibration.tag }}" {% if calibration.tag == selected_tag %}selected{% endif %}>{{ calibration.name }} · {{ calibration.workflow }} · {{ calibration.tag }}</option>
+        {% endfor %}
+      </select>
+      <button class="secondary-button compact" type="submit" {% if not calibrations %}disabled{% endif %}>Compare</button>
+    </div>
+  </form>
+
+  {% if not calibrations %}
+    <div class="release-notice release-notice--error">No immutable calibration exists yet. Create or import one before building a vehicle release.</div>
+  {% elif release_error %}
+    <div class="release-notice release-notice--error"><strong>Source comparison unavailable.</strong><span>{{ release_error }}</span></div>
+  {% elif comparison %}
+    <div class="release-evidence" data-motion data-motion-delay="3">
+      <div><span>Selected calibration</span><strong>{{ selected_summary.name }} · {{ selected_tag }}</strong></div>
+      <div><span>Server revision</span><strong>{{ comparison.server.short }} · {{ comparison.server.committed_at_utc }}</strong></div>
+      {% if comparison.repository %}<div><span>{{ repository_label ~ ' revision' if comparison.remote_current else 'Cached ' ~ repository_label ~ ' revision (not selectable)' }}</span><strong>{{ comparison.repository.short }} · {{ comparison.repository.committed_at_utc }}</strong></div>{% endif %}
+    </div>
+
+    {% if comparison.server_dirty %}
+      <div class="release-notice"><strong>The server checkout has uncommitted files.</strong><span>They remain untouched and are excluded; the server option uses commit {{ comparison.server.short }} exactly.</span></div>
+    {% endif %}
+    {% if comparison.remote_error %}
+      <div class="release-notice"><strong>{{ repository_label }} could not be refreshed.</strong><span>KERİM will not present a cached revision as “latest.” The exact server revision is still available.</span></div>
+    {% endif %}
+
+    <div class="release-actions">
+      {% if comparison.differs %}
+        {% if comparison.remote_current %}
+          <form method="post" data-release-form data-release-source="{{ repository_label }} {{ comparison.repository.short }}" data-release-profile="{{ selected_tag }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="profile" value="{{ selected_tag }}">
+            <input type="hidden" name="source" value="repository">
+            <input type="hidden" name="expected_commit" value="{{ comparison.repository.commit }}">
+            <button class="cam-action cam-action--primary" type="submit">Download from {{ repository_label }} ({{ comparison.repository.short }})</button>
+          </form>
+        {% endif %}
+        <form method="post" data-release-form data-release-source="server {{ comparison.server.short }}" data-release-profile="{{ selected_tag }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="profile" value="{{ selected_tag }}">
+          <input type="hidden" name="source" value="server">
+          <input type="hidden" name="expected_commit" value="{{ comparison.server.commit }}">
+          <button class="cam-action cam-action--primary" type="submit">Download from server ({{ comparison.server.short }})</button>
+        </form>
+      {% else %}
+        <form method="post" data-release-form data-release-source="commit {{ comparison.server.short }}" data-release-profile="{{ selected_tag }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="profile" value="{{ selected_tag }}">
+          <input type="hidden" name="source" value="server">
+          <input type="hidden" name="expected_commit" value="{{ comparison.server.commit }}">
+          <button class="cam-action cam-action--primary" type="submit">Build and download</button>
+        </form>
+      {% endif %}
+      <button class="cam-action release-update-disabled" type="button" disabled>Server updates use the reviewed deployment command</button>
+    </div>
+    <p class="release-boundary">The ZIP is not an installation, activation, physical test, or driving result. Its manifest records that physical verification is still required.</p>
+  {% endif %}
+</section>
+
+<div class="release-progress" hidden data-release-progress role="status" aria-live="polite">
+  <div class="release-icon" aria-hidden="true">⇩</div>
+  <h2>Preparing the bundle</h2>
+  <p data-release-step>Verifying the selected revision and calibration…</p>
+  <p class="release-progress-detail" data-release-detail></p>
+  <button class="text-button" type="button" data-release-cancel>Cancel</button>
+</div>
+{% endblock %}

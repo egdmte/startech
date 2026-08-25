@@ -1,4 +1,4 @@
-"""SQLite lifecycle and schema for CAM."""
+"""SQLite lifecycle and schema for KERİM."""
 
 from __future__ import annotations
 
@@ -207,7 +207,7 @@ def _column_names(connection: sqlite3.Connection, table: str) -> set[str]:
 
 
 def _migrate_existing_database(connection: sqlite3.Connection) -> None:
-    """Apply additive migrations required by older CAM SQLite files."""
+    """Apply additive migrations required by older KERİM SQLite files."""
 
     access_code_columns = _column_names(connection, "access_codes")
     if "revoked_at" not in access_code_columns:

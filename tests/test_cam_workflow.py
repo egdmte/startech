@@ -403,7 +403,7 @@ class CamWorkflowTest(unittest.TestCase):
         self.assertEqual("MAC", workflow)
         self.assertIn("motors", touched)
         self.assertIsNotNone(mac_document["sac_niyeti"])
-        self.assertEqual("CAM MAC v0.1", mac_document["kalibrasyon"]["damga"]["olusturan"])
+        self.assertEqual("KERİM MAC v0.1", mac_document["kalibrasyon"]["damga"]["olusturan"])
         self.assertEqual(
             kisa_ozet_hesapla(mac_document["kalibrasyon"]),
             mac_document["kalibrasyon"]["damga"]["ozet"],

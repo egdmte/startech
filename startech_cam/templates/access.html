@@ -18,15 +18,15 @@
       <img class="access-icon" src="{{ url_for('static', filename='assets/email.png') }}" alt="" width="39" height="39">
       {% if has_car_access %}
       <h1 id="access-title">YAREN is connected.</h1>
-      <p class="access-explanation">You can use every normal CAM setting while the link remains available. Returning to CAM does not disconnect YAREN.</p>
-      <a class="cam-action cam-action--primary access-main-action" href="{{ url_for('cam.dashboard') }}">Open CAM</a>
+      <p class="access-explanation">You can use every normal KERİM setting while the link remains available. Returning to KERİM does not disconnect YAREN.</p>
+      <a class="cam-action cam-action--primary access-main-action" href="{{ url_for('cam.dashboard') }}">Open KERİM</a>
       <form method="post" action="{{ url_for('auth.continue_offline') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="offline-action" type="submit">Disconnect YAREN <span aria-hidden="true">→</span></button>
       </form>
       {% else %}
       <h1 id="access-title">Connect YAREN when you need the car.</h1>
-      <p class="access-explanation">Open YAREN, select its CAM action, and enter the one-use code here. The code stays available while that authenticated YAREN process remains connected.</p>
+      <p class="access-explanation">Open YAREN, select its KERİM action, and enter the one-use code here. The code stays available while that authenticated YAREN process remains connected.</p>
       <form class="code-form" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="code-entry">
@@ -37,7 +37,7 @@
           </button>
         </div>
       </form>
-      <a class="offline-action" href="{{ url_for('cam.dashboard') }}">Open CAM without linking now <span aria-hidden="true">→</span></a>
+      <a class="offline-action" href="{{ url_for('cam.dashboard') }}">Open KERİM without linking now <span aria-hidden="true">→</span></a>
       {% endif %}
     </div>
     <p class="reassurance" data-motion data-motion-delay="3">You can always change your mind.</p>

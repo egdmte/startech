@@ -25,8 +25,14 @@ camera-based perception. The car may be prepared for different races, but the
 camera-only rule is a project invariant: do not add another sensor as a shortcut.
 
 The canonical current modules are YAREN, KASIM, KEREM, DORA, KADER, TAWNT, OSMAN,
-ARDA, CAM, and SAC. Do not revive retired module aliases in current documentation or
+ARDA, KERİM, and SAC. KERİM means "Kalibrasyon Erişim, Revizyon İnceleme
+Merkezi." Do not revive retired module aliases in current documentation or
 new code.
+
+KERİM retains `startech_cam`, CAM-prefixed deployment files, existing URLs, the
+`CAM_*` environment interface, and the `STARTECH-CAM-DEVICE-V1` signing domain as
+compatibility contracts. These internal names do not rename the current product back
+to CAM and must not be changed casually as part of display-text cleanup.
 
 ---
 

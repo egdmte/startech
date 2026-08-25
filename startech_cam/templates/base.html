@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="STARTECH Calibration Arrangement and Management Tool">
-  <title>{% block title %}CAM{% endblock %} · STARTECH</title>
+  <meta name="description" content="STARTECH KERİM configuration and release centre">
+  <title>{% block title %}KERİM{% endblock %} · STARTECH</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&amp;display=swap" rel="stylesheet">
@@ -16,8 +16,8 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
   {% if session.get('authenticated') %}
-    <nav class="cam-account-bar" aria-label="CAM account and YAREN navigation">
-      <a href="{{ url_for('cam.dashboard') }}">CAM</a>
+    <nav class="cam-account-bar" aria-label="KERİM account and YAREN navigation">
+      <a href="{{ url_for('cam.dashboard') }}">KERİM</a>
       <a href="{{ url_for('auth.access') }}" class="{{ 'is-linked' if has_car_access else '' }}">{{ 'YAREN connected' if has_car_access else 'Connect YAREN' }}</a>
       <form method="post" action="{{ url_for('auth.logout') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

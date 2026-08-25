@@ -1,8 +1,10 @@
-"""Production web application for STARTECH calibration and supervised SAC.
+"""Production KERİM web application for STARTECH configuration and SAC.
 
-CAM validates configuration files and queues one closed, bounded workshop operation
+KERİM validates configuration files and queues one closed, bounded workshop operation
 to the linked YAREN device.  Physical motor code remains on the car, behind ARDA,
 TAWNT and OSMAN; the web process never imports a GPIO driver.
+
+The Python package and CAM_* environment names remain compatibility interfaces.
 """
 
 from __future__ import annotations
@@ -46,7 +48,7 @@ def _static_asset_version(app: Flask) -> str:
 
 
 def create_app(test_config: dict[str, Any] | None = None) -> Flask:
-    """Create CAM with explicit, fail-closed production configuration."""
+    """Create KERİM with explicit, fail-closed production configuration."""
 
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
@@ -73,6 +75,21 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         ),
         CAM_TRUST_PROXY=_environment("CAM_TRUST_PROXY", "0") == "1",
         CAM_RELEASE=resolve_release(),
+        KERIM_RELEASE_ROOT=_environment(
+            "KERIM_RELEASE_ROOT", str(Path(__file__).resolve().parent.parent)
+        ),
+        KERIM_RELEASE_REMOTE=_environment("KERIM_RELEASE_REMOTE", "origin"),
+        KERIM_RELEASE_BRANCH=_environment("KERIM_RELEASE_BRANCH", "master"),
+        KERIM_RELEASE_LABEL=_environment(
+            "KERIM_RELEASE_LABEL", "Published repository"
+        ),
+        KERIM_RELEASE_FETCH_REMOTE=_environment(
+            "KERIM_RELEASE_FETCH_REMOTE", "1"
+        )
+        == "1",
+        KERIM_RELEASE_GIT_TIMEOUT_SECONDS=_positive_integer(
+            "KERIM_RELEASE_GIT_TIMEOUT_SECONDS", 20
+        ),
         MAX_CONTENT_LENGTH=1_000_000,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
@@ -80,6 +97,10 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     )
     if test_config:
         app.config.update(test_config)
+    if app.config.get("TESTING") and (
+        test_config is None or "KERIM_RELEASE_FETCH_REMOTE" not in test_config
+    ):
+        app.config["KERIM_RELEASE_FETCH_REMOTE"] = False
 
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     Path(str(app.config["DATABASE"])).expanduser().resolve().parent.mkdir(
