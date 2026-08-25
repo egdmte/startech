@@ -15,7 +15,6 @@
   --cam-control-radius: 6px;
   --cam-content-width: 544px;
   --cam-copy-size: 17px;
-  --cam-session-size: 14px;
   --cam-action-height: 45px;
   --cam-frame-top: clamp(10px, calc(.983vw - .55px), 14px);
   --cam-frame-right: clamp(10px, calc(4.914vw - 42.72px), 30px);
@@ -162,27 +161,44 @@ h2, h3 { font-size: 15px; }
 .cam-tertiary-action:hover, .text-button:hover { color: var(--cam-ink); text-decoration: underline; }
 .dashboard-recent { margin: 28px 0 0; color: #888; font-size: 13px; text-align: center; }
 
-.cam-session {
-  position: absolute;
-  bottom: 11px;
-  left: 14px;
+.cam-account-bar {
+  position: fixed;
+  z-index: 90;
+  top: 12px;
+  right: 16px;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 5px;
-  font-size: var(--cam-session-size);
+  padding: 5px;
+  border: 1px solid #c8c8c8;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 3px 14px rgb(0 0 0 / 10%);
 }
-.cam-session-time { font-weight: 700; font-variant-numeric: tabular-nums; }
+.cam-account-bar a, .cam-account-bar button {
+  display: inline-flex;
+  min-height: 31px;
+  align-items: center;
+  padding: 5px 9px;
+  color: #3f3f3f;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  text-decoration: none;
+}
+.cam-account-bar a:hover, .cam-account-bar button:hover { color: #000; background: #ededed; }
+.cam-account-bar a.is-linked { color: #087a3f; font-weight: 700; }
+.cam-account-bar form { margin: 0; }
 .cam-workflow-footer {
   position: absolute;
   right: 38px;
   bottom: 11px;
   left: 14px;
-  display: grid;
-  grid-template-columns: max-content minmax(120px, 1fr);
-  align-items: center;
-  gap: 10px;
+  display: block;
 }
-.cam-workflow-footer .cam-session { position: static; }
 .cam-progress {
   height: 7px;
   overflow: hidden;
@@ -320,10 +336,6 @@ h2, h3 { font-size: 15px; }
   gap: 18px;
 }
 .school-logo { display: block; width: 29px; height: 28px; object-fit: contain; }
-.session-status { display: grid; justify-items: end; }
-.session-label { margin-bottom: 10px; font-size: 14px; white-space: nowrap; }
-.timer { display: flex; gap: 3px; font-variant-numeric: tabular-nums; }
-.timer-part { display: grid; width: 34px; height: 34px; place-items: center; color: #fff; background: #080808; font-size: 18px; font-weight: 600; }
 .access-panel { background: #f7f7f7; }
 .access-content { position: absolute; top: 36.23%; right: 4.3%; left: 4.27%; }
 .access-icon { display: block; width: 39px; height: 39px; margin-bottom: 12px; object-fit: contain; }
@@ -354,7 +366,9 @@ h2, h3 { font-size: 15px; }
   cursor: pointer;
   font-size: 18px;
   letter-spacing: -.035em;
+  text-decoration: none;
 }
+.access-main-action { width: min(290px, 100%); margin-top: 22px; }
 .reassurance { position: absolute; bottom: 27px; left: 3%; margin: 0; color: #9e9e9e; font-size: 18px; letter-spacing: -.035em; }
 
 /* Shared forms and the preserved MAC editor. */
@@ -514,11 +528,12 @@ dd { margin: 0; overflow-wrap: anywhere; }
   .row-actions { justify-content: flex-start; }
 }
 @media (max-width: 560px) {
+  .cam-account-bar { top: 7px; right: 7px; }
+  .cam-account-bar a, .cam-account-bar button { padding: 5px 7px; font-size: 12px; }
   .cam-frame { min-height: calc(100vh - 12px); margin: 6px; }
   .cam-center-panel { width: calc(100% - 36px); transform: translate(-50%, -53%); }
   .cam-stage-panel { left: 50%; }
-  .cam-workflow-footer { right: 14px; bottom: 14px; left: 14px; grid-template-columns: 1fr; }
-  .cam-workflow-footer .cam-session { justify-content: flex-start; }
+  .cam-workflow-footer { right: 14px; bottom: 14px; left: 14px; }
   .intro-copy { padding: 40px 22px; }
   .auth-panel { padding: 42px 22px 24px; }
   .auth-footer { align-items: flex-start; flex-direction: column-reverse; gap: 24px; }

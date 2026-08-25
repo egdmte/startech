@@ -10,6 +10,7 @@
     <a class="cam-action cam-action--primary" href="{{ url_for('cam.sac_source') }}">Create a SAC (Service Assisted Calibration)</a>
     <a class="cam-action cam-action--secondary" href="{{ url_for('cam.new_configuration', workflow='mac') }}">Create a MAC (Manual Assisted Calibration)</a>
     {% if car_linked %}<a class="cam-action cam-action--secondary" href="{{ url_for('cam.camera_calibration_start') }}">Calibrate the linked camera</a>{% endif %}
+    <a class="cam-action cam-action--secondary" href="{{ url_for('auth.access') }}">{{ 'Manage connected YAREN' if car_linked else 'Connect YAREN' }}</a>
   </div>
   <a class="cam-tertiary-action" href="{{ url_for('cam.history') }}">Access version history <span aria-hidden="true">→</span></a>
   <a class="cam-tertiary-action" href="{{ url_for('cam.download_cam_diagnostic_bundle') }}" download>Download CAM diagnostic bundle <span aria-hidden="true">↓</span></a>

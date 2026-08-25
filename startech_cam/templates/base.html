@@ -15,7 +15,16 @@
   {% block scripts %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
-  {% if session.get('authenticated') %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}" data-page-csrf>{% endif %}
+  {% if session.get('authenticated') %}
+    <nav class="cam-account-bar" aria-label="CAM account and YAREN navigation">
+      <a href="{{ url_for('cam.dashboard') }}">CAM</a>
+      <a href="{{ url_for('auth.access') }}" class="{{ 'is-linked' if has_car_access else '' }}">{{ 'YAREN connected' if has_car_access else 'Connect YAREN' }}</a>
+      <form method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Log out</button>
+      </form>
+    </nav>
+  {% endif %}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div class="flash-stack" role="status" aria-live="polite">
@@ -29,14 +38,7 @@
   {% block page %}
     <main class="cam-frame {% block frame_class %}{% endblock %}" data-page>
       {% block content %}{% endblock %}
-      {% block session_footer %}
-        {% if session.get('authenticated') %}
-          <footer class="cam-session" aria-live="polite">
-            <span>Your session will expire in</span>
-            <strong class="cam-session-time" data-session-clock data-session-expires-at="{{ session_expires_at }}">15:00</strong>
-          </footer>
-        {% endif %}
-      {% endblock %}
+      {% block session_footer %}{% endblock %}
     </main>
   {% endblock %}
 </body>

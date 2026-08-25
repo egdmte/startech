@@ -81,7 +81,9 @@ Open ARDA's YAREN gateway:
 py -m arac.main --yaren
 ```
 
-The signed, temporary link exposes only five operations:
+The signed live link exposes only five operations. It has no fixed 15-minute countdown:
+authenticated YAREN polls refresh a five-minute idle lease, while logout, Ctrl+C, manual
+disconnect, or an abandoned process closes it.
 
 1. read the active configuration;
 2. run a real camera and active lane-detector report;

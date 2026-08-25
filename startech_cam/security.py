@@ -139,18 +139,19 @@ def issue_access_code(device_id: str, *, link_id: str | None = None) -> str:
     if not normalized_device or len(normalized_device) > 80:
         raise ValueError("device id must contain between 1 and 80 characters")
     issued_at = now_epoch()
-    expires_at = issued_at + int(current_app.config["CAM_CODE_LIFETIME_SECONDS"])
     connection = get_db()
+    expires_at = issued_at + int(current_app.config["CAM_CODE_LIFETIME_SECONDS"])
     if link_id is not None:
         linked = connection.execute(
             """
-            SELECT 1 FROM device_links
+            SELECT expires_at FROM device_links
             WHERE link_id = ? AND device_id = ? AND revoked_at IS NULL AND expires_at > ?
             """,
             (link_id, normalized_device, issued_at),
         ).fetchone()
         if linked is None:
             raise ValueError("access code link is unavailable")
+        expires_at = int(linked["expires_at"])
     for _attempt in range(10):
         code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(8))
         try:
@@ -218,13 +219,25 @@ def consume_access_code_grant(code: str, actor: str) -> AccessGrant | None:
         return None
     device_id = str(row["device_id"])
     if link_id is not None:
+        lease_expires_at = current + int(
+            current_app.config["CAM_DEVICE_LINK_IDLE_SECONDS"]
+        )
         activated = connection.execute(
             """
-            UPDATE device_links SET activated_at = ?, activated_by = ?
+            UPDATE device_links
+            SET activated_at = ?, activated_by = ?, last_seen_at = ?, expires_at = ?
             WHERE link_id = ? AND device_id = ? AND activated_at IS NULL
               AND revoked_at IS NULL AND expires_at > ?
             """,
-            (current, actor[:120], link_id, device_id, current),
+            (
+                current,
+                actor[:120],
+                current,
+                lease_expires_at,
+                link_id,
+                device_id,
+                current,
+            ),
         ).rowcount
         if activated != 1:
             connection.rollback()

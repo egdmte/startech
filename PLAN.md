@@ -153,7 +153,7 @@ are:
 
 | Module | Current responsibility | Must not claim or own |
 |---|---|---|
-| YAREN | Immutable configuration/profile registry, runtime selection, and temporary CAM gateway | Physical calibration truth, motor movement, or vehicle readiness |
+| YAREN | Immutable configuration/profile registry, runtime selection, and authenticated live CAM gateway | Physical calibration truth, motor movement, or vehicle readiness |
 | KASIM | Open a real OpenCV USB camera first or Picamera2 camera second; normalize real RGB frames | Generated frames or silent source switching after a read failure |
 | KEREM | Produce cautious lane observations from KASIM frames and the selected calibration | Competition-task recognition that is not implemented |
 | DORA | Apply deterministic, explicit state transitions | Camera access, network access, logging, or motor output |
@@ -194,8 +194,8 @@ listed in the historical index.
 | ARDA autonomous lane-following path | `IMPLEMENTED` | Camera→controller→TAWNT→driver integration checks | The current core has not driven the physical car: `PHYSICALLY UNVERIFIED` |
 | ARDA bounded workshop output | `IMPLEMENTED` | Shared workshop executor checks | Actual motor response is `PHYSICALLY UNVERIFIED` |
 | CAM authentication, calibration workflow, storage, and history | `IMPLEMENTED` | CAM repository/auth/workflow checks, including perspective and HSV editing over a signed current frame | New values are installed inactive and remain `PHYSICALLY UNVERIFIED` |
-| Signed temporary YAREN/CAM link | `IMPLEMENTED` | Device identity, one-use code, five closed operations, strict signed receipts, expiry, and lifecycle checks | It is not needed for offline autonomous operation |
-| CAM release health, diagnostic export, backup, and deployment | `IMPLEMENTED` | Exact-revision health checks, redaction checks, SQLite integrity checks, and validated deployment/proxy scripts | The feature branch is not the deployed VPS release until merged and deliberately deployed |
+| Signed live YAREN/CAM link | `IMPLEMENTED` | Device identity, one-use code, five closed operations, strict signed receipts, heartbeat lease, and lifecycle checks | It is not needed for offline autonomous operation |
+| CAM release health, diagnostic export, backup, and deployment | `IMPLEMENTED` | Exact-revision health checks, redaction checks, SQLite integrity checks, and validated deployment/proxy scripts | Production runs the deliberately deployed `origin/master` revision reported by `/health` |
 | SAC linked camera/lane report | `IMPLEMENTED` | Device API, YAREN link, and UI checks | Its exact physical observation is limited to the connected camera session |
 | SAC bounded workshop command with legal name/time and cancel delay | `IMPLEMENTED` | Server bounds, closed operation, browser countdown, receipt, and observation checks | A human must separately record movement and stopping |
 | Traffic-light behavior | `NOT IMPLEMENTED` | DORA has a waiting state, but there is no real complete detector-to-motion behavior | Requires official-rule review, real captured data, and physical verification |
@@ -206,7 +206,7 @@ listed in the historical index.
 | Dead-end behavior | `NOT IMPLEMENTED` | No current real end-to-end path | Same boundary |
 | Overtaking behavior | `NOT IMPLEMENTED` | No current real end-to-end path | Same boundary; intentionally last |
 
-The full Python suite passed on 25 August 2026 with 246 tests. That result proves the
+The full Python suite passed on 25 August 2026 with 247 tests. That result proves the
 checked software contracts only. Run the current commands again after every relevant
 change instead of relying on this count.
 
@@ -449,8 +449,16 @@ preview, configuration exchange, and bounded workshop assistance.
 
 YAREN creates a signed request with its registered Ed25519 device identity. CAM returns
 a random one-use code. Entering that code binds the authenticated browser session to the
-same temporary outbound device link. The link closes on logout, expiry, YAREN shutdown,
-or interruption.
+same outbound device link. There is no fixed 15-minute browser or device-link countdown.
+Authenticated YAREN polling refreshes a five-minute idle lease, including the unused
+one-use code; an abandoned process therefore expires without shortening an active link.
+The link closes on explicit logout, manual disconnect, YAREN shutdown/interruption, or
+idle-lease expiry.
+
+The authenticated CAM navigation remains available while YAREN is linked. The operator
+can return to the dashboard, edit ordinary settings, or manage the YAREN connection
+without disconnecting and repeating login. A visible logout action is present on every
+authenticated CAM screen; logout also revokes the linked YAREN process.
 
 The operation list is closed:
 

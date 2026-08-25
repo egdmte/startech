@@ -37,7 +37,7 @@ arac/main.py             ARDA operator surface and orchestration
     +-- arac/surucu.py            controller, watchdog, OSMAN GPIO boundary
     +-- arac/atolye.py            shared bounded physical workshop executor
     +-- arac/yaren_web.py         signed CAM device identity/code request
-    +-- arac/yaren_link.py        closed temporary CAM operation link
+    +-- arac/yaren_link.py        closed authenticated CAM operation link
     +-- arac/yaren_diagnostics.py bounded real capability report
 ```
 
@@ -110,7 +110,9 @@ values were physically measured. See `Markdown/YAPILANDIRMA_SOZLESMESI.md`.
 ## CAM and SAC
 
 YAREN requests a one-use code with a registered Ed25519 device identity. The authenticated
-browser uses that code to bind to the same short-lived outbound link.
+browser uses that code to bind to the same outbound link. YAREN's authenticated heartbeat
+keeps a five-minute idle lease alive; CAM and the code have no fixed 15-minute countdown.
+Normal CAM navigation and logout remain available while the device is linked.
 
 The link accepts only:
 

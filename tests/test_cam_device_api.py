@@ -6,6 +6,7 @@ import base64
 import json
 import sqlite3
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -206,6 +207,19 @@ class CamDeviceApiTest(unittest.TestCase):
         self.assertEqual({"state": "PENDING", "job": None}, pending.get_json())
 
         with self.app.app_context():
+            row = get_db().execute(
+                """
+                SELECT device_links.expires_at AS link_expires_at,
+                       access_codes.expires_at AS code_expires_at
+                FROM device_links JOIN access_codes USING (link_id)
+                WHERE device_links.link_id = ?
+                """,
+                (issued["link_id"],),
+            ).fetchone()
+            self.assertEqual(row["link_expires_at"], row["code_expires_at"])
+            self.assertGreaterEqual(row["link_expires_at"], int(time.time()) + 295)
+
+        with self.app.app_context():
             grant = consume_access_code_grant(issued["access_code"], "student")
             self.assertEqual(issued["link_id"], grant.link_id)
 
@@ -282,10 +296,11 @@ class CamDeviceApiTest(unittest.TestCase):
             "/api/device/v1/link/close", base, issued["link_token"]
         )
         self.assertEqual(200, closed.status_code)
-        rejected = self.link_post(
+        terminal = self.link_post(
             "/api/device/v1/link/poll", base, issued["link_token"]
         )
-        self.assertEqual(401, rejected.status_code)
+        self.assertEqual(200, terminal.status_code)
+        self.assertEqual({"state": "CLOSED", "job": None}, terminal.get_json())
 
         with self.app.app_context():
             connection = get_db()
@@ -302,6 +317,31 @@ class CamDeviceApiTest(unittest.TestCase):
                     "SELECT status FROM device_jobs WHERE job_id = ?", (job_id,)
                 ).fetchone()["status"],
             )
+
+    def test_expired_link_reports_terminal_state_without_refreshing(self):
+        challenge = self.challenge().get_json()["challenge"]
+        issued = self.signed_access(challenge).get_json()
+        with self.app.app_context():
+            connection = get_db()
+            connection.execute(
+                "UPDATE device_links SET expires_at = 0 WHERE link_id = ?",
+                (issued["link_id"],),
+            )
+            connection.commit()
+
+        response = self.link_post(
+            "/api/device/v1/link/poll",
+            {"device_id": self.device_id, "link_id": issued["link_id"]},
+            issued["link_token"],
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertEqual({"state": "EXPIRED", "job": None}, response.get_json())
+        with self.app.app_context():
+            expires_at = get_db().execute(
+                "SELECT expires_at FROM device_links WHERE link_id = ?",
+                (issued["link_id"],),
+            ).fetchone()["expires_at"]
+            self.assertEqual(0, expires_at)
 
     def test_changed_body_and_wrong_key_fail_without_consuming_challenge(self):
         challenge = self.challenge().get_json()["challenge"]

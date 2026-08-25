@@ -162,7 +162,7 @@ def create_device_link(device_id: str) -> DeviceLinkCredentials:
     if device is None:
         raise DeviceLinkError("device is not registered or is disabled")
     issued_at = now_epoch()
-    expires_at = issued_at + int(current_app.config["CAM_CAR_ACCESS_LIFETIME_SECONDS"])
+    expires_at = issued_at + int(current_app.config["CAM_DEVICE_LINK_IDLE_SECONDS"])
     for _attempt in range(10):
         link_id = uuid.uuid4().hex
         token = secrets.token_urlsafe(32)
@@ -185,15 +185,26 @@ def create_device_link(device_id: str) -> DeviceLinkCredentials:
 
 def activate_device_link(link_id: str, *, device_id: str, actor: str) -> bool:
     current = now_epoch()
+    lease_expires_at = current + int(
+        current_app.config["CAM_DEVICE_LINK_IDLE_SECONDS"]
+    )
     connection = get_db()
     changed = connection.execute(
         """
         UPDATE device_links
-        SET activated_at = ?, activated_by = ?
+        SET activated_at = ?, activated_by = ?, last_seen_at = ?, expires_at = ?
         WHERE link_id = ? AND device_id = ? AND activated_at IS NULL
           AND revoked_at IS NULL AND expires_at > ?
         """,
-        (current, actor[:120], link_id, device_id, current),
+        (
+            current,
+            actor[:120],
+            current,
+            lease_expires_at,
+            link_id,
+            device_id,
+            current,
+        ),
     ).rowcount
     connection.commit()
     if changed:
@@ -236,26 +247,43 @@ def authenticate_device_link(
     *,
     require_active: bool,
 ) -> str:
-    """Authenticate one bearer token and return PENDING or ACTIVE."""
+    """Authenticate one bearer token and refresh its live-device idle lease."""
 
     current = now_epoch()
-    row = get_db().execute(
+    connection = get_db()
+    row = connection.execute(
         """
-        SELECT token_digest, activated_at FROM device_links
-        WHERE link_id = ? AND device_id = ? AND revoked_at IS NULL AND expires_at > ?
+        SELECT token_digest, activated_at, expires_at, revoked_at FROM device_links
+        WHERE link_id = ? AND device_id = ?
         """,
-        (link_id, device_id, current),
+        (link_id, device_id),
     ).fetchone()
     supplied = _token_digest(token)
     if row is None or not hmac.compare_digest(str(row["token_digest"]), supplied):
         raise DeviceLinkError("device link was not accepted")
-    state = "ACTIVE" if row["activated_at"] is not None else "PENDING"
+    if row["revoked_at"] is not None:
+        state = "CLOSED"
+    elif int(row["expires_at"]) <= current:
+        state = "EXPIRED"
+    else:
+        state = "ACTIVE" if row["activated_at"] is not None else "PENDING"
     if require_active and state != "ACTIVE":
-        raise DeviceLinkError("device link has not been activated by its access code")
-    connection = get_db()
+        raise DeviceLinkError("device link is not active")
+    if state in {"CLOSED", "EXPIRED"}:
+        return state
+    lease_expires_at = current + int(
+        current_app.config["CAM_DEVICE_LINK_IDLE_SECONDS"]
+    )
     connection.execute(
-        "UPDATE device_links SET last_seen_at = ? WHERE link_id = ?",
-        (current, link_id),
+        "UPDATE device_links SET last_seen_at = ?, expires_at = ? WHERE link_id = ?",
+        (current, lease_expires_at, link_id),
+    )
+    connection.execute(
+        """
+        UPDATE access_codes SET expires_at = ?
+        WHERE link_id = ? AND consumed_at IS NULL AND revoked_at IS NULL
+        """,
+        (lease_expires_at, link_id),
     )
     connection.commit()
     return state

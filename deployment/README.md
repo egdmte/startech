@@ -99,15 +99,18 @@ rm /tmp/school-car.pub.json
 ```
 
 Rotate or disable a registered device with the corresponding Flask CLI command;
-never copy the private key to CAM. YAREN starts a 15-minute link with:
+never copy the private key to CAM. YAREN starts one authenticated live link with:
 
 ```bash
 python3 -m arac.ayar_cli web-code --server https://dymtal.avartech.net --usb-index 0
 ```
 
-Ctrl+C asks CAM to revoke the link. A live camera-frame request opens KASIM's
-configured camera chain, captures one current frame, closes the device, and fails
-if no physical camera responds. It has no generated-image fallback.
+The one-use code and link remain available while that YAREN process polls CAM. Each
+authenticated poll refreshes the idle lease; the default cleanup threshold is five
+minutes (`CAM_DEVICE_LINK_IDLE_SECONDS=300`). Ctrl+C asks CAM to revoke the link.
+A live camera-frame request opens KASIM's configured camera chain, captures one current
+frame, closes the device, and fails if no physical camera responds. It has no
+generated-image fallback.
 
 ## One-command deployment
 

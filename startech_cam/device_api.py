@@ -23,7 +23,7 @@ from .device_link import (
     store_capability_report,
     store_device_snapshot,
 )
-from .security import issue_access_code, now_epoch
+from .security import issue_access_code
 
 
 device_api_blueprint = Blueprint("device_api", __name__, url_prefix="/api/device/v1")
@@ -131,8 +131,7 @@ def access_code():
         {
             "access_code": code,
             "device_id": device_id,
-            "expires_at": now_epoch()
-            + int(current_app.config["CAM_CODE_LIFETIME_SECONDS"]),
+            "expires_at": link.expires_at,
             "link_id": link.link_id,
             "link_token": link.link_token,
             "single_use": True,

@@ -7,7 +7,6 @@
     <header class="finish-welcome" data-motion data-motion-delay="1"><span>Welcome</span><strong>{{ current_actor }}</strong></header>
     <footer class="finish-session-footer" data-motion data-motion-delay="3">
       <img class="finish-school-logo" src="{{ url_for('static', filename='assets/school-logo.png') }}" alt="STARTECH school mark" width="29" height="28">
-      <div class="finish-session-status"><span class="finish-session-label">Your session will expire in</span><div class="finish-timer"><span class="finish-timer-part" data-session-minutes>15</span><span class="finish-timer-part" data-session-seconds>00</span><span class="visually-hidden" data-session-clock data-session-expires-at="{{ session_expires_at }}">15:00</span></div></div>
     </footer>
   </aside>
   <section class="finish-stage" aria-labelledby="created-title">

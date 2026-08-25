@@ -7,7 +7,6 @@ TAWNT and OSMAN; the web process never imports a GPIO driver.
 
 from __future__ import annotations
 
-from datetime import timedelta
 import hashlib
 import os
 from pathlib import Path
@@ -50,7 +49,6 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     """Create CAM with explicit, fail-closed production configuration."""
 
     app = Flask(__name__, instance_relative_config=True)
-    session_lifetime = _positive_integer("CAM_SESSION_LIFETIME_SECONDS", 15 * 60)
     app.config.from_mapping(
         DATABASE=_environment(
             "CAM_DATABASE", str(Path(app.instance_path) / "cam.sqlite3")
@@ -59,7 +57,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         CAM_PASSWORD=_environment("CAM_PASSWORD"),
         CAM_PASSWORD_HASH=_environment("CAM_PASSWORD_HASH"),
         CAM_CODE_LIFETIME_SECONDS=15 * 60,
-        CAM_CAR_ACCESS_LIFETIME_SECONDS=15 * 60,
+        CAM_DEVICE_LINK_IDLE_SECONDS=_positive_integer(
+            "CAM_DEVICE_LINK_IDLE_SECONDS", 5 * 60
+        ),
         CAM_LOGIN_LIMIT=5,
         CAM_LOGIN_WINDOW_SECONDS=15 * 60,
         CAM_ACCESS_CODE_LIMIT=8,
@@ -71,12 +71,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         CAM_DEVICE_REQUEST_WINDOW_SECONDS=_positive_integer(
             "CAM_DEVICE_REQUEST_WINDOW_SECONDS", 15 * 60
         ),
-        CAM_SESSION_LIFETIME_SECONDS=session_lifetime,
         CAM_TRUST_PROXY=_environment("CAM_TRUST_PROXY", "0") == "1",
         CAM_RELEASE=resolve_release(),
         MAX_CONTENT_LENGTH=1_000_000,
-        PERMANENT_SESSION_LIFETIME=timedelta(seconds=session_lifetime),
-        SESSION_REFRESH_EACH_REQUEST=False,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=_environment("CAM_COOKIE_SECURE", "1") != "0",

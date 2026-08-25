@@ -1,4 +1,4 @@
-"""Closed-protocol tests for YAREN's temporary CAM configuration link."""
+"""Closed-protocol tests for YAREN's authenticated CAM configuration link."""
 
 from __future__ import annotations
 
@@ -75,6 +75,7 @@ class YarenTemporaryLinkTest(unittest.TestCase):
                 },
             },
             {"state": "ACTIVE", "job": None},
+            {"state": "CLOSED", "job": None},
         ]
         calls: list[tuple[str, dict[str, object], str]] = []
 
@@ -118,7 +119,7 @@ class YarenTemporaryLinkTest(unittest.TestCase):
             sleep=sleep,
         )
 
-        self.assertEqual(LinkRunResult("EXPIRED", 1, 0), result)
+        self.assertEqual(LinkRunResult("CLOSED", 1, 0), result)
         self.assertEqual(self.active_id, self.store.load_active_profile().manifest.profile_id)
         profiles = self.store.list_profiles(include_archived=False)
         self.assertEqual(2, len(profiles))
@@ -173,6 +174,7 @@ class YarenTemporaryLinkTest(unittest.TestCase):
                 "payload": payload,
             }},
             {"state": "ACTIVE", "job": None},
+            {"state": "CLOSED", "job": None},
         ]
         receipts = []
         executed: list[WorkshopCommand] = []
@@ -218,7 +220,7 @@ class YarenTemporaryLinkTest(unittest.TestCase):
             sleep=sleep,
         )
 
-        self.assertEqual(LinkRunResult("EXPIRED", 1, 0), result)
+        self.assertEqual(LinkRunResult("CLOSED", 1, 0), result)
         self.assertEqual(1, len(executed))
         self.assertEqual("Ada Lovelace", executed[0].operator)
         self.assertEqual("CAM_SAC", executed[0].source)
@@ -235,7 +237,8 @@ class YarenTemporaryLinkTest(unittest.TestCase):
                     "operation": "CAPTURE_CALIBRATION_FRAME",
                     "payload": {"draft_id": "d" * 32, "requested_at": 1000},
                 },
-            }
+            },
+            {"state": "CLOSED", "job": None},
         ]
         receipts = []
         collector_calls = []
@@ -273,26 +276,29 @@ class YarenTemporaryLinkTest(unittest.TestCase):
             sleep=lambda _seconds: moment.__setitem__(0, moment[0] + 5),
         )
 
-        self.assertEqual(LinkRunResult("EXPIRED", 1, 0), result)
+        self.assertEqual(LinkRunResult("CLOSED", 1, 0), result)
         self.assertEqual(2, collector_calls[0]["usb_index"])
         self.assertEqual("usb:0", receipts[0]["receipt"]["source"])
         self.assertTrue(receipts[0]["accepted"])
 
     def test_expired_workshop_job_is_rejected_before_the_executor(self):
-        polls = [{"state": "ACTIVE", "job": {
-            "job_id": "f" * 32,
-            "operation": "RUN_BOUNDED_WORKSHOP_COMMAND",
-            "payload": {
-                "draft_id": "d" * 32,
-                "operator": "Ada Lovelace",
-                "issued_at": 950,
-                "expires_at": 970,
-                "left_percent": 10,
-                "right_percent": 10,
-                "duration_seconds": 0.25,
-                "inspection": ["wheels-secured", "motors-mounted", "path-clear"],
-            },
-        }}]
+        polls = [
+            {"state": "ACTIVE", "job": {
+                "job_id": "f" * 32,
+                "operation": "RUN_BOUNDED_WORKSHOP_COMMAND",
+                "payload": {
+                    "draft_id": "d" * 32,
+                    "operator": "Ada Lovelace",
+                    "issued_at": 950,
+                    "expires_at": 970,
+                    "left_percent": 10,
+                    "right_percent": 10,
+                    "duration_seconds": 0.25,
+                    "inspection": ["wheels-secured", "motors-mounted", "path-clear"],
+                },
+            }},
+            {"state": "CLOSED", "job": None},
+        ]
         receipt = []
         moment = [1000]
 
@@ -313,7 +319,7 @@ class YarenTemporaryLinkTest(unittest.TestCase):
             epoch=lambda: moment[0],
             sleep=lambda _seconds: moment.__setitem__(0, moment[0] + 5),
         )
-        self.assertEqual(LinkRunResult("EXPIRED", 0, 1), result)
+        self.assertEqual(LinkRunResult("CLOSED", 0, 1), result)
         self.assertFalse(receipt[0]["accepted"])
         self.assertIn("expired", receipt[0]["receipt"]["error"])
 

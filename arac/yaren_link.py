@@ -431,7 +431,7 @@ def run_temporary_link(
     epoch: Callable[[], int] = lambda: int(time.time()),
     sleep: Callable[[float], None] = time.sleep,
 ) -> LinkRunResult:
-    """Maintain one link until expiry; Ctrl+C is handled by the CLI caller."""
+    """Maintain one link while CAM accepts the authenticated YAREN heartbeat."""
 
     if timeout <= 0 or timeout > 60:
         raise YarenLinkError("timeout must be greater than zero and at most 60 seconds")
@@ -445,7 +445,7 @@ def run_temporary_link(
     synchronized = False
     accepted_jobs = 0
     rejected_jobs = 0
-    while epoch() < access.expires_at:
+    while True:
         response = selected_transport(
             server + POLL_PATH,
             _base_payload(access),
@@ -455,8 +455,18 @@ def run_temporary_link(
         if set(response) != {"state", "job"} or response["state"] not in {
             "PENDING",
             "ACTIVE",
+            "CLOSED",
+            "EXPIRED",
         }:
             raise YarenLinkError("CAM link poll response is malformed")
+        if response["state"] in {"CLOSED", "EXPIRED"}:
+            final_state = str(response["state"])
+            status(
+                "The CAM link closed. The vehicle remains unarmed."
+                if final_state == "CLOSED"
+                else "The inactive CAM link lease expired. The vehicle remains unarmed."
+            )
+            return LinkRunResult(final_state, accepted_jobs, rejected_jobs)
         if response["state"] == "PENDING":
             status("Waiting for the random code to be entered in CAM.")
             sleep(poll_interval)
@@ -562,8 +572,6 @@ def run_temporary_link(
                     )
                 status(f"Rejected CAM job {job_id}: {exc}")
         sleep(poll_interval)
-    status("The temporary CAM link expired. The vehicle remains unarmed.")
-    return LinkRunResult("EXPIRED", accepted_jobs, rejected_jobs)
 
 
 __all__ = [

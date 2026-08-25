@@ -111,9 +111,10 @@ class CamInterfaceTest(unittest.TestCase):
         access = self.client.get("/access")
         self.assertIn(b'class="access-shell"', access.data)
         self.assertIn(b"Egemen Yusuf Kayra", access.data)
-        self.assertIn(b"Prove that you possess the code", access.data)
+        self.assertIn(b"Connect YAREN when you need the car", access.data)
         self.assertIn(b"assets/email.png", access.data)
-        self.assertIn(b'action="/access/offline"', access.data)
+        self.assertIn(b"Open CAM without linking now", access.data)
+        self.assertIn(b'action="/logout"', access.data)
 
     def test_dashboard_uses_cam_actions_and_starts_staged_sac(self):
         self.authenticate()
@@ -235,7 +236,7 @@ class CamInterfaceTest(unittest.TestCase):
         javascript = javascript_response.get_data(as_text=True)
         javascript_response.close()
         self.assertNotIn("sessionStorage", javascript)
-        self.assertIn("data-session-clock", javascript)
+        self.assertNotIn("data-session-clock", javascript)
 
 
 if __name__ == "__main__":

@@ -120,7 +120,6 @@ class CamWorkflowTest(unittest.TestCase):
         with self.client.session_transaction() as browser_session:
             browser_session["device_id"] = device_id
             browser_session["device_link_id"] = link_id
-            browser_session["car_access_expires_at"] = current + 600
         return link_id, device_id
 
     def report_active_configuration(self, link_id: str, device_id: str) -> None:

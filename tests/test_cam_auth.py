@@ -154,6 +154,12 @@ class CamAuthTest(unittest.TestCase):
         with self.client.session_transaction() as browser_session:
             self.assertEqual(link.link_id, browser_session["device_link_id"])
             self.assertEqual("YAREN-linked", browser_session["device_id"])
+            self.assertNotIn("car_access_expires_at", browser_session)
+
+        linked_access = self.client.get("/access")
+        self.assertIn(b"YAREN is connected", linked_access.data)
+        self.assertIn(b'href="/dashboard"', linked_access.data)
+        self.assertEqual(200, self.client.get("/dashboard").status_code)
 
         with self.app.app_context():
             draft_id = create_draft(
@@ -207,23 +213,16 @@ class CamAuthTest(unittest.TestCase):
         )
         self.assertEqual(429, limited.status_code)
 
-    def test_session_deadline_is_enforced_and_not_visually_reset(self):
-        self.login()
+    def test_browser_session_has_no_fixed_countdown_and_logout_is_visible(self):
+        login = self.login()
+        self.assertNotIn("Max-Age", login.headers.get("Set-Cookie", ""))
         dashboard = self.client.get("/dashboard")
         self.assertEqual(200, dashboard.status_code)
         with self.client.session_transaction() as browser_session:
-            deadline = browser_session["session_expires_at"]
-        self.assertIn(
-            f'data-session-expires-at="{deadline}"'.encode(), dashboard.data
-        )
-
-        with self.client.session_transaction() as browser_session:
-            browser_session["session_expires_at"] = 0
-        expired = self.client.get("/dashboard")
-        self.assertEqual(302, expired.status_code)
-        self.assertIn("/login?next=/dashboard", expired.location)
-        with self.client.session_transaction() as browser_session:
-            self.assertNotIn("authenticated", browser_session)
+            self.assertTrue(browser_session["authenticated"])
+            self.assertNotIn("session_expires_at", browser_session)
+        self.assertNotIn(b"data-session-clock", dashboard.data)
+        self.assertIn(b'action="/logout"', dashboard.data)
 
     def test_diagnostic_bundle_is_authenticated_and_excludes_credentials(self):
         self.login()

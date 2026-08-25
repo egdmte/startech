@@ -1,22 +1,6 @@
 (function () {
   "use strict";
 
-  const clocks = [...document.querySelectorAll("[data-session-clock]")];
-  if (clocks.length) {
-    const expiresAt = Number(clocks[0].dataset.sessionExpiresAt) * 1000;
-    const updateClock = () => {
-      const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
-      const minutes = String(Math.floor(remaining / 60)).padStart(2, "0");
-      const seconds = String(remaining % 60).padStart(2, "0");
-      clocks.forEach((clock) => { clock.textContent = `${minutes}:${seconds}`; });
-      document.querySelectorAll("[data-session-minutes]").forEach((part) => { part.textContent = minutes; });
-      document.querySelectorAll("[data-session-seconds]").forEach((part) => { part.textContent = seconds; });
-      if (remaining === 0) window.location.replace("/login?expired=1");
-    };
-    updateClock();
-    window.setInterval(updateClock, 1000);
-  }
-
   document.querySelectorAll("[data-range]").forEach((input) => {
     const output = input.closest("label")?.querySelector("[data-range-output]");
     if (!output) return;

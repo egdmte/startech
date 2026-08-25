@@ -410,7 +410,7 @@ def _run_command(args, console: TerminalUI, store: ProfileStore) -> int:
             (
                 ("device", code.device_id),
                 ("code", code.access_code),
-                ("expires at", code.expires_at),
+                ("link lifetime", "while this YAREN process remains connected"),
                 ("use", "single use"),
                 ("vehicle", "NOT ARMED"),
             ),
@@ -727,7 +727,7 @@ def _connect_to_cam(console: TerminalUI, store: ProfileStore) -> None:
         (
             ("device", code.device_id),
             ("code", code.access_code),
-            ("expires at", code.expires_at),
+            ("link lifetime", "while this YAREN process remains connected"),
             ("vehicle", "NOT ARMED"),
         ),
         style=TerminalUI.GREEN,
