@@ -22,9 +22,9 @@
       {% endif %}
       <form method="post" action="{{ url_for('cam.capture_camera_calibration_frame', draft_id=draft_id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="cam-action cam-action--primary" type="submit">{{ 'Request another live frame' if frame_job else 'Capture live frame' }}</button>
+        <button class="cam-action cam-action--primary" type="submit">{{ reicon('camera') }}<span>{{ 'Request another live frame' if frame_job else 'Capture live frame' }}</span></button>
       </form>
-      <a class="cam-action cam-action--secondary" href="{{ url_for('cam.dashboard') }}">Cancel</a>
+      <a class="cam-action cam-action--secondary" href="{{ url_for('cam.dashboard') }}">{{ reicon('x-circle') }}<span>Cancel</span></a>
     </div>
   {% else %}
     <div class="frame-evidence-line">
@@ -70,8 +70,8 @@
 
       <div class="calibration-save-panel">
         <p><strong>Save result:</strong> one immutable KERİM calibration plus one queued inactive YAREN profile. Physical verification remains false.</p>
-        <button class="cam-action cam-action--primary" type="submit">Create inactive profile</button>
-        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.camera_calibration_editor', draft_id=draft_id) }}">Discard this frame</a>
+        <button class="cam-action cam-action--primary" type="submit">{{ reicon('save') }}<span>Create inactive profile</span></button>
+        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.camera_calibration_editor', draft_id=draft_id) }}">{{ reicon('x-circle') }}<span>Discard this frame</span></a>
       </div>
     </form>
   {% endif %}

@@ -12,8 +12,8 @@
     <label class="visually-hidden" for="calibration-name">Calibration name</label>
     <input class="cam-input" id="calibration-name" name="name" maxlength="80" placeholder="MySAC" required value="{{ entered_name or '' }}">
     <div class="sac-name-actions">
-      <button class="cam-action cam-action--primary" type="submit">Agree</button>
-      <a class="cam-action cam-action--secondary" href="{{ url_for('cam.sac_source') }}">Choose another source</a>
+      <button class="cam-action cam-action--primary" type="submit">{{ reicon('check') }}<span>Agree</span></button>
+      <a class="cam-action cam-action--secondary" href="{{ url_for('cam.sac_source') }}">{{ reicon('arrow-left2') }}<span>Choose another source</span></a>
     </div>
   </form>
 </section>

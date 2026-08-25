@@ -1,3 +1,8 @@
+{% macro reicon(name, extra_class='') -%}
+  <svg class="reicon{{ ' ' ~ extra_class if extra_class else '' }}" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none">
+    <use href="{{ url_for('static', filename='assets/reicon.svg', v=cam_asset_version) }}#ri-{{ name }}"></use>
+  </svg>
+{%- endmacro -%}
 <!doctype html>
 <html lang="en">
 <head>
@@ -17,11 +22,11 @@
 <body class="{% block body_class %}{% endblock %}">
   {% if session.get('authenticated') %}
     <nav class="cam-account-bar" aria-label="KERİM account and YAREN navigation">
-      <a href="{{ url_for('cam.dashboard') }}">KERİM</a>
-      <a href="{{ url_for('auth.access') }}" class="{{ 'is-linked' if has_car_access else '' }}">{{ 'YAREN connected' if has_car_access else 'Connect YAREN' }}</a>
+      <a href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>KERİM</span></a>
+      <a href="{{ url_for('auth.access') }}" class="{{ 'is-linked' if has_car_access else '' }}">{{ reicon('folder-connect') }}<span>{{ 'YAREN connected' if has_car_access else 'Connect YAREN' }}</span></a>
       <form method="post" action="{{ url_for('auth.logout') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit">Log out</button>
+        <button type="submit">{{ reicon('logout') }}<span>Log out</span></button>
       </form>
     </nav>
   {% endif %}

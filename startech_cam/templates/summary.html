@@ -3,7 +3,7 @@
 {% block content %}
 <section class="summary-layout">
   <header class="section-heading centered">
-    <div class="gear-icon" aria-hidden="true">⚙</div>
+    <div class="gear-icon" aria-hidden="true">{{ reicon('settings4') }}</div>
     <h1>Calibration is about to be created.</h1>
     <p>Review every saved section before creating the immutable version.</p>
   </header>
@@ -37,9 +37,9 @@
   <div class="button-stack summary-buttons">
     <form method="post" action="{{ url_for('cam.publish', workflow=workflow.lower(), draft_id=draft_id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="primary-button" type="submit" {% if errors or missing_sections %}disabled{% endif %}>Create</button>
+      <button class="primary-button" type="submit" {% if errors or missing_sections %}disabled{% endif %}>{{ reicon('check') }}<span>Create</span></button>
     </form>
-    <a class="secondary-button" href="{{ url_for('cam.edit_section', workflow=workflow.lower(), draft_id=draft_id, section=(definitions|list|last)) }}">Go back</a>
+    <a class="secondary-button" href="{{ url_for('cam.edit_section', workflow=workflow.lower(), draft_id=draft_id, section=(definitions|list|last)) }}">{{ reicon('arrow-left2') }}<span>Go back</span></a>
   </div>
 </section>
 {% endblock %}

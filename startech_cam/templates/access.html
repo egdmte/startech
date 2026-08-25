@@ -19,10 +19,10 @@
       {% if has_car_access %}
       <h1 id="access-title">YAREN is connected.</h1>
       <p class="access-explanation">You can use every normal KERİM setting while the link remains available. Returning to KERİM does not disconnect YAREN.</p>
-      <a class="cam-action cam-action--primary access-main-action" href="{{ url_for('cam.dashboard') }}">Open KERİM</a>
+      <a class="cam-action cam-action--primary access-main-action" href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>Open KERİM</span></a>
       <form method="post" action="{{ url_for('auth.continue_offline') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="offline-action" type="submit">Disconnect YAREN <span aria-hidden="true">→</span></button>
+        <button class="offline-action" type="submit">{{ reicon('logout') }}<span>Disconnect YAREN</span>{{ reicon('arrow-right2', 'reicon--direction') }}</button>
       </form>
       {% else %}
       <h1 id="access-title">Connect YAREN when you need the car.</h1>
@@ -33,11 +33,11 @@
           <label class="visually-hidden" for="web-code">Temporary YAREN web code</label>
           <input id="web-code" name="access_code" type="text" autocomplete="one-time-code" spellcheck="false" maxlength="12" required>
           <button class="send-action" type="submit" aria-label="Verify web code">
-            <img src="{{ url_for('static', filename='assets/send.png') }}" alt="" width="24" height="24">
+            {{ reicon('check') }}
           </button>
         </div>
       </form>
-      <a class="offline-action" href="{{ url_for('cam.dashboard') }}">Open KERİM without linking now <span aria-hidden="true">→</span></a>
+      <a class="offline-action" href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>Open KERİM without linking now</span>{{ reicon('arrow-right2', 'reicon--direction') }}</a>
       {% endif %}
     </div>
     <p class="reassurance" data-motion data-motion-delay="3">You can always change your mind.</p>

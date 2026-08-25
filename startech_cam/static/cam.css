@@ -95,10 +95,12 @@ h2, h3 { font-size: 15px; }
 
 .cam-action, .primary-button, .secondary-button {
   position: relative;
-  display: inline-grid;
+  display: inline-flex;
   width: 100%;
   min-height: var(--cam-action-height);
-  place-items: center;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   padding: 9px 20px;
   overflow: hidden;
   border: 0;
@@ -157,6 +159,17 @@ h2, h3 { font-size: 15px; }
   padding: 6px 13px;
   font-size: 14px;
 }
+.reicon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  overflow: visible;
+  color: currentColor;
+  pointer-events: none;
+}
+.compact .reicon { width: 16px; height: 16px; }
+.reicon--direction { width: 15px; height: 15px; }
 .cam-action__content { display: inline-flex; align-items: center; justify-content: center; gap: 13px; }
 .cam-action__content img { width: 24px; height: 24px; object-fit: contain; }
 .cam-tertiary-action, .text-button {
@@ -190,16 +203,12 @@ h2, h3 { font-size: 15px; }
 .release-heading { text-align: center; }
 .release-icon {
   display: grid;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   margin: 0 auto 13px;
   place-items: center;
-  border: 3px solid currentColor;
-  border-radius: 8px;
-  font-size: 25px;
-  font-weight: 700;
-  line-height: 1;
 }
+.release-icon .reicon { width: 38px; height: 38px; }
 .release-heading h1, .release-progress h2 { margin: 0 0 14px; font-size: 20px; }
 .release-heading p { margin: 0 auto; color: #505050; font-size: 17px; }
 .release-heading p + p { margin-top: 2px; }
@@ -259,6 +268,42 @@ h2, h3 { font-size: 15px; }
 .release-progress-detail { margin-top: 5px !important; font-size: 14px !important; overflow-wrap: anywhere; }
 .release-progress .text-button { margin-top: 25px; }
 
+/* Honest dependency credits and related public STARTECH work. */
+.open-source-shell {
+  display: grid;
+  width: min(930px, calc(100% - 48px));
+  min-height: calc(100vh - 120px);
+  align-content: center;
+  gap: 26px;
+  margin: 0 auto;
+  padding: 82px 0 105px;
+}
+.open-source-heading { max-width: 720px; margin: 0 auto; text-align: center; }
+.reicon--hero { width: 40px; height: 40px; margin-bottom: 12px; }
+.open-source-heading h1 { margin: 0 0 9px; font-size: 20px; }
+.open-source-heading p { margin: 0; color: var(--cam-muted); }
+.open-source-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.open-source-card {
+  display: grid;
+  align-content: start;
+  gap: 17px;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid #c8c8c8;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 58%);
+}
+.open-source-card__title { display: flex; align-items: flex-start; gap: 13px; }
+.open-source-card__title > .reicon { width: 28px; height: 28px; margin-top: 1px; }
+.open-source-card__title > div { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px; }
+.open-source-card h2 { margin: 0; color: var(--cam-ink); font-size: 19px; }
+.open-source-card p { margin: 0; color: #515151; font-size: 15px; line-height: 1.45; }
+.open-source-badge { padding: 3px 7px; border: 1px solid #aaa; border-radius: 999px; color: #555; font-size: 11px; font-weight: 700; }
+.open-source-actions { display: flex; flex-wrap: wrap; gap: 11px 17px; margin-top: auto; }
+.open-source-actions a { display: inline-flex; align-items: center; gap: 5px; color: #075dff; font-size: 14px; font-weight: 600; text-decoration: none; }
+.open-source-actions a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.open-source-return { margin-top: 0; }
+
 .cam-account-bar {
   position: fixed;
   z-index: 90;
@@ -287,6 +332,7 @@ h2, h3 { font-size: 15px; }
   font-size: 13px;
   text-decoration: none;
 }
+.cam-account-bar .reicon { width: 15px; height: 15px; margin-right: 5px; }
 .cam-account-bar a:hover, .cam-account-bar button:hover { color: #000; background: #ededed; }
 .cam-account-bar a.is-linked { color: #087a3f; font-weight: 700; }
 .cam-account-bar form { margin: 0; }
@@ -383,6 +429,9 @@ h2, h3 { font-size: 15px; }
   font-size: 18px;
 }
 .login-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
   font-size: 20px;
   font-weight: 700;
@@ -450,7 +499,7 @@ h2, h3 { font-size: 15px; }
 .code-entry input { width: 100%; min-width: 0; padding: 5px 9px; font-weight: 500; letter-spacing: .025em; text-transform: uppercase; }
 .send-action { display: grid; width: 40px; padding: 0; place-items: center; cursor: pointer; }
 .send-action:hover { border-color: #080808; background: #fff; }
-.send-action img { width: 24px; height: 24px; }
+.send-action img, .send-action .reicon { width: 24px; height: 24px; }
 .access-content > form:last-child { margin: 0; }
 .access-content .offline-action {
   display: inline-flex;
@@ -564,6 +613,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
 .history-row { display: grid; grid-template-columns: 2fr .6fr 1.2fr 1.5fr; align-items: center; gap: 15px; padding: 13px 8px; border-bottom: 1px solid #ccc; }
 .row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
 .row-actions form { margin: 0; }
+.gear-icon .reicon, .success-icon .reicon { width: 38px; height: 38px; }
 
 .calibration-truth-note {
   display: grid;
@@ -624,6 +674,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
   .calibration-workspace { grid-template-columns: 1fr; }
   .hsv-editor { grid-template-columns: 1fr 1fr; }
   .row-actions { justify-content: flex-start; }
+  .open-source-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
   .cam-action:not(.compact), .primary-button:not(.compact), .secondary-button:not(.compact) { min-height: 48px; }
@@ -647,6 +698,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
   .release-profile-row { grid-template-columns: 1fr; }
   .release-evidence > div { grid-template-columns: 1fr; gap: 3px; }
   .release-progress { padding: 24px; }
+  .open-source-shell { width: calc(100% - 28px); align-content: start; padding-top: 80px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

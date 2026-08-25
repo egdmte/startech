@@ -37,11 +37,11 @@ def _positive_integer(name: str, default: int) -> int:
 
 
 def _static_asset_version(app: Flask) -> str:
-    """Return one stable version for the CSS and JavaScript interface bundle."""
+    """Return one stable version for KERİM's local interface bundle."""
 
     static_root = Path(app.static_folder or "")
     digest = hashlib.sha256()
-    for filename in ("cam.css", "sac.css", "cam.js"):
+    for filename in ("cam.css", "sac.css", "cam.js", "assets/reicon.svg"):
         digest.update(filename.encode("utf-8"))
         digest.update((static_root / filename).read_bytes())
     return digest.hexdigest()[:12]

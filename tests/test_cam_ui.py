@@ -138,6 +138,27 @@ class CamInterfaceTest(unittest.TestCase):
         self.assertIn(b'href="/sac/source"', dashboard.data)
         self.assertIn(b"cam-action--primary", dashboard.data)
         self.assertIn(b'href="/vehicle-release"', dashboard.data)
+        self.assertIn(b'href="/open-source"', dashboard.data)
+        self.assertIn(b"assets/reicon.svg", dashboard.data)
+        for icon in (
+            b"#ri-settings4",
+            b"#ri-edit",
+            b"#ri-folder-connect",
+            b"#ri-package",
+            b"#ri-history",
+            b"#ri-bug",
+        ):
+            self.assertIn(icon, dashboard.data)
+
+        credits = self.client.get("/open-source")
+        self.assertEqual(200, credits.status_code)
+        self.assertIn(b"Open-source projects", credits.data)
+        self.assertIn(b"Reicon 1.2.0", credits.data)
+        self.assertIn(b"MIT", credits.data)
+        self.assertIn(b"3awnt", credits.data)
+        self.assertIn(b"GPL-3.0", credits.data)
+        self.assertIn(b"not an active KER\xc4\xb0M dependency", credits.data)
+        self.assertIn(b'rel="noopener noreferrer"', credits.data)
 
     def test_vehicle_release_builds_an_exact_zip_without_claiming_a_test(self):
         self.authenticate()
@@ -203,8 +224,15 @@ class CamInterfaceTest(unittest.TestCase):
         )
         self.assertIn(b"width: min(578px, calc(100% - 48px))", sac_styles.data)
         sac_styles.close()
-        for asset in (b"updatecar.png", b"default.png"):
-            self.assertIn(asset, source.data)
+        for icon in (b"#ri-refresh", b"#ri-car"):
+            self.assertIn(icon, source.data)
+        self.assertNotIn(b"updatecar.png", source.data)
+        reicon = self.client.get("/static/assets/reicon.svg")
+        self.assertEqual(200, reicon.status_code)
+        self.assertIn(b'id="ri-camera"', reicon.data)
+        self.assertIn(b'id="ri-desktop-download"', reicon.data)
+        self.assertIn(b'id="ri-copy"', reicon.data)
+        reicon.close()
 
         draft_id = self.start_sac()
         components_path = f"/sac/{draft_id}/components"
@@ -293,6 +321,7 @@ class CamInterfaceTest(unittest.TestCase):
         self.assertIn(".primary-button::after", css)
         self.assertIn("font-size: 17px", css)
         self.assertIn("font-size: 14px", css)
+        self.assertIn(".reicon", css)
 
         javascript_response = self.client.get("/static/cam.js")
         javascript = javascript_response.get_data(as_text=True)

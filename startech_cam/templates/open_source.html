@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Open-source projects · KERİM{% endblock %}
+{% block content %}
+<section class="open-source-shell" aria-labelledby="open-source-title">
+  <header class="open-source-heading" data-motion>
+    {{ reicon('package', 'reicon--hero') }}
+    <h1 id="open-source-title">Open-source projects.</h1>
+    <p>Software KERİM uses and related public STARTECH work—credited without pretending they have the same role.</p>
+  </header>
+
+  <div class="open-source-grid" data-motion data-motion-delay="2">
+    <article class="open-source-card">
+      <div class="open-source-card__title">
+        {{ reicon('settings4') }}
+        <div><h2>Reicon</h2><span class="open-source-badge">MIT</span></div>
+      </div>
+      <p>KERİM uses a curated Reicon 1.2.0 outline subset for its interface action icons. The selected SVGs are stored locally, so loading the interface does not contact an external icon service.</p>
+      <div class="open-source-actions">
+        <a href="https://reicon.dev" target="_blank" rel="noopener noreferrer">Project website {{ reicon('arrow-right2', 'reicon--direction') }}</a>
+        <a href="https://github.com/dqev/reicon" target="_blank" rel="noopener noreferrer">Source code {{ reicon('arrow-right2', 'reicon--direction') }}</a>
+      </div>
+    </article>
+
+    <article class="open-source-card">
+      <div class="open-source-card__title">
+        {{ reicon('shield-check') }}
+        <div><h2>3awnt</h2><span class="open-source-badge">GPL-3.0</span></div>
+      </div>
+      <p>STARTECH's public Third-Party Threat Analysis, Warning and Neutralize Threats tool. It is a related project under development—not an active KERİM dependency or a security guarantee for this service.</p>
+      <div class="open-source-actions">
+        <a href="https://github.com/egdmte/3rd-party-threat-analysis-warning-and-neutralize-threats" target="_blank" rel="noopener noreferrer">Source code {{ reicon('arrow-right2', 'reicon--direction') }}</a>
+      </div>
+    </article>
+  </div>
+
+  <a class="cam-tertiary-action open-source-return" href="{{ url_for('cam.dashboard') }}">{{ reicon('arrow-left2') }}<span>Return to KERİM</span></a>
+</section>
+{% endblock %}

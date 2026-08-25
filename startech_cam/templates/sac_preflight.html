@@ -20,7 +20,7 @@
     </div>
     <form method="post" action="{{ url_for('cam.refresh_sac_capabilities', draft_id=draft_id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="cam-action cam-action--secondary" type="submit" {% if not car_linked %}disabled{% endif %}>Run new camera check</button>
+      <button class="cam-action cam-action--secondary" type="submit" {% if not car_linked %}disabled{% endif %}>{{ reicon('camera') }}<span>Run new camera check</span></button>
     </form>
   </section>
 
@@ -59,13 +59,13 @@
         <label><input type="checkbox" name="inspection" value="motors-mounted" required> The motors and wiring are mounted for this check.</label>
         <label><input type="checkbox" name="inspection" value="path-clear" required> The movement area and power switches are reachable.</label>
       </fieldset>
-      <button class="cam-action cam-action--danger workshop-submit" type="submit" {% if not car_linked %}disabled{% endif %}>Start 7-second countdown</button>
+      <button class="cam-action cam-action--danger workshop-submit" type="submit" {% if not car_linked %}disabled{% endif %}>{{ reicon('warning') }}<span>Start 7-second countdown</span></button>
       <div class="workshop-countdown" data-workshop-countdown hidden role="status" aria-live="assertive">
         <strong>LIVE MOTOR OUTPUT may start in <span data-workshop-count>7</span> seconds</strong>
         <p>Stay at the physical power cutoff. Cancel now if the car is not secured and clear.</p>
         <div>
-          <button class="cam-action cam-action--danger" type="button" data-workshop-now>Start now</button>
-          <button class="cam-action cam-action--secondary" type="button" data-workshop-cancel>Cancel</button>
+          <button class="cam-action cam-action--danger" type="button" data-workshop-now>{{ reicon('play') }}<span>Start now</span></button>
+          <button class="cam-action cam-action--secondary" type="button" data-workshop-cancel>{{ reicon('x-circle') }}<span>Cancel</span></button>
         </div>
       </div>
     </form>
@@ -87,8 +87,8 @@
       <p class="receipt-warning">This receipt proves software execution and a stop request. It does not prove that a wheel physically moved or stopped.</p>
       <form class="observation-form" method="post" action="{{ url_for('cam.observe_sac_workshop', draft_id=draft_id, job_id=workshop_job.job_id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="cam-action cam-action--primary" name="observation" value="expected" type="submit">Movement matched</button>
-        <button class="cam-action cam-action--secondary" name="observation" value="unexpected" type="submit">Wrong or not observed</button>
+        <button class="cam-action cam-action--primary" name="observation" value="expected" type="submit">{{ reicon('check') }}<span>Movement matched</span></button>
+        <button class="cam-action cam-action--secondary" name="observation" value="unexpected" type="submit">{{ reicon('warning') }}<span>Wrong or not observed</span></button>
       </form>
       {% endif %}
     </div>
@@ -98,7 +98,7 @@
   <p class="preflight-note">Continuing without a physical test leaves physical verification false. SAC never substitutes generated evidence.</p>
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="cam-action cam-action--primary preflight-continue" type="submit">Continue to SAC configuration</button>
+    <button class="cam-action cam-action--primary preflight-continue" type="submit">{{ reicon('arrow-right2') }}<span>Continue to SAC configuration</span></button>
   </form>
 </section>
 {% endblock %}

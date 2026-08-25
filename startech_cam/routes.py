@@ -123,6 +123,14 @@ def dashboard() -> str:
     )
 
 
+@cam_blueprint.get("/open-source")
+@login_required
+def open_source() -> str:
+    """Credit software KERİM uses and related STARTECH public work honestly."""
+
+    return render_template("open_source.html")
+
+
 def _vehicle_release_sources() -> ReleaseSources:
     configured_release = str(current_app.config.get("CAM_RELEASE") or "")
     server_reference = (

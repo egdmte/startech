@@ -2,27 +2,27 @@
 {% block title %}Calibration {{ tag }} created{% endblock %}
 {% block content %}
 <section class="center-card medium">
-  <div class="success-icon" aria-hidden="true">✓</div>
+  <div class="success-icon" aria-hidden="true">{{ reicon('check') }}</div>
   <h1>Calibration created!</h1>
   <p>A new {{ document.profil.is_akisi }} calibration with tag <strong>{{ tag }}</strong> has been created.</p>
   <div class="button-stack">
     {% if document.profil.is_akisi == 'SAC' %}
     <form method="post" action="{{ url_for('cam.edit_with_mac', tag=tag) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="primary-button" type="submit">Edit {{ tag }} with MAC</button>
+      <button class="primary-button" type="submit">{{ reicon('edit') }}<span>Edit {{ tag }} with MAC</span></button>
     </form>
     {% endif %}
     {% if has_car_access %}
     <form method="post" action="{{ url_for('cam.sideload', tag=tag) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="secondary-button" type="submit">Sideload inactive profile to Pi</button>
+      <button class="secondary-button" type="submit">{{ reicon('upload') }}<span>Sideload inactive profile to Pi</span></button>
     </form>
     {% endif %}
     {% if device_job %}
     <p role="status">Sideload job <strong>{{ device_job.status }}</strong>. The profile is not active.</p>
     {% endif %}
-    <a class="secondary-button" href="{{ url_for('cam.download', tag=tag) }}">Download merged JSON</a>
-    <a class="secondary-button" href="{{ url_for('cam.dashboard') }}">Main menu</a>
+    <a class="secondary-button" href="{{ url_for('cam.download', tag=tag) }}">{{ reicon('download') }}<span>Download merged JSON</span></a>
+    <a class="secondary-button" href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>Main menu</span></a>
   </div>
 </section>
 {% endblock %}

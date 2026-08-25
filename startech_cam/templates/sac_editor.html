@@ -2,7 +2,7 @@
 {% block title %}SAC · {{ title }}{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css', v=cam_asset_version) }}">{% endblock %}
 {% block content %}
-<a class="sac-back-link" href="{{ url_for('cam.sac_components', draft_id=draft_id) }}">← Return to the car</a>
+<a class="sac-back-link" href="{{ url_for('cam.sac_components', draft_id=draft_id) }}">{{ reicon('arrow-left2') }}<span>Return to the car</span></a>
 <section class="sac-editor-panel sac-editor-panel--{{ section }}" aria-labelledby="section-title">
   <header class="sac-editor-heading" data-motion data-motion-delay="1">
     <h1 id="section-title">Edit {{ title|lower }} settings</h1>
@@ -154,7 +154,7 @@
     {% endif %}
 
     <p class="sac-editor-note">KERİM stores exactly what this screen says it stores. No save action on this page claims a physical test.</p>
-    <button class="cam-action cam-action--primary sac-save-action" type="submit">Save changes and return</button>
+    <button class="cam-action cam-action--primary sac-save-action" type="submit">{{ reicon('save') }}<span>Save changes and return</span></button>
   </form>
 </section>
 {% endblock %}

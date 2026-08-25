@@ -14,8 +14,8 @@
       <strong>What this proves</strong>
       <span>The pixels came from the linked YAREN camera. It does not prove lane accuracy, steering, motor motion, or driving safety.</span>
     </div>
-    <button class="primary-button" type="submit">Continue to live frame</button>
-    <a class="secondary-button" href="{{ url_for('cam.dashboard') }}">Go back</a>
+    <button class="primary-button" type="submit">{{ reicon('camera') }}<span>Continue to live frame</span></button>
+    <a class="secondary-button" href="{{ url_for('cam.dashboard') }}">{{ reicon('arrow-left2') }}<span>Go back</span></a>
   </form>
 </section>
 {% endblock %}

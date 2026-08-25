@@ -27,8 +27,8 @@
       {% endif %}
       <label class="choice"><input type="radio" name="source" value="CAR" {{ '' if has_car_access else 'disabled' }}> Update from the car {{ '' if has_car_access else '(YAREN code required)' }}</label>
     </fieldset>
-    <button class="primary-button" type="submit">Agree</button>
-    <a class="secondary-button" href="{{ url_for('cam.dashboard') }}">Go back</a>
+    <button class="primary-button" type="submit">{{ reicon('check') }}<span>Agree</span></button>
+    <a class="secondary-button" href="{{ url_for('cam.dashboard') }}">{{ reicon('arrow-left2') }}<span>Go back</span></a>
   </form>
 </section>
 {% endblock %}

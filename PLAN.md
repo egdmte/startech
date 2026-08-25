@@ -284,6 +284,12 @@ store history, preview real camera effects when a camera is linked, and deliver 
 inactive configuration to YAREN for review. YAREN remains the authority for what the
 local vehicle loads.
 
+KERİM uses a curated local Reicon 1.2 subset for meaningful action icons. The SVGs are
+served with the rest of the versioned interface bundle; normal operation does not load
+an icon runtime or depend on an external icon service. Its authenticated open-source
+page distinguishes software KERİM actually uses from related public STARTECH projects;
+listing a project there does not claim that it protects or runs inside KERİM.
+
 StarTechConfig is the outdated Windows predecessor to KERİM. It can produce the v1 files
 and was designed to sideload them to a Raspberry Pi. Its code and artifacts are retained
 as historical implementation reference; it is not the active configuration authority.

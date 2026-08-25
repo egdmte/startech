@@ -3,7 +3,7 @@
 {% block content %}
 <section class="release-shell" aria-labelledby="release-title" data-release-page>
   <header class="release-heading" data-motion>
-    <div class="release-icon" aria-hidden="true">⇩</div>
+    <div class="release-icon" aria-hidden="true">{{ reicon('desktop-download') }}</div>
     <h1 id="release-title">Build a car release.</h1>
     <p>KERİM can bundle an exact committed car version with one immutable calibration and give you a download link.</p>
     <p>Uncommitted server files are never placed in the bundle.</p>
@@ -17,7 +17,7 @@
           <option value="{{ calibration.tag }}" {% if calibration.tag == selected_tag %}selected{% endif %}>{{ calibration.name }} · {{ calibration.workflow }} · {{ calibration.tag }}</option>
         {% endfor %}
       </select>
-      <button class="secondary-button compact" type="submit" {% if not calibrations %}disabled{% endif %}>Compare</button>
+      <button class="secondary-button compact" type="submit" {% if not calibrations %}disabled{% endif %}>{{ reicon('sort-h') }}<span>Compare</span></button>
     </div>
   </form>
 
@@ -47,7 +47,7 @@
             <input type="hidden" name="profile" value="{{ selected_tag }}">
             <input type="hidden" name="source" value="repository">
             <input type="hidden" name="expected_commit" value="{{ comparison.repository.commit }}">
-            <button class="cam-action cam-action--primary" type="submit">Download from {{ repository_label }} ({{ comparison.repository.short }})</button>
+            <button class="cam-action cam-action--primary" type="submit">{{ reicon('download') }}<span>Download from {{ repository_label }} ({{ comparison.repository.short }})</span></button>
           </form>
         {% endif %}
         <form method="post" data-release-form data-release-source="server {{ comparison.server.short }}" data-release-profile="{{ selected_tag }}">
@@ -55,7 +55,7 @@
           <input type="hidden" name="profile" value="{{ selected_tag }}">
           <input type="hidden" name="source" value="server">
           <input type="hidden" name="expected_commit" value="{{ comparison.server.commit }}">
-          <button class="cam-action cam-action--primary" type="submit">Download from server ({{ comparison.server.short }})</button>
+          <button class="cam-action cam-action--primary" type="submit">{{ reicon('download') }}<span>Download from server ({{ comparison.server.short }})</span></button>
         </form>
       {% else %}
         <form method="post" data-release-form data-release-source="commit {{ comparison.server.short }}" data-release-profile="{{ selected_tag }}">
@@ -63,20 +63,20 @@
           <input type="hidden" name="profile" value="{{ selected_tag }}">
           <input type="hidden" name="source" value="server">
           <input type="hidden" name="expected_commit" value="{{ comparison.server.commit }}">
-          <button class="cam-action cam-action--primary" type="submit">Build and download</button>
+          <button class="cam-action cam-action--primary" type="submit">{{ reicon('package') }}<span>Build and download</span></button>
         </form>
       {% endif %}
-      <button class="cam-action release-update-disabled" type="button" disabled>Server updates use the reviewed deployment command</button>
+      <button class="cam-action release-update-disabled" type="button" disabled>{{ reicon('server-update') }}<span>Server updates use the reviewed deployment command</span></button>
     </div>
     <p class="release-boundary">The ZIP is not an installation, activation, physical test, or driving result. Its manifest records that physical verification is still required.</p>
   {% endif %}
 </section>
 
 <div class="release-progress" hidden data-release-progress role="status" aria-live="polite">
-  <div class="release-icon" aria-hidden="true">⇩</div>
+  <div class="release-icon" aria-hidden="true">{{ reicon('file-zip') }}</div>
   <h2>Preparing the bundle</h2>
   <p data-release-step>Verifying the selected revision and calibration…</p>
   <p class="release-progress-detail" data-release-detail></p>
-  <button class="text-button" type="button" data-release-cancel>Cancel</button>
+  <button class="text-button" type="button" data-release-cancel>{{ reicon('x-circle') }}<span>Cancel</span></button>
 </div>
 {% endblock %}

@@ -427,7 +427,10 @@ class CamWorkflowTest(unittest.TestCase):
         summary = self.client.get(summary_path)
         self.assertIn(b"Review required", summary.data)
         self.assertIn(b"camera, power, compute, drive, wheel", summary.data)
-        self.assertRegex(summary.data, rb"<button[^>]+disabled[^>]*>Create</button>")
+        self.assertRegex(
+            summary.data,
+            rb"<button[^>]+disabled[^>]*>[\s\S]*?<span>Create</span></button>",
+        )
 
         token = TOKEN.search(summary.data).group(1).decode("ascii")
         rejected = self.client.post(

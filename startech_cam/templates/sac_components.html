@@ -25,9 +25,9 @@
         {% endfor %}
       </ul>
       {% if complete %}
-      <a class="cam-action cam-action--primary component-summary-action" href="{{ url_for('cam.summary', workflow='sac', draft_id=draft_id) }}">Review calibration</a>
+      <a class="cam-action cam-action--primary component-summary-action" href="{{ url_for('cam.summary', workflow='sac', draft_id=draft_id) }}">{{ reicon('check') }}<span>Review calibration</span></a>
       {% else %}
-      <button class="cam-action cam-action--secondary component-summary-action" type="button" disabled>Review every section first</button>
+      <button class="cam-action cam-action--secondary component-summary-action" type="button" disabled>{{ reicon('warning') }}<span>Review every section first</span></button>
       {% endif %}
     </aside>
   </div>

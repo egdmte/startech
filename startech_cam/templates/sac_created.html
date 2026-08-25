@@ -12,7 +12,7 @@
   <section class="finish-stage" aria-labelledby="created-title">
     <div class="finish-result-layout" data-motion data-motion-delay="2">
       <header class="finish-copy">
-        <span class="finish-icon finish-icon--success" aria-hidden="true">✓</span>
+        <span class="finish-icon finish-icon--success" aria-hidden="true">{{ reicon('check') }}</span>
         <h1 id="created-title">Calibration created!</h1>
         <p>A new calibration with tag <strong>{{ tag }}</strong> has been created.</p>
         <p>There are other variables that cannot be edited using Service Assisted Calibration.</p>
@@ -20,19 +20,19 @@
       <div class="finish-result-actions">
         <form method="post" action="{{ url_for('cam.edit_with_mac', tag=tag) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="cam-action cam-action--primary" type="submit">Edit {{ tag }} with MAC</button>
+          <button class="cam-action cam-action--primary" type="submit">{{ reicon('edit') }}<span>Edit {{ tag }} with MAC</span></button>
         </form>
         {% if has_car_access %}
         <form method="post" action="{{ url_for('cam.sideload', tag=tag) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="cam-action cam-action--secondary" type="submit">Sideload inactive profile to Pi</button>
+          <button class="cam-action cam-action--secondary" type="submit">{{ reicon('upload') }}<span>Sideload inactive profile to Pi</span></button>
         </form>
         {% endif %}
         {% if device_job %}
         <p class="device-job-status" role="status">Sideload job <strong>{{ device_job.status }}</strong>. The profile is not active.</p>
         {% endif %}
-        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.download', tag=tag) }}">Download merged JSON</a>
-        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.dashboard') }}">Main Menu</a>
+        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.download', tag=tag) }}">{{ reicon('download') }}<span>Download merged JSON</span></a>
+        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>Main Menu</span></a>
       </div>
     </div>
   </section>

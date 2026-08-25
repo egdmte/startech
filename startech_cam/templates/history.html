@@ -11,16 +11,16 @@
       <span>{{ item.workflow }}</span>
       <span>{{ item.owner }}{% if item.parent_tag %}<small>From {{ item.parent_tag }}</small>{% endif %}</span>
       <div class="row-actions">
-        <a class="secondary-button compact" href="{{ url_for('cam.download', tag=item.tag) }}">Download</a>
+        <a class="secondary-button compact" href="{{ url_for('cam.download', tag=item.tag) }}">{{ reicon('download') }}<span>Download</span></a>
         <form method="post" action="{{ url_for('cam.edit_with_mac', tag=item.tag) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="text-button" type="submit">Open in MAC →</button>
+          <button class="text-button" type="submit">{{ reicon('edit') }}<span>Open in MAC</span>{{ reicon('arrow-right2', 'reicon--direction') }}</button>
         </form>
       </div>
     </article>
     {% endfor %}
   </div>
   {% else %}<p>No finalized configurations exist yet.</p>{% endif %}
-  <a class="text-button" href="{{ url_for('cam.dashboard') }}">← Main menu</a>
+  <a class="text-button" href="{{ url_for('cam.dashboard') }}">{{ reicon('arrow-left2') }}<span>Main menu</span></a>
 </section>
 {% endblock %}

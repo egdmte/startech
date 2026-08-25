@@ -10,8 +10,8 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <textarea class="code-input document-input" name="document_json" spellcheck="false">{{ document_json }}</textarea>
     <div class="editor-actions">
-      <button class="primary-button" type="submit">Validate and save</button>
-      <a class="secondary-button" href="{{ url_for('cam.summary', workflow='mac', draft_id=draft_id) }}">Review summary</a>
+      <button class="primary-button" type="submit">{{ reicon('shield-check') }}<span>Validate and save</span></button>
+      <a class="secondary-button" href="{{ url_for('cam.summary', workflow='mac', draft_id=draft_id) }}">{{ reicon('check') }}<span>Review summary</span></a>
     </div>
   </form>
 </section>

@@ -4,7 +4,7 @@
 {% block content %}
 <header class="mac-topbar">
   <strong>Manual Assisted Calibration - Interface v0.1</strong>
-  <a class="text-button" href="{{ url_for('cam.summary', workflow=workflow.lower(), draft_id=draft_id) }}">Review and publish</a>
+  <a class="text-button" href="{{ url_for('cam.summary', workflow=workflow.lower(), draft_id=draft_id) }}">{{ reicon('check') }}<span>Review and publish</span></a>
 </header>
 <div class="editor-layout">
   <aside class="editor-sidebar">
@@ -19,7 +19,7 @@
         <a href="{{ url_for('cam.variable_manager', draft_id=draft_id) }}">Variable manager{% if 'variables' in touched %}<span>✓</span>{% endif %}</a>
       {% endif %}
     </nav>
-    <a class="secondary-button" href="{{ url_for('cam.summary', workflow=workflow.lower(), draft_id=draft_id) }}">Review summary</a>
+    <a class="secondary-button" href="{{ url_for('cam.summary', workflow=workflow.lower(), draft_id=draft_id) }}">{{ reicon('check') }}<span>Review summary</span></a>
   </aside>
   <section class="editor-main">
     <header class="section-heading">
@@ -63,8 +63,8 @@
         </div>
       {% endfor %}
       <div class="editor-actions">
-        <button class="primary-button" type="submit">Save and continue</button>
-        <a class="text-button" href="{{ url_for('cam.summary', workflow=workflow.lower(), draft_id=draft_id) }}">Review current values →</a>
+        <button class="primary-button" type="submit">{{ reicon('save') }}<span>Save and continue</span></button>
+        <a class="text-button" href="{{ url_for('cam.summary', workflow=workflow.lower(), draft_id=draft_id) }}">{{ reicon('check') }}<span>Review current values</span>{{ reicon('arrow-right2', 'reicon--direction') }}</a>
       </div>
     </form>
   </section>
