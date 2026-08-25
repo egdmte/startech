@@ -63,7 +63,7 @@ def canonical_request(
     nonce: str,
     body: bytes,
 ) -> bytes:
-    """Return the exact byte string signed by YAREN and verified by CAM."""
+    """Return the compatibility-domain bytes signed by YAREN and verified by KERİM."""
 
     digest = hashlib.sha256(body).hexdigest()
     return (

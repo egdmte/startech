@@ -56,7 +56,7 @@ SAC_STEPS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
             Field("sac_niyeti.surus.direksiyon_merkez_yuzde", "Steering center %", "range", -30, 30, 1),
             Field("sac_niyeti.surus.direksiyon_azami_hareket_yuzde", "Maximum steering movement %", "range", 10, 100, 1),
             Field("oturum_kaniti.tam_cikis_onaylandi", "I explicitly acknowledge full output", "checkbox"),
-            Field("oturum_kaniti.prototip_kilidi_onaylandi", "I acknowledge that CAM does not prove hardware safety", "checkbox"),
+            Field("oturum_kaniti.prototip_kilidi_onaylandi", "I acknowledge that KERİM does not prove hardware safety", "checkbox"),
         ),
     ),
     "wheel": (

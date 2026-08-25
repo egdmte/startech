@@ -277,6 +277,63 @@
     else sourceImage.addEventListener("load", initializeCalibration, { once: true });
   }
 
+  const releaseProgress = document.querySelector("[data-release-progress]");
+  const releasePage = document.querySelector("[data-release-page]");
+  document.querySelectorAll("[data-release-form]").forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!form.reportValidity() || !releaseProgress || !releasePage) return;
+
+      const controller = new AbortController();
+      const step = releaseProgress.querySelector("[data-release-step]");
+      const detail = releaseProgress.querySelector("[data-release-detail]");
+      const cancel = releaseProgress.querySelector("[data-release-cancel]");
+      const buttons = [...document.querySelectorAll("[data-release-form] button")];
+      buttons.forEach((button) => { button.disabled = true; });
+      releasePage.hidden = true;
+      releaseProgress.hidden = false;
+      if (step) step.textContent = "Rechecking the exact revision and immutable calibration on the server…";
+      if (detail) detail.textContent = `${form.dataset.releaseSource} · KERİM profile ${form.dataset.releaseProfile}`;
+
+      const abort = () => controller.abort();
+      cancel?.addEventListener("click", abort, { once: true });
+      try {
+        const response = await fetch(form.action || window.location.href, {
+          method: "POST",
+          body: new FormData(form),
+          signal: controller.signal,
+          headers: { Accept: "application/zip" },
+        });
+        if (!response.ok) throw new Error(`KERİM rejected the build (${response.status}).`);
+        const blob = await response.blob();
+        const disposition = response.headers.get("Content-Disposition") || "";
+        const filenameMatch = disposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i);
+        const filename = filenameMatch ? decodeURIComponent(filenameMatch[1]) : "startech-vehicle.zip";
+        const objectUrl = URL.createObjectURL(blob);
+        const download = document.createElement("a");
+        download.href = objectUrl;
+        download.download = filename;
+        document.body.appendChild(download);
+        download.click();
+        download.remove();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
+        if (step) step.textContent = "Bundle built and download started.";
+        if (detail) {
+          const commit = response.headers.get("X-STARTECH-Git-Commit")?.slice(0, 7) || "exact commit";
+          const profile = response.headers.get("X-STARTECH-Profile") || form.dataset.releaseProfile;
+          detail.textContent = `${filename} · ${commit} · KERİM profile ${profile}`;
+        }
+        if (cancel) cancel.textContent = "Return";
+        cancel?.addEventListener("click", () => window.location.reload(), { once: true });
+      } catch (error) {
+        if (step) step.textContent = error.name === "AbortError" ? "Bundle build cancelled." : "The bundle was not created.";
+        if (detail) detail.textContent = error.name === "AbortError" ? "No download was produced." : error.message;
+        if (cancel) cancel.textContent = "Return";
+        cancel?.addEventListener("click", () => window.location.reload(), { once: true });
+      }
+    });
+  });
+
   document.addEventListener("click", (event) => {
     const anchor = event.target.closest("a[href]");
     if (!anchor || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

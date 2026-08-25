@@ -1,14 +1,18 @@
-# CAM VPS operations
+# KERİM VPS operations
 
-This directory describes the production service at `dymtal.avartech.net`. CAM
+This directory describes the production service at `dymtal.avartech.net`. KERİM
 creates and stores real configuration documents. A temporary authenticated YAREN
 link can report the active profile, run bounded capability checks, capture one
 live calibration frame, install an inactive profile, and execute one explicitly
-requested SAC workshop motor command. CAM cannot select a profile, start the
+requested SAC workshop motor command. KERİM cannot select a profile, start the
 autonomous runtime, or turn a software receipt into physical evidence.
 
 The public wiki at `wiki.avartech.net` is a separate service. Do not mix its files,
-database, proxy rules, or deployment lifecycle with CAM.
+database, proxy rules, or deployment lifecycle with KERİM.
+
+The `startech_cam` package, `startech-cam` service paths, `CAM_*` environment names,
+and CAM-prefixed scripts are retained compatibility interfaces for the product now
+named KERİM (Kalibrasyon Erişim, Revizyon İnceleme Merkezi).
 
 ## Initial directories and environment
 
@@ -99,15 +103,15 @@ rm /tmp/school-car.pub.json
 ```
 
 Rotate or disable a registered device with the corresponding Flask CLI command;
-never copy the private key to CAM. YAREN starts one authenticated live link with:
+never copy the private key to KERİM. YAREN starts one authenticated live link with:
 
 ```bash
 python3 -m arac.ayar_cli web-code --server https://dymtal.avartech.net --usb-index 0
 ```
 
-The one-use code and link remain available while that YAREN process polls CAM. Each
+The one-use code and link remain available while that YAREN process polls KERİM. Each
 authenticated poll refreshes the idle lease; the default cleanup threshold is five
-minutes (`CAM_DEVICE_LINK_IDLE_SECONDS=300`). Ctrl+C asks CAM to revoke the link.
+minutes (`CAM_DEVICE_LINK_IDLE_SECONDS=300`). Ctrl+C asks KERİM to revoke the link.
 A live camera-frame request opens KASIM's configured camera chain, captures one current
 frame, closes the device, and fails if no physical camera responds. It has no
 generated-image fallback.
@@ -117,10 +121,10 @@ generated-image fallback.
 The target must be the exact full commit already present in `origin/master`. The
 script refuses a dirty checkout, another branch, a non-master target, or a
 non-fast-forward update. It creates an online SQLite backup, fast-forwards,
-installs dependencies, runs the CAM/YAREN/configuration/workshop checks, reloads
+installs dependencies, runs the KERİM/YAREN/configuration/workshop checks, reloads
 Gunicorn, and waits until `/health` reports the requested revision. The complete
 repository suite, including OpenCV vehicle perception, is run before the release is
-merged; those vehicle-only dependencies are not installed into CAM's VPS environment.
+merged; those vehicle-only dependencies are not installed into KERİM's VPS environment.
 The script verifies that systemd's live Gunicorn master belongs to the deployment
 account, then sends the same `SIGHUP` configured by `ExecReload`; it refuses an owner
 mismatch instead of requiring root access.
@@ -137,9 +141,30 @@ a privileged shell.
 If a test or health check fails, the script prints the online-backup path and exits
 non-zero. It does not rewrite Git history or silently restore an older schema.
 
+## Vehicle release bundles
+
+The authenticated **Build a vehicle release** page packages one exact Git commit and
+one immutable KERİM/YAREN profile. It fetches the configured published repository branch
+before offering that revision as current; if the refresh fails, cached remote data is
+labelled unavailable for selection. The server revision remains buildable from its
+exact deployed commit. Production currently uses `origin/master`, the VPS bare published
+repository. Do not label it GitHub. A future read-only GitHub remote may be configured
+with `KERIM_RELEASE_REMOTE` and `KERIM_RELEASE_LABEL` after its credentials and host key
+are deliberately installed.
+
+The builder reads Git objects rather than the working directory. Uncommitted server
+files are reported and excluded without being changed. Each ZIP contains the committed
+vehicle source, the combined configuration and split v1 pair, and a manifest with full
+source/profile/dependency hashes. The audit log records the operator, ZIP filename,
+commit, profile tag, and final bundle digest.
+
+Creating the ZIP does not install, activate, boot, arm, command, or physically verify
+the car. The disabled update control is intentional: update the live server only with
+the backup-first, fast-forward-only deployment command above.
+
 ## Backups and recovery
 
-Create a consistent snapshot while CAM is running:
+Create a consistent snapshot while KERİM is running:
 
 ```bash
 cd /srv/startech-cam/app
@@ -162,15 +187,15 @@ scp startech-vps:/srv/startech-cam/shared/backups/<printed-name>.age* <encrypted
 ```
 
 SSH encrypts transport; the `.age` file preserves encryption at rest. Test a
-restore periodically on a separate database path. For a real recovery, stop CAM,
+restore periodically on a separate database path. For a real recovery, stop KERİM,
 preserve the failed database, verify the selected backup and checksum, install it
-with owner `egemen`, group `egemen`, mode `0600`, and start CAM. Never open a new
+with owner `egemen`, group `egemen`, mode `0600`, and start KERİM. Never open a new
 schema using an older checkout. Put rollback code in a separate reviewed worktree
 and decide database compatibility before switching the service.
 
 ## Diagnostics
 
-Authenticated CAM users can download `startech-cam-diagnostic.json` from the
+Authenticated KERİM users can download `startech-kerim-diagnostic.json` from the
 dashboard. It contains the running release, SQLite integrity/counts, recent
 calibration metadata, and current-link configuration/capability/job records. It
 excludes credentials, access codes, remote addresses, session data, and captured

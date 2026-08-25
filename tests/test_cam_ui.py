@@ -5,9 +5,13 @@ from __future__ import annotations
 import re
 import tempfile
 import unittest
+from io import BytesIO
 from pathlib import Path
+import zipfile
 
 from startech_cam import create_app
+from startech_cam.db import get_db
+from startech_cam.repository import create_draft, publish_draft
 
 
 TOKEN = re.compile(rb'name="csrf_token" value="([^"]+)"')
@@ -85,6 +89,15 @@ class CamInterfaceTest(unittest.TestCase):
         self.assertEqual(302, response.status_code)
         return draft_id
 
+    def create_mac_calibration(self) -> str:
+        with self.app.app_context():
+            draft_id = create_draft(
+                owner="Egemen Yusuf Kayra",
+                workflow="MAC",
+                name="Release profile",
+            )
+            return publish_draft(draft_id, "Egemen Yusuf Kayra")
+
     def test_login_and_access_keep_the_prototype_identity(self):
         login = self.client.get("/login")
         self.assertIn(b'class="login-shell"', login.data)
@@ -113,17 +126,63 @@ class CamInterfaceTest(unittest.TestCase):
         self.assertIn(b"Egemen Yusuf Kayra", access.data)
         self.assertIn(b"Connect YAREN when you need the car", access.data)
         self.assertIn(b"assets/email.png", access.data)
-        self.assertIn(b"Open CAM without linking now", access.data)
+        self.assertIn(b"Open KER\xc4\xb0M without linking now", access.data)
         self.assertIn(b'action="/logout"', access.data)
 
-    def test_dashboard_uses_cam_actions_and_starts_staged_sac(self):
+    def test_dashboard_uses_kerim_actions_and_starts_staged_sac(self):
         self.authenticate()
         dashboard = self.client.get("/dashboard")
-        self.assertIn(b"Calibration Arrangement and Management Tool", dashboard.data)
+        self.assertIn("Kalibrasyon Erişim, Revizyon İnceleme Merkezi".encode(), dashboard.data)
         self.assertIn(b"Create a SAC (Service Assisted Calibration)", dashboard.data)
         self.assertIn(b"Create a MAC (Manual Assisted Calibration)", dashboard.data)
         self.assertIn(b'href="/sac/source"', dashboard.data)
         self.assertIn(b"cam-action--primary", dashboard.data)
+        self.assertIn(b'href="/vehicle-release"', dashboard.data)
+
+    def test_vehicle_release_builds_an_exact_zip_without_claiming_a_test(self):
+        self.authenticate()
+        tag = self.create_mac_calibration()
+        page = self.client.get(f"/vehicle-release?profile={tag}")
+        self.assertEqual(200, page.status_code)
+        self.assertIn(b"Uncommitted server files are never placed in the bundle", page.data)
+        self.assertIn(b"not an installation, activation, physical test", page.data)
+        token = TOKEN.search(page.data).group(1).decode("ascii")
+        commit = str(self.app.config["CAM_RELEASE"])
+        changed = self.client.post(
+            "/vehicle-release",
+            data={
+                "csrf_token": token,
+                "profile": tag,
+                "source": "server",
+                "expected_commit": "0" * 40,
+            },
+        )
+        self.assertEqual(409, changed.status_code)
+        response = self.client.post(
+            "/vehicle-release",
+            data={
+                "csrf_token": token,
+                "profile": tag,
+                "source": "server",
+                "expected_commit": commit,
+            },
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("application/zip", response.mimetype)
+        self.assertEqual(commit, response.headers["X-STARTECH-Git-Commit"])
+        self.assertEqual(tag, response.headers["X-STARTECH-Profile"])
+        with zipfile.ZipFile(BytesIO(response.data)) as archive:
+            manifest = archive.read("KERIM_RELEASE/manifest.json")
+            self.assertIn(b"PHYSICALLY UNVERIFIED", manifest)
+            self.assertIn(commit.encode(), manifest)
+        with self.app.app_context():
+            event = get_db().execute(
+                "SELECT actor, detail_json FROM audit_events "
+                "WHERE event_type = 'VEHICLE_RELEASE_DOWNLOADED'"
+            ).fetchone()
+            self.assertIsNotNone(event)
+            self.assertEqual("Egemen Yusuf Kayra", event["actor"])
+            self.assertIn(tag, event["detail_json"])
 
     def test_sac_stage_flow_preserves_assets_hotspots_and_saved_state(self):
         self.authenticate()

@@ -1,4 +1,4 @@
-"""Persistence and validation boundary for CAM configuration documents."""
+"""Persistence and validation boundary for KERİM configuration documents."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ SAC_PHYSICAL_INSPECTION = ("wheels-secured", "motors-mounted", "path-clear")
 
 
 class CamRepositoryError(RuntimeError):
-    """Base class for a rejected CAM repository operation."""
+    """Base class for a rejected KERİM repository operation."""
 
 
 class DraftNotFound(CamRepositoryError):
@@ -427,7 +427,7 @@ def refresh_calibration_stamp(document: dict[str, Any]) -> None:
         raise InvalidDocument("calibration stamp is missing")
     stamp = calibration["damga"]
     stamp["zaman"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-    stamp["olusturan"] = "CAM MAC v0.1"
+    stamp["olusturan"] = "KERİM MAC v0.1"
     stamp["ozet"] = kisa_ozet_hesapla(calibration)
 
 

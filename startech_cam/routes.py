@@ -1,11 +1,13 @@
-"""Production CAM pages and configuration workflows."""
+"""Production KERİM pages and configuration workflows."""
 
 from __future__ import annotations
 
 import copy
 from datetime import datetime, timezone
+from io import BytesIO
 import json
 import math
+from pathlib import Path
 from typing import Any
 
 from flask import (
@@ -18,6 +20,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
@@ -55,7 +58,13 @@ from .repository import (
     save_draft,
     serialize_document,
 )
-from .security import now_epoch
+from .security import audit, now_epoch
+from .vehicle_release import (
+    ReleaseSources,
+    VehicleReleaseError,
+    build_vehicle_bundle,
+    inspect_release_sources,
+)
 
 
 cam_blueprint = Blueprint("cam", __name__)
@@ -114,6 +123,110 @@ def dashboard() -> str:
     )
 
 
+def _vehicle_release_sources() -> ReleaseSources:
+    configured_release = str(current_app.config.get("CAM_RELEASE") or "")
+    server_reference = (
+        configured_release
+        if len(configured_release) == 40
+        and all(character in "0123456789abcdef" for character in configured_release)
+        else "HEAD"
+    )
+    return inspect_release_sources(
+        root=Path(str(current_app.config["KERIM_RELEASE_ROOT"])),
+        server_reference=server_reference,
+        remote=str(current_app.config["KERIM_RELEASE_REMOTE"]),
+        branch=str(current_app.config["KERIM_RELEASE_BRANCH"]),
+        remote_label=str(current_app.config["KERIM_RELEASE_LABEL"]),
+        refresh_remote=bool(current_app.config["KERIM_RELEASE_FETCH_REMOTE"]),
+        timeout=float(current_app.config["KERIM_RELEASE_GIT_TIMEOUT_SECONDS"]),
+    )
+
+
+@cam_blueprint.route("/vehicle-release", methods=["GET", "POST"])
+@login_required
+def vehicle_release() -> Any:
+    """Build one exact car-source revision with one immutable YAREN profile."""
+
+    calibrations = list_calibrations()
+    selected_tag = request.values.get("profile", "").strip()
+    if not selected_tag and calibrations:
+        selected_tag = str(calibrations[0]["tag"])
+    selected_summary = next(
+        (item for item in calibrations if str(item["tag"]) == selected_tag), None
+    )
+
+    comparison: ReleaseSources | None = None
+    release_error: str | None = None
+    try:
+        comparison = _vehicle_release_sources()
+    except VehicleReleaseError as exc:
+        release_error = str(exc)
+
+    if request.method == "POST":
+        if selected_summary is None:
+            abort(400, "Select an existing immutable KERİM configuration.")
+        if comparison is None:
+            abort(503, release_error or "Release sources are unavailable.")
+
+        source = request.form.get("source", "")
+        if source == "server":
+            revision = comparison.server
+        elif (
+            source == "repository"
+            and comparison.repository
+            and comparison.remote_current
+        ):
+            revision = comparison.repository
+        else:
+            abort(409, "That release source is not currently proven and available.")
+
+        expected_commit = request.form.get("expected_commit", "").lower()
+        if expected_commit != revision.commit:
+            abort(409, "The selected revision changed. Review the current comparison first.")
+        document = get_calibration(selected_tag)
+        try:
+            bundle = build_vehicle_bundle(
+                root=Path(str(current_app.config["KERIM_RELEASE_ROOT"])),
+                revision=revision,
+                profile_tag=selected_tag,
+                document=document,
+                timeout=float(current_app.config["KERIM_RELEASE_GIT_TIMEOUT_SECONDS"]),
+            )
+        except VehicleReleaseError as exc:
+            abort(503, str(exc))
+        audit(
+            current_actor(),
+            "VEHICLE_RELEASE_DOWNLOADED",
+            bundle.filename,
+            {
+                "git_commit": bundle.commit,
+                "profile_tag": bundle.profile_tag,
+                "bundle_sha256": bundle.sha256,
+            },
+        )
+        response = send_file(
+            BytesIO(bundle.body),
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=bundle.filename,
+            max_age=0,
+        )
+        response.headers["X-STARTECH-Git-Commit"] = bundle.commit
+        response.headers["X-STARTECH-Profile"] = bundle.profile_tag
+        response.headers["X-STARTECH-Bundle-SHA256"] = bundle.sha256
+        return response
+
+    return render_template(
+        "vehicle_release.html",
+        calibrations=calibrations,
+        selected_tag=selected_tag,
+        selected_summary=selected_summary,
+        comparison=comparison,
+        repository_label=str(current_app.config["KERIM_RELEASE_LABEL"]),
+        release_error=release_error,
+    )
+
+
 @cam_blueprint.get("/diagnostics/cam-bundle.json")
 @login_required
 def download_cam_diagnostic_bundle() -> Response:
@@ -168,7 +281,7 @@ def download_cam_diagnostic_bundle() -> Response:
         "format": "startech-cam-diagnostic-v1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "release": str(current_app.config.get("CAM_RELEASE", "development")),
-        "scope": "CAM server records and the current temporary YAREN link",
+        "scope": "KERİM server records and the current temporary YAREN link",
         "limitations": [
             "No physical motion is inferred from software receipts.",
             "KADER vehicle logs are not uploaded by the current link protocol.",
@@ -189,7 +302,7 @@ def download_cam_diagnostic_bundle() -> Response:
     body = json.dumps(bundle, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
     response = Response(body, mimetype="application/json")
     response.headers["Content-Disposition"] = (
-        "attachment; filename=startech-cam-diagnostic.json"
+        "attachment; filename=startech-kerim-diagnostic.json"
     )
     return response
 
@@ -465,7 +578,7 @@ def camera_calibration_editor(draft_id: str) -> Any:
             stamp = updated["kalibrasyon"]["damga"]
             existing_note = str(stamp.get("not") or "").strip()
             evidence_note = (
-                f"CAM real frame {frame['sha256']} from {frame['source']} "
+                f"KERİM real frame {frame['sha256']} from {frame['source']} "
                 f"at {width}x{height}; driving remains physically unverified."
             )
             stamp["not"] = (
@@ -474,7 +587,7 @@ def camera_calibration_editor(draft_id: str) -> Any:
                 else evidence_note
             )
             refresh_calibration_stamp(updated)
-            updated["kalibrasyon"]["damga"]["olusturan"] = "CAM real-frame calibration"
+            updated["kalibrasyon"]["damga"]["olusturan"] = "KERİM real-frame calibration"
             save_draft(
                 draft_id,
                 current_actor(),
@@ -540,7 +653,7 @@ def sac_source() -> Any:
     if source == "CAR":
         if not has_car_access():
             flash(
-                "A current YAREN code is required before CAM can contact the car.",
+                "A current YAREN code is required before KERİM can contact the car.",
                 "error",
             )
             return render_template("sac_source.html", calibrations=calibrations), 400
@@ -634,7 +747,7 @@ def sac_preflight(draft_id: str) -> Any:
         (
             "YAREN session",
             "responded" if has_car_access() else "unavailable",
-            "CAM has a current device-bound session; capability results are pending."
+            "KERİM has a current device-bound session; capability results are pending."
             if has_car_access()
             else "Continuing without live car access.",
         ),

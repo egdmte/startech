@@ -13,12 +13,12 @@ editing and `PLAN.md` for status and future direction.
 | `startech/tawnt/` | TAWNT implementation behind the public root `tawnt.py` API |
 | `startech/configuration/` | Configuration validation, immutable profiles, and combined-document conversion |
 | `startech/project_control/` | Checks that current governing documents still agree with the repository |
-| `startech_cam/` | Production CAM application, SAC/MAC workflows, signed YAREN link, and bounded workshop UI |
+| `startech_cam/` | Production KERİM application (compatibility package name), SAC/MAC workflows, exact vehicle bundles, signed YAREN link, and bounded workshop UI |
 | `config/` | Current schemas and visibly inactive example configuration documents |
 | `tests/` | Software contract and regression checks; fixtures here are not vehicle evidence |
 | `sim/` | Isolated Webots visual environment; never physical-car evidence |
 | `Markdown/` | Current detailed contracts/handoffs plus explicitly historical records |
-| `examples/prototypes/` | Historical CAM design references, not production behavior |
+| `examples/prototypes/` | Historical KERİM/CAM design references, not production behavior |
 | `LEGACY/` | Previous moving-car implementation and rule snapshot; migration/history reference only |
 
 ## Real vehicle chain
@@ -27,7 +27,7 @@ editing and `PLAN.md` for status and future direction.
 arac/main.py             ARDA operator surface and orchestration
     |
     +-- arac/ayar.py              YAREN-selected immutable runtime profile
-    +-- arac/ayar_cli.py          YAREN profile registry and CAM gateway menu
+    +-- arac/ayar_cli.py          YAREN profile registry and KERİM gateway menu
     +-- arac/goz.py               KASIM physical USB/Picamera2 acquisition
     +-- arac/kamera_oturumu.py    finite real-camera record/replay
     +-- arac/goruntu.py           KEREM lane perception
@@ -36,8 +36,8 @@ arac/main.py             ARDA operator surface and orchestration
     +-- root tawnt.py             TAWNT public validation API
     +-- arac/surucu.py            controller, watchdog, OSMAN GPIO boundary
     +-- arac/atolye.py            shared bounded physical workshop executor
-    +-- arac/yaren_web.py         signed CAM device identity/code request
-    +-- arac/yaren_link.py        closed authenticated CAM operation link
+    +-- arac/yaren_web.py         signed KERİM device identity/code request
+    +-- arac/yaren_link.py        closed authenticated KERİM operation link
     +-- arac/yaren_diagnostics.py bounded real capability report
 ```
 
@@ -107,12 +107,12 @@ py -m arac.ayar_cli interactive
 Installing, validating, or selecting a profile never arms TAWNT and never proves the
 values were physically measured. See `Markdown/YAPILANDIRMA_SOZLESMESI.md`.
 
-## CAM and SAC
+## KERİM and SAC
 
 YAREN requests a one-use code with a registered Ed25519 device identity. The authenticated
 browser uses that code to bind to the same outbound link. YAREN's authenticated heartbeat
-keeps a five-minute idle lease alive; CAM and the code have no fixed 15-minute countdown.
-Normal CAM navigation and logout remain available while the device is linked.
+keeps a five-minute idle lease alive; KERİM and the code have no fixed 15-minute countdown.
+Normal KERİM navigation and logout remain available while the device is linked.
 
 The link accepts only:
 
@@ -123,11 +123,11 @@ The link accepts only:
 - `RUN_BOUNDED_WORKSHOP_COMMAND`
 
 Automatic capabilities may acquire a real camera frame and run KEREM, but do not import
-OSMAN. SAC's separate workshop form carries CAM's authenticated legal name and time,
+OSMAN. SAC's separate workshop form carries KERİM's authenticated legal name and time,
 requires the physical checklist, shows a seven-second cancel warning, and queues one
 short bounded command through ARDA → TAWNT → OSMAN.
 
-CAM's linked-camera editor requests one current JPEG from KASIM, lets the operator adjust
+KERİM's linked-camera editor requests one current JPEG from KASIM, lets the operator adjust
 four perspective points and preview one HSV target against that exact frame, then creates
 a new immutable calibration. YAREN installs it inactive. Capturing a real frame proves
 the source for that frame; it does not physically verify the calibration or select it for
@@ -137,10 +137,18 @@ A receipt proves software execution and a stop request, not physical movement or
 The supervising human records the physical observation separately. The link cannot start
 autonomous driving, activate a profile, open a shell, or become continuous remote control.
 
-`deployment/` owns the revision-aware CAM health check, consistent SQLite backups,
+`deployment/` owns the revision-aware KERİM health check, consistent SQLite backups,
 encrypted off-site export helper, proxy reference, and fast-forward-only deployment
-command. Authenticated CAM users can download a redacted diagnostic bundle; it does not
-invent KADER car logs that CAM has never received.
+command. Authenticated KERİM users can download a redacted diagnostic bundle; it does not
+invent KADER car logs that KERİM has never received.
+
+Authenticated operators can also build a vehicle ZIP from one exact committed revision
+and one immutable YAREN profile. KERİM refreshes the configured published repository
+branch before calling that revision current, never includes uncommitted server files,
+records source/profile/
+dependency hashes, and audits the download. The ZIP does not install, activate, arm,
+run, or physically verify the car. Browser self-update is deliberately unavailable;
+`deployment/deploy_cam.sh` remains the reviewed compatibility-named deployment path.
 
 ## Camera sessions
 

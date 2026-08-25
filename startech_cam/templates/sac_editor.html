@@ -62,7 +62,7 @@
       <label class="choice centered-choice"><input type="checkbox" name="sac_niyeti.kamera.raspberry_pi_oncelikli" {% if values['sac_niyeti.kamera.raspberry_pi_oncelikli'] %}checked{% endif %}> Prioritize Raspberry Pi Camera before USB</label>
 
     {% elif section == 'compute' %}
-      <p class="availability-line availability-line--neutral">CAM stores these selections. It does not change Raspberry Pi services, processes, or TAWNT policy.</p>
+      <p class="availability-line availability-line--neutral">KERİM stores these selections. It does not change Raspberry Pi services, processes, or TAWNT policy.</p>
       <div class="compute-grid">
         <fieldset>
           <legend>Start-up precaution level</legend>
@@ -120,7 +120,7 @@
       <div class="full-output-gate" data-full-output-gate>
         <strong>Full output requires explicit acknowledgement.</strong>
         <label class="choice"><input type="checkbox" name="oturum_kaniti.tam_cikis_onaylandi" {% if values['oturum_kaniti.tam_cikis_onaylandi'] %}checked{% endif %}> I explicitly acknowledge the requested full-output profile.</label>
-        <label class="choice"><input type="checkbox" name="oturum_kaniti.prototip_kilidi_onaylandi" {% if values['oturum_kaniti.prototip_kilidi_onaylandi'] %}checked{% endif %}> I understand that CAM does not arm or physically test the car.</label>
+        <label class="choice"><input type="checkbox" name="oturum_kaniti.prototip_kilidi_onaylandi" {% if values['oturum_kaniti.prototip_kilidi_onaylandi'] %}checked{% endif %}> I understand that KERİM does not arm or physically test the car.</label>
       </div>
 
     {% elif section == 'wheel' %}
@@ -153,7 +153,7 @@
       </div>
     {% endif %}
 
-    <p class="sac-editor-note">CAM stores exactly what this screen says it stores. No save action on this page claims a physical test.</p>
+    <p class="sac-editor-note">KERİM stores exactly what this screen says it stores. No save action on this page claims a physical test.</p>
     <button class="cam-action cam-action--primary sac-save-action" type="submit">Save changes and return</button>
   </form>
 </section>

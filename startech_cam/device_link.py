@@ -1,4 +1,4 @@
-"""Temporary, closed-operation links between CAM and one YAREN device.
+"""Temporary, closed-operation links between KERİM and one YAREN device.
 
 The protocol cannot carry shell, profile activation, continuous steering, or
 arbitrary execution requests.  Its only physical operation is one short, bounded
@@ -63,7 +63,7 @@ class DeviceLinkCredentials:
 def validate_calibration_frame_receipt(
     receipt: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Validate one real JPEG receipt before CAM stores or displays it."""
+    """Validate one real JPEG receipt before KERİM stores or displays it."""
 
     expected = {
         "format",

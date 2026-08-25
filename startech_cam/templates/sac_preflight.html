@@ -79,7 +79,7 @@
       {% endif %}
       {% if workshop_job.receipt %}
       <dl>
-        <div><dt>CAM issued</dt><dd>{{ workshop_job.receipt.cam_issued_at_utc or workshop_job.receipt.cam_issued_at }}</dd></div>
+        <div><dt>KERİM issued</dt><dd>{{ workshop_job.receipt.cam_issued_at_utc or workshop_job.receipt.cam_issued_at }}</dd></div>
         <div><dt>Applied</dt><dd>{{ workshop_job.receipt.applied_left }} / {{ workshop_job.receipt.applied_right }}</dd></div>
         <div><dt>Duration</dt><dd>{{ workshop_job.receipt.duration_seconds }} s</dd></div>
         <div><dt>Stop</dt><dd>{{ 'requested' if workshop_job.receipt.stop_requested else 'not recorded' }}</dd></div>

@@ -1,4 +1,4 @@
-"""Administrative CAM commands intended for an authenticated VPS shell."""
+"""Administrative KERİM commands intended for an authenticated VPS shell."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def register_cli(app: Flask) -> None:
         """Create missing SQLite tables without deleting existing data."""
 
         init_database()
-        click.echo("CAM database is ready.")
+        click.echo("KERİM database is ready.")
 
     @app.cli.command("issue-access-code")
     @click.option("--device", required=True, help="Stable device label shown to the user.")

@@ -145,7 +145,7 @@ KASIM camera -> KEREM lane observation -> ARDA orchestration
 
 DORA owns explicit vehicle-state transitions.
 KADER records the software timeline.
-CAM and SAC provide calibration and a bounded linked-workshop surface through YAREN.
+KERİM and SAC provide calibration and a bounded linked-workshop surface through YAREN.
 ```
 
 There are no alternate active module names. The canonical names and responsibilities
@@ -153,7 +153,7 @@ are:
 
 | Module | Current responsibility | Must not claim or own |
 |---|---|---|
-| YAREN | Immutable configuration/profile registry, runtime selection, and authenticated live CAM gateway | Physical calibration truth, motor movement, or vehicle readiness |
+| YAREN | Immutable configuration/profile registry, runtime selection, and authenticated live KERİM gateway | Physical calibration truth, motor movement, or vehicle readiness |
 | KASIM | Open a real OpenCV USB camera first or Picamera2 camera second; normalize real RGB frames | Generated frames or silent source switching after a read failure |
 | KEREM | Produce cautious lane observations from KASIM frames and the selected calibration | Competition-task recognition that is not implemented |
 | DORA | Apply deterministic, explicit state transitions | Camera access, network access, logging, or motor output |
@@ -161,7 +161,7 @@ are:
 | TAWNT | Validate declared values, phases, watchdogs, arming, commands, and fault state | GPIO writes or proof that a measurement/stop physically happened |
 | OSMAN | Convert TAWNT-approved requests to the existing gpiozero/L298N wiring and request zero output | Autonomous decisions or unvalidated requests |
 | ARDA | Expose the real operator paths and compose camera, perception, control, validation, output, and logging | Pretend vehicle modes or web-only readiness gates |
-| CAM | Create, revise, store, and exchange real calibration/configuration documents | Requiring internet for race operation or claiming values were physically measured |
+| KERİM | Create, revise, store, exchange, and bundle real calibration/configuration documents with exact committed car source | Requiring internet for race operation, self-updating the live server, or claiming values were physically measured |
 | SAC | Guide calibration and issue one bounded, explicit linked workshop command | Continuous remote driving, autonomous start, or physical proof without observation |
 
 The public TAWNT API is root `tawnt.py`; its implementation lives in
@@ -193,9 +193,10 @@ listed in the historical index.
 | ARDA live observation | `IMPLEMENTED` | CLI and camera/perception integration checks | A real camera/profile is required at runtime |
 | ARDA autonomous lane-following path | `IMPLEMENTED` | Camera→controller→TAWNT→driver integration checks | The current core has not driven the physical car: `PHYSICALLY UNVERIFIED` |
 | ARDA bounded workshop output | `IMPLEMENTED` | Shared workshop executor checks | Actual motor response is `PHYSICALLY UNVERIFIED` |
-| CAM authentication, calibration workflow, storage, and history | `IMPLEMENTED` | CAM repository/auth/workflow checks, including perspective and HSV editing over a signed current frame | New values are installed inactive and remain `PHYSICALLY UNVERIFIED` |
-| Signed live YAREN/CAM link | `IMPLEMENTED` | Device identity, one-use code, five closed operations, strict signed receipts, heartbeat lease, and lifecycle checks | It is not needed for offline autonomous operation |
-| CAM release health, diagnostic export, backup, and deployment | `IMPLEMENTED` | Exact-revision health checks, redaction checks, SQLite integrity checks, and validated deployment/proxy scripts | Production runs the deliberately deployed `origin/master` revision reported by `/health` |
+| KERİM authentication, calibration workflow, storage, and history | `IMPLEMENTED` | KERİM repository/auth/workflow checks, including perspective and HSV editing over a signed current frame | New values are installed inactive and remain `PHYSICALLY UNVERIFIED` |
+| Signed live YAREN/KERİM link | `IMPLEMENTED` | Device identity, one-use code, five closed operations, strict signed receipts, heartbeat lease, and lifecycle checks | It is not needed for offline autonomous operation |
+| KERİM release health, diagnostic export, backup, and deployment | `IMPLEMENTED` | Exact-revision health checks, redaction checks, SQLite integrity checks, and validated deployment/proxy scripts | Production runs the deliberately deployed `origin/master` revision reported by `/health` |
+| Exact vehicle release ZIP | `IMPLEMENTED` | Git source comparison, immutable-profile archive, uncommitted-file exclusion, dependency/profile hashes, download audit, UI, and bundle checks | Building a ZIP does not install, activate, boot, arm, move, or physically verify the car |
 | SAC linked camera/lane report | `IMPLEMENTED` | Device API, YAREN link, and UI checks | Its exact physical observation is limited to the connected camera session |
 | SAC bounded workshop command with legal name/time and cancel delay | `IMPLEMENTED` | Server bounds, closed operation, browser countdown, receipt, and observation checks | A human must separately record movement and stopping |
 | Traffic-light behavior | `NOT IMPLEMENTED` | DORA has a waiting state, but there is no real complete detector-to-motion behavior | Requires official-rule review, real captured data, and physical verification |
@@ -206,7 +207,7 @@ listed in the historical index.
 | Dead-end behavior | `NOT IMPLEMENTED` | No current real end-to-end path | Same boundary |
 | Overtaking behavior | `NOT IMPLEMENTED` | No current real end-to-end path | Same boundary; intentionally last |
 
-The full Python suite passed on 25 August 2026 with 247 tests. That result proves the
+The full Python suite passed on 25 August 2026 with 250 tests. That result proves the
 checked software contracts only. Run the current commands again after every relevant
 change instead of relying on this count.
 
@@ -277,12 +278,13 @@ The trusted formats live in `config/schema/`; non-vehicle examples live in
 The schema proves only structure and declared semantics. It does not prove that a human
 measured the car or that a camera threshold fits the school track.
 
-CAM is the active browser calibration tool. It can create and revise configuration,
+KERİM is the active browser calibration tool. Its name expands to "Kalibrasyon Erişim,
+Revizyon İnceleme Merkezi." It can create and revise configuration,
 store history, preview real camera effects when a camera is linked, and deliver an
 inactive configuration to YAREN for review. YAREN remains the authority for what the
 local vehicle loads.
 
-StarTechConfig is the outdated Windows predecessor to CAM. It can produce the v1 files
+StarTechConfig is the outdated Windows predecessor to KERİM. It can produce the v1 files
 and was designed to sideload them to a Raspberry Pi. Its code and artifacts are retained
 as historical implementation reference; it is not the active configuration authority.
 
@@ -441,13 +443,18 @@ request stop, remove power if unexpected, and record what actually happened.
 
 ---
 
-## 11. CAM, SAC, and the YAREN link
+## 11. KERİM, SAC, and the YAREN link
 
-CAM is a real configuration application, not a car-readiness ceremony. Its useful
+KERİM is a real configuration application, not a car-readiness ceremony. Its useful
 responsibilities are authentication, calibration creation/revision, persistence, history,
-preview, configuration exchange, and bounded workshop assistance.
+preview, configuration exchange, exact vehicle bundles, and bounded workshop assistance.
 
-YAREN creates a signed request with its registered Ed25519 device identity. CAM returns
+The internal `startech_cam` package, existing routes, `CAM_*` environment names,
+CAM-prefixed deployment files, and the `STARTECH-CAM-DEVICE-V1` signing domain remain
+compatibility contracts. Current user-facing language and documentation call the product
+KERİM; a cosmetic rename must not silently break those established interfaces.
+
+YAREN creates a signed request with its registered Ed25519 device identity. KERİM returns
 a random one-use code. Entering that code binds the authenticated browser session to the
 same outbound device link. There is no fixed 15-minute browser or device-link countdown.
 Authenticated YAREN polling refreshes a five-minute idle lease, including the unused
@@ -455,10 +462,10 @@ one-use code; an abandoned process therefore expires without shortening an activ
 The link closes on explicit logout, manual disconnect, YAREN shutdown/interruption, or
 idle-lease expiry.
 
-The authenticated CAM navigation remains available while YAREN is linked. The operator
+The authenticated KERİM navigation remains available while YAREN is linked. The operator
 can return to the dashboard, edit ordinary settings, or manage the YAREN connection
 without disconnecting and repeating login. A visible logout action is present on every
-authenticated CAM screen; logout also revokes the linked YAREN process.
+authenticated KERİM screen; logout also revokes the linked YAREN process.
 
 The operation list is closed:
 
@@ -471,7 +478,7 @@ The operation list is closed:
 `CAPTURE_CALIBRATION_FRAME` opens KASIM's configured real camera chain, captures one
 current JPEG, closes the device, and returns a strict signed receipt containing source,
 dimensions, capture time, frame identity, digest, and bounded image data. Camera failure
-rejects the job; there is no generated or recorded-frame fallback. CAM uses that exact
+rejects the job; there is no generated or recorded-frame fallback. KERİM uses that exact
 frame for draggable four-point perspective editing and a client-side HSV target preview.
 Saving creates a new immutable calibration with the frame provenance, clears physical
 evidence, and queues it for inactive YAREN installation. It does not select or activate
@@ -484,7 +491,7 @@ Labels must describe that limited evidence instead of presenting green checkmark
 driving-safety certificate.
 
 SAC's workshop command is the deliberately small exception that makes the linked site
-useful beside the car. It carries the authenticated operator's legal name and CAM's
+useful beside the car. It carries the authenticated operator's legal name and KERİM's
 current internet time, expires quickly, requires the physical checklist, and permits one
 bounded command only. YAREN revalidates the payload and sends it through the same shared
 workshop executor as ARDA's local bench command.
@@ -499,22 +506,31 @@ The receipt records requested and applied values, duration, and whether software
 requested stop. The supervising human records separately whether the movement matched,
 was wrong, or was not observed. These records must never be collapsed into one claim.
 
-SAC/CAM labels distinguish values that current runtime code consumes from recorded
+SAC/KERİM labels distinguish values that current runtime code consumes from recorded
 intent. Projected power limits are runtime-backed through ARDA's speed setting. Camera,
 compute, and wheel fields are recorded intent until a current consumer exists. Driver
-output choices publish configuration policy; CAM does not arm or configure OSMAN.
+output choices publish configuration policy; KERİM does not arm or configure OSMAN.
 
-CAM exposes an authenticated, redacted diagnostic bundle containing its release, SQLite
+KERİM exposes an authenticated, redacted diagnostic bundle containing its release, SQLite
 integrity, repository counts, recent calibration metadata, and current YAREN-link state.
 It excludes credentials and captured image bodies and explicitly reports that KADER car
-logs are absent because CAM does not currently receive them. `/health` reports the exact
+logs are absent because KERİM does not currently receive them. `/health` reports the exact
 Git revision. The deployment helpers create an integrity-checked online SQLite backup,
 accept only a clean fast-forward to an exact commit already on `origin/master`, run the
-CAM/YAREN/configuration/workshop checks, reload the service, and require that exact
+KERİM/YAREN/configuration/workshop checks, reload the service, and require that exact
 revision from `/health`. Encrypted off-site export is a separate deliberate operation.
 
-CAM must remain optional to race operation. A correct active YAREN profile and local ARDA
-runtime must work without internet, CAM, a laptop, or an external account.
+The authenticated vehicle-release page compares the exact deployed commit with a freshly
+fetched `origin/master`, or labels cached remote information as non-current. It builds a
+ZIP from Git objects, so uncommitted server files stay untouched and excluded. The ZIP
+contains the chosen immutable KERİM/YAREN document and split v1 pair plus a manifest with
+source, profile, and dependency-file hashes and `PHYSICALLY UNVERIFIED` boundaries. A
+revision/profile change between review and submission is rejected. The download is
+audited. The page does not update the serving checkout; deployment remains the explicit,
+backup-first, fast-forward-only `deployment/deploy_cam.sh` operation.
+
+KERİM must remain optional to race operation. A correct active YAREN profile and local ARDA
+runtime must work without internet, KERİM, a laptop, or an external account.
 
 ---
 
@@ -596,11 +612,11 @@ The source-level recovery decision is:
 | `motor.py` | Two logical channels and the recorded gpiozero/L298N pin arrangement | Preserved through OSMAN. Do not restore the silent no-op GPIO fallback or treat direction comments as physical verification. |
 | `main.py` | Earlier task order and evidence that the vehicle once moved | Do not migrate the monolith, blank-frame substitution, keyboard green-light trigger, delayed exception stop, open-loop task timing, or long lost-lane search turn. Its `sign_type` branch has no producer in `events.py`. |
 | `events.py` | Candidate green-light, crossing, rail, bump, car, parking, and sign image algorithms | Evaluate only after the current rules and held-back real recordings exist. Each accepted detector needs a current DORA policy, bounded TAWNT/OSMAN behavior, and KADER evidence; none is a current task implementation. |
-| `camera.py`, `calibrate.py`, `hsv_tune.py`, `tune.py`, `pd_tune.py`, `kalibrasyon.py` | Useful live perspective, cursor-HSV, mask, bird-view, and tuning interactions | Real-frame perspective and HSV preview are now in CAM and publish only inactive profiles. Remaining views are added only for a demonstrated need; never restore blank-frame fallbacks, direct motor tuning, or regex configuration edits. |
+| `camera.py`, `calibrate.py`, `hsv_tune.py`, `tune.py`, `pd_tune.py`, `kalibrasyon.py` | Useful live perspective, cursor-HSV, mask, bird-view, and tuning interactions | Real-frame perspective and HSV preview are now in KERİM and publish only inactive profiles. Remaining views are added only for a demonstrated need; never restore blank-frame fallbacks, direct motor tuning, or regex configuration edits. |
 | `logger.py` | The need for a finite run/error record | Superseded by KADER JSONL/memory. Do not restore a logger that converts lane loss to numeric zero or lacks its called close method. Derived stability reports may be built from unchanged KADER evidence later. |
 | `motor_balance_test.py`, `camtester.py` | The need to measure channel balance and perform a physical smoke check | SAC/ARDA's bounded workshop path owns output. A future balance workflow must record actual movement/distance evidence into a new YAREN profile; do not restore direct GPIO output or silent substitutes. |
 | `train_sign.py`, `sign_test.py`, `sign_model.json` | A HOG-centroid recognition experiment and augmentation ideas | Not integrated into the earlier runtime and trained from a hard-coded local dataset. Keep as a candidate until current rules, a reproducible dataset, and held-back real evaluation justify a detector. |
-| `yol_takip.py` | Historical remote viewing/control experiment | Do not migrate as a race dependency or continuous control channel. CAM remains optional and the YAREN operation list stays closed. |
+| `yol_takip.py` | Historical remote viewing/control experiment | Do not migrate as a race dependency or continuous control channel. KERİM remains optional and the YAREN operation list stays closed. |
 | `guncelle.sh` | The operational need for controlled updates | Superseded by exact-revision deployment, backups, focused service checks, and release health under `deployment/`. |
 | LEGACY's NumPy-named scratch file | Personal math/bug-hunting scratch work | Historical test material, not competition functionality and not a migration candidate. |
 
@@ -651,7 +667,7 @@ physical results.
 
 ### 15.4 Strengthen configuration and evidence
 
-- Use CAM's linked real-frame editor to create candidate calibrations when a physical
+- Use KERİM's linked real-frame editor to create candidate calibrations when a physical
   camera is available; keep every result inactive until YAREN review.
 - Keep YAREN import, selection, warning review, and rollback deterministic.
 - Make run/profile relationships easy to inspect later.
@@ -846,7 +862,7 @@ Expected software and hardware cases include:
 - cold boot, warm restart, duplicate process, and service crash;
 - power sag, Pi undervoltage, heat, camera vibration, and changing illumination;
 - configuration/profile mismatch after hardware change;
-- loss of CAM/network while preserving offline car operation.
+- loss of KERİM/network while preserving offline car operation.
 
 Inject software faults through controlled tests, not a production fake-car mode. Inject
 physical faults only when the exact fault can be introduced safely and reversed.
@@ -869,7 +885,7 @@ and a written team decision before the qualification series begins.
 ## 19. Offline release, SCHOOL operation, and competition preparation
 
 A release candidate is one commit plus one exact YAREN profile and dependency set. It
-must cold-boot and operate without CAM, internet, a development laptop, or an external
+must cold-boot and operate without KERİM, internet, a development laptop, or an external
 account.
 
 Before calling a build a release candidate:
@@ -913,7 +929,7 @@ an unexplained or overwritten run is lost data.
 | Stop request may not equal physical braking | `PHYSICALLY UNVERIFIED` | Measure electrical state and physical stop at bounded energy |
 | Pi environment and offline boot are unknown | `PHYSICALLY UNVERIFIED` | Inventory, install, cold-boot, and recovery test when accessible |
 | Existing race-task list may change next season | Open rule dependency | Recheck the official category/application guides when published |
-| CAM can drift toward ceremony instead of car work | Managed design risk | Preserve the real-frame calibration, inactive sideload, diagnostics, and bounded workshop boundaries; reject readiness theatre |
+| KERİM can drift toward ceremony instead of car work | Managed design risk | Preserve real-frame calibration, inactive sideload, exact release bundles, diagnostics, and bounded workshop boundaries; reject readiness theatre |
 | LEGACY features may be lost during migration | Audited migration queue | Use the source-level inventory in section 14; port only a specific behavior justified by current failure, rules, or real evidence |
 | Large recordings may overwhelm Git | Open storage decision | Keep manifests and small approved fixtures in Git; choose explicit storage for large immutable captures |
 | Race acceptance targets are not yet selected | Open decision | Choose them before locked qualification using the newest guide and measured baseline |
@@ -971,8 +987,8 @@ below govern current work.
 | Retired `Markdown/PLAN_New.md` | Git history through 24 August 2026 | Superseded recreation/pre-approval plan; not current |
 | Retired `ROADMAP.md` and `SIRA.md` | Git history through 24 August 2026 | Their still-real roadmap was merged here; old gates/dates are retired |
 | `Tuna.txt` | Hand-written chronological record | Team timeline and reasoning; never a current instruction file |
-| `examples/prototypes/` | CAM design era | Historical UI/design references, not production behavior |
-| StarTechConfig artifacts and references | Pre-CAM Windows tooling | Outdated calibration tool and theoretical Pi sideload path; historical only |
+| `examples/prototypes/` | KERİM/CAM design era | Historical UI/design references, not production behavior |
+| StarTechConfig artifacts and references | Pre-KERİM Windows tooling | Outdated calibration tool and theoretical Pi sideload path; historical only |
 
 Major current transition commits:
 
