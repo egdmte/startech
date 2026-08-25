@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import tempfile
 import unittest
@@ -179,6 +180,21 @@ class CamAuthTest(unittest.TestCase):
         self.assertIn("/login?next=/dashboard", expired.location)
         with self.client.session_transaction() as browser_session:
             self.assertNotIn("authenticated", browser_session)
+
+    def test_diagnostic_bundle_is_authenticated_and_excludes_credentials(self):
+        self.login()
+        token = self.csrf("/access")
+        self.client.post("/access/offline", data={"csrf_token": token})
+        response = self.client.get("/diagnostics/cam-bundle.json")
+        self.assertEqual(200, response.status_code)
+        self.assertIn("attachment", response.headers["Content-Disposition"])
+        bundle = json.loads(response.get_data(as_text=True))
+        self.assertEqual("startech-cam-diagnostic-v1", bundle["format"])
+        self.assertEqual("ok", bundle["database"]["integrity"])
+        self.assertIsNone(bundle["linked_device"])
+        body = response.get_data(as_text=True)
+        self.assertNotIn("school-password", body)
+        self.assertNotIn("remote_address", body)
 
     def test_external_and_backslash_login_redirects_are_rejected(self):
         for target in ("//example.com", "/%5c%5cexample.com", "https://example.com"):

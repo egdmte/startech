@@ -3,21 +3,21 @@
 from __future__ import annotations
 
 import copy
+from datetime import datetime, timezone
 import json
 import math
-from io import BytesIO
 from typing import Any
 
 from flask import (
     Blueprint,
     Response,
     abort,
+    current_app,
     flash,
     jsonify,
     redirect,
     render_template,
     request,
-    send_file,
     session,
     url_for,
 )
@@ -107,6 +107,86 @@ def dashboard() -> str:
         calibrations=list_calibrations()[:5],
         car_linked=_session_device_link() is not None,
     )
+
+
+@cam_blueprint.get("/diagnostics/cam-bundle.json")
+@login_required
+def download_cam_diagnostic_bundle() -> Response:
+    """Download support evidence without credentials or claimed car telemetry."""
+
+    selected = _session_device_link()
+    jobs: list[dict[str, Any]] = []
+    snapshot = None
+    capabilities = None
+    if selected is not None:
+        snapshot = get_device_snapshot(*selected)
+        capabilities = get_capability_report(*selected)
+        rows = get_db().execute(
+            """
+            SELECT job_id, operation, status, payload_json, receipt_json,
+                   created_at, completed_at
+            FROM device_jobs WHERE link_id = ? AND device_id = ?
+            ORDER BY created_at DESC, job_id DESC LIMIT 25
+            """,
+            selected,
+        ).fetchall()
+        for row in rows:
+            payload = json.loads(str(row["payload_json"]))
+            receipt = (
+                None
+                if row["receipt_json"] is None
+                else json.loads(str(row["receipt_json"]))
+            )
+            if str(row["operation"]) == "CAPTURE_CALIBRATION_FRAME" and isinstance(
+                receipt, dict
+            ):
+                receipt.pop("image_b64", None)
+            jobs.append(
+                {
+                    "job_id": str(row["job_id"]),
+                    "operation": str(row["operation"]),
+                    "status": str(row["status"]),
+                    "payload": payload,
+                    "receipt": receipt,
+                    "created_at": int(row["created_at"]),
+                    "completed_at": row["completed_at"],
+                }
+            )
+
+    connection = get_db()
+    integrity = str(connection.execute("PRAGMA integrity_check").fetchone()[0])
+    counts = {
+        table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+        for table in ("calibrations", "drafts", "device_jobs", "audit_events")
+    }
+    bundle = {
+        "format": "startech-cam-diagnostic-v1",
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "release": str(current_app.config.get("CAM_RELEASE", "development")),
+        "scope": "CAM server records and the current temporary YAREN link",
+        "limitations": [
+            "No physical motion is inferred from software receipts.",
+            "KADER vehicle logs are not uploaded by the current link protocol.",
+            "Camera JPEG bytes, credentials, access codes, session data, and remote addresses are excluded.",
+        ],
+        "database": {"integrity": integrity, "counts": counts},
+        "linked_device": None
+        if selected is None
+        else {
+            "link_id": selected[0],
+            "device_id": selected[1],
+            "active_configuration": snapshot,
+            "capabilities": capabilities,
+            "jobs": jobs,
+        },
+        "recent_calibrations": list_calibrations()[:25],
+    }
+    body = json.dumps(bundle, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
+    response = Response(body, mimetype="application/json")
+    response.headers["Content-Disposition"] = (
+        "attachment; filename=startech-cam-diagnostic.json"
+    )
+    return response
 
 
 HSV_TARGETS: dict[str, tuple[str, tuple[str | int, ...]]] = {

@@ -189,6 +189,11 @@
 .sac-editor-heading h1 { margin-bottom: 5px; font-weight: 700; }
 .sac-editor-heading p { margin: 0 auto; max-width: 850px; color: #444; }
 .sac-section-form { display: grid; gap: 26px; }
+.sac-authority-strip { display: grid; gap: 4px; padding: 13px 16px; border-left: 5px solid #777; background: #fff; }
+.sac-authority-strip strong { font-size: 12px; letter-spacing: .08em; }
+.sac-authority-strip--runtime { border-left-color: var(--cam-success); }
+.sac-authority-strip--runtime strong { color: var(--cam-success); }
+.sac-authority-strip--recorded strong { color: #555; }
 .sac-warning-strip { padding: 10px 16px; color: #fff; background: #dc0000; }
 .dual-controls, .drive-grid, .compute-grid, .camera-layout {
   display: grid;
@@ -201,6 +206,7 @@
 .range-control input[type="range"] { width: 100%; height: 24px; margin: 0; accent-color: #075dff; }
 .range-control small { display: flex; justify-content: space-between; gap: 20px; color: #444; }
 .availability-line { margin: -5px 0 3px; color: var(--cam-success); text-align: center; }
+.availability-line--neutral { color: #555; }
 .availability-line span { display: inline-grid; width: 19px; height: 19px; place-items: center; margin-right: 7px; border-radius: 50%; color: #fff; background: var(--cam-success); font-size: 12px; }
 .sac-section-form fieldset { border: 0; }
 .sac-section-form legend { margin-bottom: 8px; font-weight: 500; }
