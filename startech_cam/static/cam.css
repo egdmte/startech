@@ -12,7 +12,7 @@
   --cam-primary-bottom: #5d7dfd;
   --cam-secondary-top: #a9c0e9;
   --cam-secondary-bottom: #c3d0e5;
-  --cam-control-radius: 6px;
+  --cam-control-radius: 9px;
   --cam-content-width: 544px;
   --cam-copy-size: 17px;
   --cam-action-height: 45px;
@@ -100,6 +100,7 @@ h2, h3 { font-size: 15px; }
   min-height: var(--cam-action-height);
   place-items: center;
   padding: 9px 20px;
+  overflow: hidden;
   border: 0;
   border-radius: var(--cam-control-radius);
   cursor: pointer;
@@ -107,8 +108,18 @@ h2, h3 { font-size: 15px; }
   line-height: 1.15;
   text-align: center;
   text-decoration: none;
-  box-shadow: inset 0 0 2px rgb(0 0 0 / 78%), 0 0 1.2px #000;
+  box-shadow:
+    inset 0 2px 11.8px rgb(0 0 0 / 25%),
+    0 0 7.6px rgb(0 0 0 / 25%);
   transition: filter 130ms ease, transform 130ms ease, box-shadow 130ms ease;
+}
+.cam-action::after, .primary-button::after, .secondary-button::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 24%);
+  content: "";
+  pointer-events: none;
 }
 .cam-action--primary, .primary-button {
   color: #fff;
@@ -119,17 +130,21 @@ h2, h3 { font-size: 15px; }
 .cam-action--secondary, .secondary-button {
   color: var(--cam-ink);
   background: linear-gradient(180deg, var(--cam-secondary-top), var(--cam-secondary-bottom));
-  font-weight: 400;
+  font-weight: 500;
 }
 .cam-action:hover:not(:disabled), .primary-button:hover:not(:disabled), .secondary-button:hover:not(:disabled) {
-  filter: brightness(1.045) saturate(1.04);
+  filter: brightness(1.055) saturate(1.04);
   transform: translateY(-1px);
-  box-shadow: inset 0 0 2px rgb(0 0 0 / 72%), 0 1px 1.2px #000;
+  box-shadow:
+    inset 0 2px 9px rgb(0 0 0 / 21%),
+    0 2px 9px rgb(0 0 0 / 27%);
 }
 .cam-action:active:not(:disabled), .primary-button:active:not(:disabled), .secondary-button:active:not(:disabled) {
-  filter: brightness(.97);
+  filter: brightness(.96);
   transform: translateY(1px);
-  box-shadow: inset 0 1px 3px rgb(0 0 0 / 85%), 0 0 1.2px #000;
+  box-shadow:
+    inset 0 3px 12px rgb(0 0 0 / 31%),
+    0 0 3px rgb(0 0 0 / 22%);
 }
 .cam-action:disabled, .primary-button:disabled, .secondary-button:disabled {
   cursor: not-allowed;
@@ -528,6 +543,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
   .row-actions { justify-content: flex-start; }
 }
 @media (max-width: 560px) {
+  .cam-action:not(.compact), .primary-button:not(.compact), .secondary-button:not(.compact) { min-height: 48px; }
   .cam-account-bar { top: 7px; right: 7px; }
   .cam-account-bar a, .cam-account-bar button { padding: 5px 7px; font-size: 12px; }
   .cam-frame { min-height: calc(100vh - 12px); margin: 6px; }
