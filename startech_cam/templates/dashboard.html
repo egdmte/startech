@@ -9,6 +9,7 @@
   <div class="cam-action-stack" aria-label="Calibration options" data-motion data-motion-delay="2">
     <a class="cam-action cam-action--primary" href="{{ url_for('cam.sac_source') }}">Create a SAC (Service Assisted Calibration)</a>
     <a class="cam-action cam-action--secondary" href="{{ url_for('cam.new_configuration', workflow='mac') }}">Create a MAC (Manual Assisted Calibration)</a>
+    {% if car_linked %}<a class="cam-action cam-action--secondary" href="{{ url_for('cam.camera_calibration_start') }}">Calibrate the linked camera</a>{% endif %}
   </div>
   <a class="cam-tertiary-action" href="{{ url_for('cam.history') }}">Access version history <span aria-hidden="true">→</span></a>
   {% if calibrations %}
