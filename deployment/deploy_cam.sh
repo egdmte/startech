@@ -56,7 +56,17 @@ echo "database backup: $CAM_BACKUP_PATH"
 
 git merge --ff-only "$CAM_TARGET_COMMIT"
 "$CAM_PIP" install -r requirements.txt
-"$CAM_PYTHON" -m unittest discover -s tests
+"$CAM_PYTHON" -m unittest discover -s tests -p 'test_cam*.py'
+"$CAM_PYTHON" -m unittest \
+    tests.test_atolye \
+    tests.test_ayar \
+    tests.test_ayar_cli \
+    tests.test_configuration \
+    tests.test_configuration_v2 \
+    tests.test_profiles \
+    tests.test_yaren_diagnostics \
+    tests.test_yaren_link \
+    tests.test_yaren_web
 sudo systemctl reload "$CAM_SERVICE"
 
 CAM_HEALTH_OK=0

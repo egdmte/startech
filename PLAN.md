@@ -1,6 +1,6 @@
 # STARTECH autonomous vehicle — current state and real roadmap
 
-Source review: 24 August 2026.
+Source review: 25 August 2026.
 
 This is the single current project plan. It describes what the present code does, what
 still needs a real implementation, and what evidence is required before a stronger claim
@@ -172,9 +172,9 @@ request paired with the exact immutable command returned by TAWNT.
 
 ## 5. Current implementation status
 
-This table describes the current source after the real vehicle-core and non-production
-pretend-path removals. The most relevant baseline commits are `a6c4845`, `536a0ab`, and
-`f39ef1d`.
+This table describes the current source after the real vehicle-core, non-production
+pretend-path removals, and linked-camera work. The most relevant baseline commits are
+listed in the historical index.
 
 | Capability | Status | Current evidence | Physical boundary |
 |---|---|---|---|
@@ -193,8 +193,9 @@ pretend-path removals. The most relevant baseline commits are `a6c4845`, `536a0a
 | ARDA live observation | `IMPLEMENTED` | CLI and camera/perception integration checks | A real camera/profile is required at runtime |
 | ARDA autonomous lane-following path | `IMPLEMENTED` | Camera→controller→TAWNT→driver integration checks | The current core has not driven the physical car: `PHYSICALLY UNVERIFIED` |
 | ARDA bounded workshop output | `IMPLEMENTED` | Shared workshop executor checks | Actual motor response is `PHYSICALLY UNVERIFIED` |
-| CAM authentication, calibration workflow, storage, and history | `IMPLEMENTED` | CAM repository/auth/workflow checks | Saved calibration values may remain `PHYSICALLY UNVERIFIED` |
-| Signed temporary YAREN/CAM link | `IMPLEMENTED` | Device identity, one-use code, closed-operation, expiry, and lifecycle checks | It is not needed for offline autonomous operation |
+| CAM authentication, calibration workflow, storage, and history | `IMPLEMENTED` | CAM repository/auth/workflow checks, including perspective and HSV editing over a signed current frame | New values are installed inactive and remain `PHYSICALLY UNVERIFIED` |
+| Signed temporary YAREN/CAM link | `IMPLEMENTED` | Device identity, one-use code, five closed operations, strict signed receipts, expiry, and lifecycle checks | It is not needed for offline autonomous operation |
+| CAM release health, diagnostic export, backup, and deployment | `IMPLEMENTED` | Exact-revision health checks, redaction checks, SQLite integrity checks, and validated deployment/proxy scripts | The feature branch is not the deployed VPS release until merged and deliberately deployed |
 | SAC linked camera/lane report | `IMPLEMENTED` | Device API, YAREN link, and UI checks | Its exact physical observation is limited to the connected camera session |
 | SAC bounded workshop command with legal name/time and cancel delay | `IMPLEMENTED` | Server bounds, closed operation, browser countdown, receipt, and observation checks | A human must separately record movement and stopping |
 | Traffic-light behavior | `NOT IMPLEMENTED` | DORA has a waiting state, but there is no real complete detector-to-motion behavior | Requires official-rule review, real captured data, and physical verification |
@@ -205,9 +206,9 @@ pretend-path removals. The most relevant baseline commits are `a6c4845`, `536a0a
 | Dead-end behavior | `NOT IMPLEMENTED` | No current real end-to-end path | Same boundary |
 | Overtaking behavior | `NOT IMPLEMENTED` | No current real end-to-end path | Same boundary; intentionally last |
 
-The full Python suite passed for this governing rewrite on 24 August 2026 with 237 tests
-and 45 subtests. That result proves the checked software contracts only. Run the current
-commands again after every relevant change instead of relying on this count.
+The full Python suite passed on 25 August 2026 with 246 tests. That result proves the
+checked software contracts only. Run the current commands again after every relevant
+change instead of relying on this count.
 
 ---
 
@@ -455,8 +456,18 @@ The operation list is closed:
 
 - `REQUEST_ACTIVE_CONFIGURATION`
 - `REQUEST_CAPABILITY_REPORT`
+- `CAPTURE_CALIBRATION_FRAME`
 - `INSTALL_INACTIVE_CONFIGURATION`
 - `RUN_BOUNDED_WORKSHOP_COMMAND`
+
+`CAPTURE_CALIBRATION_FRAME` opens KASIM's configured real camera chain, captures one
+current JPEG, closes the device, and returns a strict signed receipt containing source,
+dimensions, capture time, frame identity, digest, and bounded image data. Camera failure
+rejects the job; there is no generated or recorded-frame fallback. CAM uses that exact
+frame for draggable four-point perspective editing and a client-side HSV target preview.
+Saving creates a new immutable calibration with the frame provenance, clears physical
+evidence, and queues it for inactive YAREN installation. It does not select or activate
+the new profile.
 
 The capability report may inspect the selected profile, acquire a real frame, run KEREM,
 exercise DORA transitions, write/read an in-memory KADER record, and inspect TAWNT's
@@ -479,6 +490,20 @@ control channel.
 The receipt records requested and applied values, duration, and whether software
 requested stop. The supervising human records separately whether the movement matched,
 was wrong, or was not observed. These records must never be collapsed into one claim.
+
+SAC/CAM labels distinguish values that current runtime code consumes from recorded
+intent. Projected power limits are runtime-backed through ARDA's speed setting. Camera,
+compute, and wheel fields are recorded intent until a current consumer exists. Driver
+output choices publish configuration policy; CAM does not arm or configure OSMAN.
+
+CAM exposes an authenticated, redacted diagnostic bundle containing its release, SQLite
+integrity, repository counts, recent calibration metadata, and current YAREN-link state.
+It excludes credentials and captured image bodies and explicitly reports that KADER car
+logs are absent because CAM does not currently receive them. `/health` reports the exact
+Git revision. The deployment helpers create an integrity-checked online SQLite backup,
+accept only a clean fast-forward to an exact commit already on `origin/master`, run the
+CAM/YAREN/configuration/workshop checks, reload the service, and require that exact
+revision from `/health`. Encrypted off-site export is a separate deliberate operation.
 
 CAM must remain optional to race operation. A correct active YAREN profile and local ARDA
 runtime must work without internet, CAM, a laptop, or an external account.
@@ -554,39 +579,29 @@ unchanged.
 real design. It is not automatically more correct than current source; it contains both
 valuable behavior and known seam failures.
 
-Already migrated into the current architecture:
+The source-level recovery decision is:
 
-- the two logical motor channels and recorded gpiozero/L298N wiring;
-- the physical start-button concept;
-- USB/Picamera2 camera alternatives;
-- the lane-error steering convention;
-- a real lane detector and controller chain;
-- motor trim and dead-zone application;
-- black-box logging as a first-class boundary;
-- real calibration/settings file compatibility;
-- output stop requests on normal and exceptional exits.
+| LEGACY area | Useful evidence or behavior | Current disposition |
+|---|---|---|
+| `lane.py` | Bird's-eye perspective, CLAHE/reflection handling, lighting-aware HSV, vertical continuity, near/far weighting, and narrowed temporal search | Already represented in `arac/goruntu.py`, with stricter current-frame, resolution, freshness, and confidence rules. Do not copy the file wholesale. |
+| `controller.py` | PID shape, dynamic speed, trims, dead zone, and the established lane-error sign | Useful parts are represented in `arac/surucu.py`. Do not restore its invented decaying error, forced minimum speed, or possible opposite-sign lost-lane pivot. Current lane loss requests zero. |
+| `motor.py` | Two logical channels and the recorded gpiozero/L298N pin arrangement | Preserved through OSMAN. Do not restore the silent no-op GPIO fallback or treat direction comments as physical verification. |
+| `main.py` | Earlier task order and evidence that the vehicle once moved | Do not migrate the monolith, blank-frame substitution, keyboard green-light trigger, delayed exception stop, open-loop task timing, or long lost-lane search turn. Its `sign_type` branch has no producer in `events.py`. |
+| `events.py` | Candidate green-light, crossing, rail, bump, car, parking, and sign image algorithms | Evaluate only after the current rules and held-back real recordings exist. Each accepted detector needs a current DORA policy, bounded TAWNT/OSMAN behavior, and KADER evidence; none is a current task implementation. |
+| `camera.py`, `calibrate.py`, `hsv_tune.py`, `tune.py`, `pd_tune.py`, `kalibrasyon.py` | Useful live perspective, cursor-HSV, mask, bird-view, and tuning interactions | Real-frame perspective and HSV preview are now in CAM and publish only inactive profiles. Remaining views are added only for a demonstrated need; never restore blank-frame fallbacks, direct motor tuning, or regex configuration edits. |
+| `logger.py` | The need for a finite run/error record | Superseded by KADER JSONL/memory. Do not restore a logger that converts lane loss to numeric zero or lacks its called close method. Derived stability reports may be built from unchanged KADER evidence later. |
+| `motor_balance_test.py`, `camtester.py` | The need to measure channel balance and perform a physical smoke check | SAC/ARDA's bounded workshop path owns output. A future balance workflow must record actual movement/distance evidence into a new YAREN profile; do not restore direct GPIO output or silent substitutes. |
+| `train_sign.py`, `sign_test.py`, `sign_model.json` | A HOG-centroid recognition experiment and augmentation ideas | Not integrated into the earlier runtime and trained from a hard-coded local dataset. Keep as a candidate until current rules, a reproducible dataset, and held-back real evaluation justify a detector. |
+| `yol_takip.py` | Historical remote viewing/control experiment | Do not migrate as a race dependency or continuous control channel. CAM remains optional and the YAREN operation list stays closed. |
+| `guncelle.sh` | The operational need for controlled updates | Superseded by exact-revision deployment, backups, focused service checks, and release health under `deployment/`. |
+| LEGACY's NumPy-named scratch file | Personal math/bug-hunting scratch work | Historical test material, not competition functionality and not a migration candidate. |
 
-Still valuable to evaluate and migrate where recordings demonstrate a need:
-
-- perspective treatment;
-- luminance/reflection handling;
-- lighting-dependent white-lane logic;
-- vertical continuity and dashed-lane memory;
-- near/far lane weighting;
-- event debouncing;
-- the sign-recognition work and its augmentation, after checking current official tasks;
-- useful live calibration views;
-- deployment and offline-start knowledge;
-- any proven control behavior not already represented by current settings.
-
-Do not migrate:
-
-- duplicated trim application;
-- sign or motor conventions that were never measured;
-- configuration/tool seams that wrote incompatible data;
-- fake completion reports or inferred measurements;
-- internet dependencies in the runtime chain;
-- stale rules, names, ownership hierarchies, or obsolete architecture.
+The exact on-site competition edits were not saved, so the archive is evidence about the
+earlier design rather than a bit-for-bit copy of the final race program. The current
+camera, lane, controller, driver, configuration, logging, start-button, stop, calibration,
+and deployment boundaries now contain the useful recoverable foundation. Further
+production vehicle changes wait for a specific current failure, current official rule,
+or real recording instead of being justified only by the age of the file.
 
 `Markdown/HATA_DEFTERI.md` and its PDFs explain the failure history and the good parts of
 the earlier build. They are post-mortems, not current instructions. A migration closes a
@@ -628,7 +643,8 @@ physical results.
 
 ### 15.4 Strengthen configuration and evidence
 
-- Keep CAM useful for creating and examining calibrations.
+- Use CAM's linked real-frame editor to create candidate calibrations when a physical
+  camera is available; keep every result inactive until YAREN review.
 - Keep YAREN import, selection, warning review, and rollback deterministic.
 - Make run/profile relationships easy to inspect later.
 - Improve KADER records where a real diagnosis would otherwise be ambiguous.
@@ -889,8 +905,8 @@ an unexplained or overwritten run is lost data.
 | Stop request may not equal physical braking | `PHYSICALLY UNVERIFIED` | Measure electrical state and physical stop at bounded energy |
 | Pi environment and offline boot are unknown | `PHYSICALLY UNVERIFIED` | Inventory, install, cold-boot, and recovery test when accessible |
 | Existing race-task list may change next season | Open rule dependency | Recheck the official category/application guides when published |
-| CAM can drift toward ceremony instead of car work | Managed design risk | Keep configuration and bounded real workshop output authoritative; reject readiness theatre |
-| LEGACY features may be lost during migration | Open migration queue | Port only behavior demonstrated useful by source/post-mortem/recorded evidence |
+| CAM can drift toward ceremony instead of car work | Managed design risk | Preserve the real-frame calibration, inactive sideload, diagnostics, and bounded workshop boundaries; reject readiness theatre |
+| LEGACY features may be lost during migration | Audited migration queue | Use the source-level inventory in section 14; port only a specific behavior justified by current failure, rules, or real evidence |
 | Large recordings may overwhelm Git | Open storage decision | Keep manifests and small approved fixtures in Git; choose explicit storage for large immutable captures |
 | Race acceptance targets are not yet selected | Open decision | Choose them before locked qualification using the newest guide and measured baseline |
 
@@ -905,7 +921,7 @@ Use focused checks while editing and the full relevant set before committing:
 
 ```powershell
 py -m pytest -q tests
-py -m compileall -q arac startech startech_cam tests
+py -m compileall -q arac startech startech_cam tests deployment
 node --check startech_cam/static/cam.js
 py kontrol.py
 ```
@@ -958,6 +974,10 @@ Major current transition commits:
 | `f417ac9` | Removed the retired team-task system from active project scope |
 | `536a0ab` | Added the real bounded SAC workshop control path |
 | `f39ef1d` | Removed non-production pretend vehicle paths |
+| `baf759f` | Added closed real YAREN camera-frame jobs with strict receipts |
+| `da911d9` | Added real-frame CAM perspective/HSV editing and inactive sideload |
+| `8f46a55` | Made SAC authority labels explicit and added redacted diagnostics |
+| `f4de0d7` | Added exact-revision CAM deployment, backups, health, and proxy guidance |
 
 Git history is the detailed timeline. Do not duplicate commit-by-commit history in this
 plan.

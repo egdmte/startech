@@ -1,6 +1,6 @@
 # STARTECH project map
 
-Source review: 24 August 2026.
+Source review: 25 August 2026.
 
 Use this page to find the current implementation. Read `AGENTS_READ_ME.txt` before
 editing and `PLAN.md` for status and future direction.
@@ -116,6 +116,7 @@ The link accepts only:
 
 - `REQUEST_ACTIVE_CONFIGURATION`
 - `REQUEST_CAPABILITY_REPORT`
+- `CAPTURE_CALIBRATION_FRAME`
 - `INSTALL_INACTIVE_CONFIGURATION`
 - `RUN_BOUNDED_WORKSHOP_COMMAND`
 
@@ -124,9 +125,20 @@ OSMAN. SAC's separate workshop form carries CAM's authenticated legal name and t
 requires the physical checklist, shows a seven-second cancel warning, and queues one
 short bounded command through ARDA → TAWNT → OSMAN.
 
+CAM's linked-camera editor requests one current JPEG from KASIM, lets the operator adjust
+four perspective points and preview one HSV target against that exact frame, then creates
+a new immutable calibration. YAREN installs it inactive. Capturing a real frame proves
+the source for that frame; it does not physically verify the calibration or select it for
+the car.
+
 A receipt proves software execution and a stop request, not physical movement or braking.
 The supervising human records the physical observation separately. The link cannot start
 autonomous driving, activate a profile, open a shell, or become continuous remote control.
+
+`deployment/` owns the revision-aware CAM health check, consistent SQLite backups,
+encrypted off-site export helper, proxy reference, and fast-forward-only deployment
+command. Authenticated CAM users can download a redacted diagnostic bundle; it does not
+invent KADER car logs that CAM has never received.
 
 ## Camera sessions
 
@@ -157,7 +169,7 @@ historical snapshots and must not direct current work.
 
 ```powershell
 py -m pytest -q tests
-py -m compileall -q arac startech startech_cam tests
+py -m compileall -q arac startech startech_cam tests deployment
 node --check startech_cam/static/cam.js
 py kontrol.py
 ```

@@ -47,6 +47,10 @@ must never become a production vehicle mode or physical evidence.
 Replaying actual camera recordings is real analysis of recorded data. It is not a
 simulation, and it is not evidence that a camera or car is connected now.
 
+A signed linked-camera receipt proves that the named physical camera produced that
+frame in that session. It does not prove that saved calibration values fit the school
+track, that KEREM interpreted them correctly there, or that the car can drive.
+
 ---
 
 What work needs approval?

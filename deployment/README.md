@@ -114,8 +114,10 @@ if no physical camera responds. It has no generated-image fallback.
 The target must be the exact full commit already present in `origin/master`. The
 script refuses a dirty checkout, another branch, a non-master target, or a
 non-fast-forward update. It creates an online SQLite backup, fast-forwards,
-installs dependencies, runs the complete test suite, reloads Gunicorn, and waits
-until `/health` reports the requested revision.
+installs dependencies, runs the CAM/YAREN/configuration/workshop checks, reloads
+Gunicorn, and waits until `/health` reports the requested revision. The complete
+repository suite, including OpenCV vehicle perception, is run before the release is
+merged; those vehicle-only dependencies are not installed into CAM's VPS environment.
 
 ```bash
 cd /srv/startech-cam/app

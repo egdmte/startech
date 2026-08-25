@@ -295,6 +295,9 @@ Bu bağlantının kapalı işlem kümesi şudur:
 
 - `REQUEST_ACTIVE_CONFIGURATION`: etkin profilin salt okunur kopyasını bildirir.
 - `REQUEST_CAPABILITY_REPORT`: sınırlı ve dürüst yazılım/donanım yoklamalarını bildirir.
+- `CAPTURE_CALIBRATION_FRAME`: KASIM'dan o anda alınmış tek bir gerçek JPEG kareyi,
+  kaynak ve özet bilgileriyle CAM kalibrasyon düzenleyicisine bildirir; kamera açılamazsa
+  işlem başarısız olur ve üretilmiş ya da kaydedilmiş kareye geri dönmez.
 - `INSTALL_INACTIVE_CONFIGURATION`: birleşik v2 dosyasını doğrulayıp etkin olmayan,
   değiştirilemez yeni bir YAREN profili olarak kurar.
 - `RUN_BOUNDED_WORKSHOP_COMMAND`: yalnız kimliği doğrulanmış SAC oturumundan gelen, sunucu
