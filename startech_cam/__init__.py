@@ -17,6 +17,7 @@ from flask import Flask, request
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import db
+from .release import resolve_release
 
 
 def _environment(name: str, default: str = "") -> str:
@@ -72,6 +73,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         ),
         CAM_SESSION_LIFETIME_SECONDS=session_lifetime,
         CAM_TRUST_PROXY=_environment("CAM_TRUST_PROXY", "0") == "1",
+        CAM_RELEASE=resolve_release(),
         MAX_CONTENT_LENGTH=1_000_000,
         PERMANENT_SESSION_LIFETIME=timedelta(seconds=session_lifetime),
         SESSION_REFRESH_EACH_REQUEST=False,

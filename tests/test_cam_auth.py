@@ -58,6 +58,50 @@ class CamAuthTest(unittest.TestCase):
         )
         self.assertEqual(400, response.status_code)
 
+    def test_health_reports_the_exact_configured_release(self):
+        self.app.config["CAM_RELEASE"] = "a" * 40
+        response = self.client.get("/health")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            {"status": "ok", "release": "a" * 40}, response.get_json()
+        )
+
+    def test_configured_single_proxy_sets_the_rate_limit_client_address(self):
+        proxy_app = create_app(
+            {
+                "TESTING": True,
+                "DATABASE": str(Path(self.temporary.name) / "proxy.sqlite3"),
+                "SECRET_KEY": "proxy-secret-that-is-long-enough-for-tests",
+                "CAM_PASSWORD": "school-password",
+                "CAM_PASSWORD_HASH": "",
+                "SESSION_COOKIE_SECURE": False,
+                "CAM_TRUST_PROXY": True,
+            }
+        )
+        client = proxy_app.test_client()
+        headers = {
+            "X-Forwarded-For": "203.0.113.9",
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Host": "dymtal.avartech.net",
+        }
+        page = client.get("/login", headers=headers)
+        token = TOKEN.search(page.data).group(1).decode("ascii")
+        rejected = client.post(
+            "/login",
+            data={
+                "csrf_token": token,
+                "legal_name": "Proxy Test",
+                "password": "wrong",
+            },
+            headers=headers,
+        )
+        self.assertEqual(401, rejected.status_code)
+        with proxy_app.app_context():
+            recorded = get_db().execute(
+                "SELECT remote_address FROM login_attempts ORDER BY id DESC LIMIT 1"
+            ).fetchone()["remote_address"]
+        self.assertEqual("203.0.113.9", recorded)
+
     def test_password_session_and_single_use_access_code(self):
         response = self.login()
         self.assertEqual(302, response.status_code)

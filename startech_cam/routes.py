@@ -81,7 +81,12 @@ def _current_device_snapshot() -> dict[str, Any] | None:
 @cam_blueprint.get("/health")
 def health() -> Response:
     get_db().execute("SELECT 1").fetchone()
-    return Response('{"status":"ok"}\n', mimetype="application/json")
+    return jsonify(
+        {
+            "status": "ok",
+            "release": str(current_app.config["CAM_RELEASE"]),
+        }
+    )
 
 
 @cam_blueprint.app_errorhandler(DraftNotFound)
