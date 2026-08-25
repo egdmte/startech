@@ -142,6 +142,10 @@ class CamInterfaceTest(unittest.TestCase):
             b".cam-frame--preflight .cam-workflow-footer",
             sac_styles.data,
         )
+        self.assertIn(b"width: min(578px, calc(100% - 48px))", sac_styles.data)
+        self.assertIn(b"border-radius: 9px", sac_styles.data)
+        self.assertIn(b"inset 0 2px 11.8px", sac_styles.data)
+        self.assertIn(b"0 0 7.6px", sac_styles.data)
         sac_styles.close()
         for asset in (b"updatecar.png", b"default.png"):
             self.assertIn(asset, source.data)
