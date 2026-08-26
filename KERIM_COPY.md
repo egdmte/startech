@@ -17,7 +17,7 @@ Future work must refer to this file instead of reconstructing approved copy from
 
 ## Page 1 — Login
 
-Status: wording approved; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 | Location | English | Turkish |
 | --- | --- | --- |
@@ -36,7 +36,7 @@ Also remove `Learn how to update your code →`; it is currently displayed as an
 
 ## Page 2 — Dashboard
 
-Status: wording approved; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 ### Persistent account bar
 
@@ -76,7 +76,7 @@ The browser title remains unchanged: `KERİM · STARTECH`.
 
 ## Page 3 — YAREN connection
 
-Status: wording approved; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 ### Always visible
 
@@ -115,7 +115,7 @@ Use the shared welcome pattern `Hello {name}` / `Merhaba {isim}`.
 
 ## Page 4 — SAC source selection
 
-Status: wording approved; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 Remove from the page:
 
@@ -135,7 +135,7 @@ Use `Go back` / `Geri dön` for the remaining return action.
 
 ## Page 5 — Name the SAC
 
-Status: wording approved; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 | Location | English | Turkish |
 | --- | --- | --- |
@@ -150,7 +150,7 @@ Status: wording approved; implementation pending.
 
 ## Page 6 — SAC component selection
 
-Status: wording approved; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 ### Main instructions
 
@@ -187,7 +187,7 @@ Reuse the already approved `SAC ilerlemesi` translation for the progress label.
 
 ## Page 7 — SAC editor shared copy
 
-Status: wording approved; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 | Location | English | Turkish |
 | --- | --- | --- |
@@ -204,7 +204,7 @@ The existing browser-title pattern remains unchanged: `SAC · {component} · STA
 
 ## Page 7A — Power editor
 
-Status: wording approved with the displayed unit corrected to match the vehicle code; implementation pending.
+Status: implemented and verified; the displayed unit matches the vehicle code.
 
 | Location | English | Turkish |
 | --- | --- | --- |
@@ -220,7 +220,7 @@ Technical basis: `ayarlar.hiz` contains percentage-based PWM commands. The vehic
 
 ## Page 7B — Camera editor
 
-Status: wording completed; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 Replace both existing camera implementation disclaimers with this single explanation:
 
@@ -248,7 +248,7 @@ Remaining camera labels:
 
 ## Page 7C — SBC and services editor
 
-Status: wording approved; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 The Turkish component name `TKB ve servisleri` replaces the earlier `TKD` wording throughout the component-selection page, checklist, accessibility labels, and editor.
 
@@ -291,7 +291,7 @@ The STARTECH feature names remain language-neutral: `YAREN`, `ARDA`, `KASIM`, `K
 
 ## Page 7D — Drive editor
 
-Status: wording completed; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 Replace the repeated existing description with this single explanation:
 
@@ -319,7 +319,7 @@ Use `Motor output mode` / `Motor çıkış modu` for the remaining output group 
 
 ## Page 7E — Wheels editor
 
-Status: wording approved; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 The latest `Tekerler` wording replaces `Tekerlekler` on the component-selection page, checklist, accessibility labels, and editor.
 
@@ -340,7 +340,7 @@ Replace the repeated existing description with this single explanation:
 
 ## Page 8 — SAC summary
 
-Status: wording approved; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 | Location | English | Turkish |
 | --- | --- | --- |
@@ -362,7 +362,7 @@ Status: wording approved; implementation pending.
 
 ## Page 9 — SAC created
 
-Status: wording approved; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 Reuse the approved summary-screen welcome line: `Hello {name}` / `Merhaba {isim}`.
 
@@ -380,7 +380,7 @@ Reuse the approved summary-screen welcome line: `Hello {name}` / `Merhaba {isim}
 
 ## Page 10 — Start a MAC
 
-Status: translation delegated and drafted; implementation pending.
+Status: implemented and verified in the bilingual MAC workflow.
 
 | Location | English | Turkish |
 | --- | --- | --- |
@@ -403,7 +403,7 @@ Status: translation delegated and drafted; implementation pending.
 
 ## Page 11 — MAC editor
 
-Status: translation delegated and drafted; implementation pending.
+Status: implemented and verified in the bilingual MAC workflow.
 
 ### Shared editor interface
 
@@ -521,7 +521,7 @@ The browser-title pattern remains `MAC · {section} · STARTECH`.
 
 ## Page 12 — Variable manager
 
-Status: translation delegated and drafted; implementation pending.
+Status: implemented and verified in the bilingual MAC workflow.
 
 | Location | English | Turkish |
 | --- | --- | --- |
@@ -533,7 +533,7 @@ Status: translation delegated and drafted; implementation pending.
 
 ## Page 13 — MAC summary
 
-Status: translation delegated and drafted; implementation pending.
+Status: implemented and verified in the bilingual MAC workflow.
 
 Reuse the approved Page 8 creation heading, instructions, create action, and return action.
 
@@ -554,13 +554,13 @@ Reuse the approved Page 8 creation heading, instructions, create action, and ret
 
 ## Page 14 — MAC created
 
-Status: translation delegated and drafted; implementation pending.
+Status: implemented and verified in the bilingual MAC workflow.
 
 Reuse the approved Page 9 created-screen copy. The created message includes the workflow: `{workflow} calibration tagged {tag} has been created.` / `{etiket} etiketli {iş_akışı} kalibrasyonu oluşturuldu.`
 
 ## Page 15 — Live SAC checks
 
-Status: translation delegated and drafted; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 This page can issue a real bounded motor command. Its countdown and physical setup warnings remain prominent.
 
@@ -617,7 +617,7 @@ Capability-state labels:
 
 ## Page 16 — Start linked-camera calibration
 
-Status: translation delegated and drafted; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 | Location | English | Turkish |
 | --- | --- | --- |
@@ -633,7 +633,7 @@ Status: translation delegated and drafted; implementation pending.
 
 ## Page 17 — Live camera editor
 
-Status: translation delegated and drafted; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 | Location | English | Turkish |
 | --- | --- | --- |
@@ -672,7 +672,7 @@ Status: translation delegated and drafted; implementation pending.
 
 ## Page 18 — Version history
 
-Status: translation delegated and drafted; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 | Location | English | Turkish |
 | --- | --- | --- |
@@ -686,7 +686,7 @@ Status: translation delegated and drafted; implementation pending.
 
 ## Page 19 — FOS licenses
 
-Status: translation delegated and drafted; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 | Location | English | Turkish |
 | --- | --- | --- |
@@ -703,7 +703,7 @@ Keep the project names and licence identifiers `Reicon`, `3awnt`, `MIT`, and `GP
 
 ## Page 20 — Maintenance package
 
-Status: translation delegated and drafted; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 | Location | English | Turkish |
 | --- | --- | --- |
@@ -739,7 +739,7 @@ Status: translation delegated and drafted; implementation pending.
 
 ## Page 21 — Generic error
 
-Status: translation delegated and drafted; implementation pending.
+Status: implemented and verified in the bilingual KERİM interface.
 
 The error title and message are supplied by the failing operation and must use the selected interface language. The fixed return action is `Main menu` / `Ana menü`.
 

@@ -1,15 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Prove that you possess the code{% endblock %}
+{% block title %}{{ t('Prove that you possess the code') }}{% endblock %}
 {% block body_class %}access-page{% endblock %}
 {% block page %}
 <main class="access-shell" data-page>
-  <aside class="identity-panel" aria-label="Current session">
+  <aside class="identity-panel" aria-label="{{ t('Current session') }}">
     <header class="welcome-copy" data-motion data-motion-delay="1">
-      <span>Welcome</span>
-      <strong>{{ current_actor }}</strong>
+      <span>{{ t('Hello {name}', name=current_actor) }}</span>
     </header>
     <footer class="identity-session-footer" data-motion data-motion-delay="3">
-      <img class="school-logo" src="{{ url_for('static', filename='assets/school-logo.png') }}" alt="STARTECH school mark" width="29" height="28">
+      <img class="school-logo" src="{{ url_for('static', filename='assets/school-logo.png') }}" alt="{{ t('STARTECH school mark') }}" width="29" height="28">
     </footer>
   </aside>
 
@@ -17,30 +16,30 @@
     <div class="access-content" data-motion data-motion-delay="2">
       <img class="access-icon" src="{{ url_for('static', filename='assets/email.png') }}" alt="" width="39" height="39">
       {% if has_car_access %}
-      <h1 id="access-title">YAREN is connected.</h1>
-      <p class="access-explanation">You can use every normal KERİM setting while the link remains available. Returning to KERİM does not disconnect YAREN.</p>
-      <a class="cam-action cam-action--primary access-main-action" href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>Open KERİM</span></a>
+      <h1 id="access-title">{{ t('YAREN is connected.') }}</h1>
+      <p class="access-explanation">{{ t('YAREN will continue to work as long as the car is available and the process is not terminated.') }}</p>
+      <a class="cam-action cam-action--primary access-main-action" href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>{{ t('Open KERİM') }}</span></a>
       <form method="post" action="{{ url_for('auth.continue_offline') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="offline-action" type="submit">{{ reicon('logout') }}<span>Disconnect YAREN</span>{{ reicon('arrow-right2', 'reicon--direction') }}</button>
+        <button class="offline-action" type="submit">{{ reicon('logout') }}<span>{{ t('Disconnect YAREN') }}</span>{{ reicon('arrow-right2', 'reicon--direction') }}</button>
       </form>
       {% else %}
-      <h1 id="access-title">Connect YAREN when you need the car.</h1>
-      <p class="access-explanation">Open YAREN, select its KERİM action, and enter the one-use code here. The code stays available while that authenticated YAREN process remains connected.</p>
+      <h1 id="access-title">{{ t('Connect to YAREN for remote configuration.') }}</h1>
+      <p class="access-explanation">{{ t('In YAREN, select the first option and enter the one-time code here.') }}</p>
       <form class="code-form" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="code-entry">
-          <label class="visually-hidden" for="web-code">Temporary YAREN web code</label>
+          <label class="visually-hidden" for="web-code">{{ t('Temporary YAREN web code') }}</label>
           <input id="web-code" name="access_code" type="text" autocomplete="one-time-code" spellcheck="false" maxlength="12" required>
-          <button class="send-action" type="submit" aria-label="Verify web code">
+          <button class="send-action" type="submit" aria-label="{{ t('Verify web code') }}">
             {{ reicon('check') }}
           </button>
         </div>
       </form>
-      <a class="offline-action" href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>Open KERİM without linking now</span>{{ reicon('arrow-right2', 'reicon--direction') }}</a>
+      <a class="offline-action" href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>{{ t('Skip for now') }}</span>{{ reicon('arrow-right2', 'reicon--direction') }}</a>
       {% endif %}
     </div>
-    <p class="reassurance" data-motion data-motion-delay="3">You can always change your mind.</p>
+    <p class="reassurance" data-motion data-motion-delay="3">{{ t('You can always change your mind.') }}</p>
   </section>
 </main>
 {% endblock %}

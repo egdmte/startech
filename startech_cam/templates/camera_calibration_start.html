@@ -1,21 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Live camera calibration{% endblock %}
+{% block title %}{{ t('Live camera calibration') }}{% endblock %}
 {% block content %}
 <section class="center-card medium">
-  <h1>Calibrate from the linked car</h1>
-  <p>KERİM will copy YAREN's active configuration, request one real camera frame, and create a new profile. The current profile is never changed or activated.</p>
+  <h1>{{ t('Calibrate from the connected car') }}</h1>
+  <p>{{ t("KERİM copies YAREN's active configuration and captures one real frame into a new profile. The existing profile remains unchanged.") }}</p>
   <form class="form-stack" method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label>
-      <span>New profile name</span>
-      <input name="name" maxlength="80" required value="{{ entered_name or '' }}" placeholder="Workshop camera calibration">
+      <span>{{ t('New profile name') }}</span>
+      <input name="name" maxlength="80" required value="{{ entered_name or '' }}" placeholder="{{ t('Workshop camera calibration') }}">
     </label>
     <div class="calibration-truth-note">
-      <strong>What this proves</strong>
-      <span>The pixels came from the linked YAREN camera. It does not prove lane accuracy, steering, motor motion, or driving safety.</span>
+      <strong>{{ t('What this uses') }}</strong>
+      <span>{{ t('A real frame from the connected YAREN camera. Please refer to the car for more information.') }}</span>
     </div>
-    <button class="primary-button" type="submit">{{ reicon('camera') }}<span>Continue to live frame</span></button>
-    <a class="secondary-button" href="{{ url_for('cam.dashboard') }}">{{ reicon('arrow-left2') }}<span>Go back</span></a>
+    <button class="primary-button" type="submit">{{ reicon('camera') }}<span>{{ t('Continue to live frame') }}</span></button>
+    <a class="secondary-button" href="{{ url_for('cam.dashboard') }}">{{ reicon('arrow-left2') }}<span>{{ t('Go back') }}</span></a>
   </form>
 </section>
 {% endblock %}

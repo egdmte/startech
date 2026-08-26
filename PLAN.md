@@ -284,6 +284,11 @@ store history, preview real camera effects when a camera is linked, and deliver 
 inactive configuration to YAREN for review. YAREN remains the authority for what the
 local vehicle loads.
 
+KERİM's login and authenticated interface can be switched between English and Turkish.
+The selected language survives login and logout, and the approved page copy is recorded
+in `KERIM_COPY.md`. Both language paths use the same routes, validation, stored documents,
+and physical-evidence boundaries.
+
 KERİM uses a curated local Reicon 1.2 subset for meaningful action icons. The SVGs are
 served with the rest of the versioned interface bundle; normal operation does not load
 an icon runtime or depend on an external icon service. Its authenticated open-source

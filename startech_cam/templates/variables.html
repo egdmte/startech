@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Variable manager{% endblock %}
+{% block title %}{{ t('Variable manager') }}{% endblock %}
 {% block content %}
 <section class="document-editor">
   <header class="section-heading">
-    <h1>Variable Management</h1>
-    <p>Edit the merged v2 document directly. KERİM rejects unknown, missing, duplicate, non-finite, or semantically invalid values.</p>
+    <h1>{{ t('Variable management') }}</h1>
+    <p>{{ t('Edit the merged v2 JSON directly. Invalid values will be rejected.') }}</p>
   </header>
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <textarea class="code-input document-input" name="document_json" spellcheck="false">{{ document_json }}</textarea>
     <div class="editor-actions">
-      <button class="primary-button" type="submit">{{ reicon('shield-check') }}<span>Validate and save</span></button>
-      <a class="secondary-button" href="{{ url_for('cam.summary', workflow='mac', draft_id=draft_id) }}">{{ reicon('check') }}<span>Review summary</span></a>
+      <button class="primary-button" type="submit">{{ reicon('shield-check') }}<span>{{ t('Validate and save') }}</span></button>
+      <a class="secondary-button" href="{{ url_for('cam.summary', workflow='mac', draft_id=draft_id) }}">{{ reicon('check') }}<span>{{ t('Review summary') }}</span></a>
     </div>
   </form>
 </section>

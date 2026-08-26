@@ -17,6 +17,7 @@ from flask import (
     url_for,
 )
 
+from .i18n import SUPPORTED_LANGUAGES, current_language, translate
 from .security import (
     access_code_remote_is_limited,
     audit,
@@ -96,6 +97,8 @@ def inject_auth_context() -> dict[str, Any]:
         "csrf_token": csrf_token,
         "current_actor": current_actor(),
         "has_car_access": has_car_access(),
+        "current_language": current_language(),
+        "t": translate,
     }
 
 
@@ -107,7 +110,7 @@ def protect_unsafe_requests() -> None:
         return
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
         if not csrf_matches(request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")):
-            abort(400, "The form expired or its CSRF token is invalid.")
+            abort(400, translate("The form expired or its CSRF token is invalid."))
 
 
 @auth_blueprint.route("/login", methods=["GET", "POST"])
@@ -119,17 +122,19 @@ def login() -> Any:
 
     remote = request.remote_addr or "unknown"
     if remote_is_limited(remote):
-        abort(429, "Too many failed login attempts. Wait fifteen minutes.")
+        abort(429, translate("Too many failed login attempts. Wait fifteen minutes."))
     name = request.form.get("legal_name", "").strip()
     password = request.form.get("password", "")
     accepted = 1 <= len(name) <= 120 and verify_password(password)
     record_login(remote, succeeded=accepted)
     if not accepted:
-        flash("The name or password was not accepted.", "error")
+        flash(translate("The name or password was not accepted."), "error")
         return render_template("login.html", legal_name=name), 401
 
+    selected_language = current_language()
     session.clear()
     session.permanent = False
+    session["language"] = selected_language
     session["authenticated"] = True
     session["legal_name"] = name
     csrf_token()
@@ -144,10 +149,24 @@ def login() -> Any:
 @login_required
 def logout() -> Any:
     actor = current_actor()
+    selected_language = current_language()
     _revoke_session_link(actor)
     audit(actor, "LOGOUT", "session", {})
     session.clear()
+    session["language"] = selected_language
     return redirect(url_for("auth.login"))
+
+
+@auth_blueprint.post("/language")
+def language() -> Any:
+    selected = request.form.get("language", "")
+    if selected not in SUPPORTED_LANGUAGES:
+        abort(400, translate("Unsupported interface language."))
+    session["language"] = selected
+    target = _safe_local_target(request.form.get("next", ""))
+    if target:
+        return redirect(target)
+    return redirect(url_for("cam.dashboard" if session_is_active() else "auth.login"))
 
 
 @auth_blueprint.route("/access", methods=["GET", "POST"])
@@ -157,12 +176,12 @@ def access() -> Any:
         return render_template("access.html")
     remote = request.remote_addr or "unknown"
     if access_code_remote_is_limited(remote):
-        abort(429, "Too many invalid YAREN codes. Wait fifteen minutes.")
+        abort(429, translate("Too many invalid YAREN codes. Wait fifteen minutes."))
     code = request.form.get("access_code", "")
     grant = consume_access_code_grant(code, current_actor())
     record_access_code_attempt(remote, succeeded=grant is not None)
     if grant is None:
-        flash("That YAREN code is invalid, expired, or already used.", "error")
+        flash(translate("That YAREN code is invalid, expired, or already used."), "error")
         return render_template("access.html"), 400
     _revoke_session_link(current_actor())
     session["device_id"] = grant.device_id
@@ -171,12 +190,9 @@ def access() -> Any:
     else:
         session.pop("device_link_id", None)
     if grant.link_id is None:
-        flash(
-            f"Code accepted for {grant.device_id}, but it did not include a live YAREN link.",
-            "success",
-        )
+        flash(translate("Code accepted for {device_id}, but it did not include a live YAREN link.", device_id=grant.device_id), "success")
     else:
-        flash(f"Connected to {grant.device_id} for this session.", "success")
+        flash(translate("Connected to {device_id} for this session.", device_id=grant.device_id), "success")
     return redirect(url_for("cam.dashboard"))
 
 

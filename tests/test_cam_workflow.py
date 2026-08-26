@@ -222,7 +222,7 @@ class CamWorkflowTest(unittest.TestCase):
         link_id, device_id = self.connect_device()
         path = f"/sac/{draft_id}/preflight"
         page = self.client.get(path)
-        self.assertIn(b"Bounded workshop motor check", page.data)
+        self.assertIn(b"Workshop motor check", page.data)
         self.assertIn(b"Egemen Yusuf Kayra", page.data)
         token = TOKEN.search(page.data).group(1).decode("ascii")
         queued = self.client.post(
@@ -267,7 +267,8 @@ class CamWorkflowTest(unittest.TestCase):
             )
 
         completed = self.client.get(f"{path}?job={job_id}")
-        self.assertIn(b"This receipt proves software execution", completed.data)
+        self.assertIn(b"Command record saved", completed.data)
+        self.assertIn(b"Please refer to the car for more information", completed.data)
         token = TOKEN.search(completed.data).group(1).decode("ascii")
         observed = self.client.post(
             f"/sac/{draft_id}/workshop/{job_id}/observe",

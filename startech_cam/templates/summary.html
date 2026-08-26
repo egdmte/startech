@@ -1,45 +1,45 @@
 {% extends "base.html" %}
-{% block title %}{{ workflow }} summary{% endblock %}
+{% block title %}{{ t('{workflow} summary', workflow=workflow) }}{% endblock %}
 {% block content %}
 <section class="summary-layout">
   <header class="section-heading centered">
     <div class="gear-icon" aria-hidden="true">{{ reicon('settings4') }}</div>
-    <h1>Calibration is about to be created.</h1>
-    <p>Review every saved section before creating the immutable version.</p>
+    <h1>{{ t('Calibration is about to be created.') }}</h1>
+    <p>{{ t('Please review the calibration before it is saved.') }}</p>
   </header>
   <div class="summary-grid">
     <div class="summary-panel">
       <h2>{{ document.profil.ad }}</h2>
       <dl>
-        <div><dt>Workflow</dt><dd>{{ workflow }}</dd></div>
-        <div><dt>Source</dt><dd>{{ document.profil.kaynak }}</dd></div>
-        <div><dt>Schema</dt><dd>merged v{{ document.sema_surumu }} / SAC contract {{ document.sac_niyeti.sozlesme_surumu if document.sac_niyeti else 'not used' }}</dd></div>
-        <div><dt>Saved sections</dt><dd>{{ touched|join(', ') if touched else 'none' }}</dd></div>
+        <div><dt>{{ t('Workflow') }}</dt><dd>{{ workflow }}</dd></div>
+        <div><dt>{{ t('Source') }}</dt><dd>{{ document.profil.kaynak }}</dd></div>
+        <div><dt>{{ t('Schema') }}</dt><dd>{{ t('Merged v{schema_version} / SAC Contract v{contract_version}', schema_version=document.sema_surumu, contract_version=(document.sac_niyeti.sozlesme_surumu if document.sac_niyeti else t('not used'))) }}</dd></div>
+        <div><dt>{{ t('Saved sections') }}</dt><dd>{{ touched|join(', ') if touched else t('none') }}</dd></div>
       </dl>
-      <h3>Sections</h3>
+      <h3>{{ t('Sections') }}</h3>
       <div class="section-links">
       {% for key, definition in definitions.items() %}
-        <a href="{{ url_for('cam.edit_section', workflow=workflow.lower(), draft_id=draft_id, section=key) }}">{{ definition[0] }} {{ '✓' if key in touched else '—' }}</a>
+        <a href="{{ url_for('cam.edit_section', workflow=workflow.lower(), draft_id=draft_id, section=key) }}">{{ t(definition[0]) }} {{ '✓' if key in touched else '—' }}</a>
       {% endfor %}
       </div>
     </div>
-    <details class="json-preview"><summary>Validated merged JSON</summary><pre>{{ document_json }}</pre></details>
+    <details class="json-preview"><summary>{{ t('Validated merged JSON') }}</summary><pre>{{ document_json }}</pre></details>
   </div>
   {% if errors %}
-    <div class="validation-errors"><strong>Creation blocked</strong><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div>
+    <div class="validation-errors"><strong>{{ t('Cannot be created') }}</strong><ul>{% for error in errors %}<li>{{ t(error) }}</li>{% endfor %}</ul></div>
   {% endif %}
   {% if missing_sections %}
     <div class="validation-errors">
-      <strong>Review required</strong>
-      <p>SAC records an explicit review of every assisted section. Still missing: {{ missing_sections|join(', ') }}.</p>
+      <strong>{{ t('Review required') }}</strong>
+      <p>{{ t('Some sections still need review: {sections}.', sections=missing_sections|join(', ')) }}</p>
     </div>
   {% endif %}
   <div class="button-stack summary-buttons">
     <form method="post" action="{{ url_for('cam.publish', workflow=workflow.lower(), draft_id=draft_id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="primary-button" type="submit" {% if errors or missing_sections %}disabled{% endif %}>{{ reicon('check') }}<span>Create</span></button>
+      <button class="primary-button" type="submit" {% if errors or missing_sections %}disabled{% endif %}>{{ reicon('check') }}<span>{{ t('Create') }}</span></button>
     </form>
-    <a class="secondary-button" href="{{ url_for('cam.edit_section', workflow=workflow.lower(), draft_id=draft_id, section=(definitions|list|last)) }}">{{ reicon('arrow-left2') }}<span>Go back</span></a>
+    <a class="secondary-button" href="{{ url_for('cam.edit_section', workflow=workflow.lower(), draft_id=draft_id, section=(definitions|list|last)) }}">{{ reicon('arrow-left2') }}<span>{{ t('Go back') }}</span></a>
   </div>
 </section>
 {% endblock %}

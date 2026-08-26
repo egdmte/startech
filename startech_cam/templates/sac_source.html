@@ -1,26 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Select a SAC target{% endblock %}
+{% block title %}{{ t('Select a SAC target') }}{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css', v=cam_asset_version) }}">{% endblock %}
 {% block content %}
-<a class="sac-abort" href="{{ url_for('cam.dashboard') }}">{{ reicon('x-circle') }}<span>Abort</span></a>
 <section class="cam-center-panel cam-stage-panel source-panel" aria-labelledby="source-title">
   <header class="cam-page-heading" data-motion data-motion-delay="1">
-    <h1 id="source-title">Select a target for the calibration.</h1>
-    <p>Please provide a starting point for this calibration.</p>
+    <h1 id="source-title">{{ t('Select a target for the calibration.') }}</h1>
+    <p>{{ t('Please provide a starting point for this calibration.') }}</p>
   </header>
   <div class="cam-action-stack" data-motion data-motion-delay="2">
     <form method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="source" value="CAR">
       <button class="cam-action cam-action--primary" type="submit">
-        <span class="cam-action__content">{{ reicon('refresh') }}<span>Update from the car</span></span>
+        <span class="cam-action__content">{{ reicon('refresh') }}<span>{{ t('Load from the car') }}</span></span>
       </button>
     </form>
     <form method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="source" value="DEFAULT">
       <button class="cam-action cam-action--secondary" type="submit">
-        <span class="cam-action__content">{{ reicon('car') }}<span>Use the default model</span></span>
+        <span class="cam-action__content">{{ reicon('car') }}<span>{{ t('Use the default model') }}</span></span>
       </button>
     </form>
     {% if calibrations %}
@@ -28,15 +27,15 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="source" value="PREVIOUS">
       <button class="cam-action cam-action--secondary" type="submit">
-        <span class="cam-action__content">{{ reicon('copy') }}<span>Copy an old version</span></span>
+        <span class="cam-action__content">{{ reicon('copy') }}<span>{{ t('Copy an old version') }}</span></span>
       </button>
-      <label class="visually-hidden" for="previous-tag">Version to copy</label>
+      <label class="visually-hidden" for="previous-tag">{{ t('Version to copy') }}</label>
       <select id="previous-tag" class="source-version-select" name="previous_tag">
         {% for item in calibrations %}<option value="{{ item.tag }}">{{ item.tag }} — {{ item.name }}</option>{% endfor %}
       </select>
     </form>
     {% endif %}
   </div>
-  <a class="cam-tertiary-action" href="{{ url_for('cam.dashboard') }}">{{ reicon('arrow-left2') }}<span>Go back</span></a>
+  <a class="cam-tertiary-action" href="{{ url_for('cam.dashboard') }}">{{ reicon('arrow-left2') }}<span>{{ t('Go back') }}</span></a>
 </section>
 {% endblock %}

@@ -1,38 +1,38 @@
 {% extends "base.html" %}
-{% block title %}Calibration {{ tag }} created{% endblock %}
+{% block title %}{{ t('Created - STARTECH') }}{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css', v=cam_asset_version) }}">{% endblock %}
 {% block page %}
 <main class="finish-shell" data-page>
-  <aside class="finish-identity" aria-label="Current session">
-    <header class="finish-welcome" data-motion data-motion-delay="1"><span>Welcome</span><strong>{{ current_actor }}</strong></header>
+  <aside class="finish-identity" aria-label="{{ t('Current session') }}">
+    <header class="finish-welcome" data-motion data-motion-delay="1"><span>{{ t('Hello {name}', name=current_actor) }}</span></header>
     <footer class="finish-session-footer" data-motion data-motion-delay="3">
-      <img class="finish-school-logo" src="{{ url_for('static', filename='assets/school-logo.png') }}" alt="STARTECH school mark" width="29" height="28">
+      <img class="finish-school-logo" src="{{ url_for('static', filename='assets/school-logo.png') }}" alt="{{ t('STARTECH school mark') }}" width="29" height="28">
     </footer>
   </aside>
   <section class="finish-stage" aria-labelledby="created-title">
     <div class="finish-result-layout" data-motion data-motion-delay="2">
       <header class="finish-copy">
         <span class="finish-icon finish-icon--success" aria-hidden="true">{{ reicon('check') }}</span>
-        <h1 id="created-title">Calibration created!</h1>
-        <p>A new calibration with tag <strong>{{ tag }}</strong> has been created.</p>
-        <p>There are other variables that cannot be edited using Service Assisted Calibration.</p>
+        <h1 id="created-title">{{ t('Created!') }}</h1>
+        <p>{{ t('The calibration tagged {tag} has been created.', tag=tag) }}</p>
+        <p>{{ t('Some values cannot be changed through Service Assisted Calibration.') }}</p>
       </header>
       <div class="finish-result-actions">
         <form method="post" action="{{ url_for('cam.edit_with_mac', tag=tag) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="cam-action cam-action--primary" type="submit">{{ reicon('edit') }}<span>Edit {{ tag }} with MAC</span></button>
+          <button class="cam-action cam-action--primary" type="submit">{{ reicon('edit') }}<span>{{ t('Edit {tag} with MAC', tag=tag) }}</span></button>
         </form>
         {% if has_car_access %}
         <form method="post" action="{{ url_for('cam.sideload', tag=tag) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="cam-action cam-action--secondary" type="submit">{{ reicon('upload') }}<span>Sideload inactive profile to Pi</span></button>
+          <button class="cam-action cam-action--secondary" type="submit">{{ reicon('upload') }}<span>{{ t('Send this inactive profile to the Pi') }}</span></button>
         </form>
         {% endif %}
         {% if device_job %}
-        <p class="device-job-status" role="status">Sideload job <strong>{{ device_job.status }}</strong>. The profile is not active.</p>
+        <p class="device-job-status" role="status">{{ t('Sharing status: {status}. The profile is not active.', status=device_job.status) }}</p>
         {% endif %}
-        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.download', tag=tag) }}">{{ reicon('download') }}<span>Download merged JSON</span></a>
-        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>Main Menu</span></a>
+        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.download', tag=tag) }}">{{ reicon('download') }}<span>{{ t('Download the JSON') }}</span></a>
+        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>{{ t('Main menu') }}</span></a>
       </div>
     </div>
   </section>

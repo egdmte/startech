@@ -151,16 +151,16 @@ class CombinedConfigurationTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "kasim"):
             self.merge(sac_intent=intent)
 
-    def test_full_output_requires_both_session_acknowledgements(self):
+    def test_full_output_requires_profile_acknowledgement(self):
         intent = sac_intent()
         intent["surus"]["surucu_cikis_modu"] = "full"
-        with self.assertRaisesRegex(ValueError, "iki SAC onayı"):
+        with self.assertRaisesRegex(ValueError, "profil onayı"):
             self.merge(sac_intent=intent)
         evidence = session_evidence()
         evidence["tam_cikis_onaylandi"] = True
-        evidence["prototip_kilidi_onaylandi"] = True
         combined = self.merge(sac_intent=intent, session_evidence=evidence)
         self.assertEqual([], combined_config_errors(combined))
+        self.assertFalse(combined["oturum_kaniti"]["prototip_kilidi_onaylandi"])
 
     def test_speed_intent_must_be_ordered(self):
         intent = sac_intent()

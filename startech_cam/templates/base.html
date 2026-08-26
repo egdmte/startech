@@ -4,12 +4,12 @@
   </svg>
 {%- endmacro -%}
 <!doctype html>
-<html lang="en">
+<html lang="{{ current_language }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="STARTECH KERİM configuration and release centre">
+  <meta name="description" content="{{ t('STARTECH KERİM configuration and release centre') }}">
   <title>{% block title %}KERİM{% endblock %} · STARTECH</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,12 +21,22 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
   {% if session.get('authenticated') %}
-    <nav class="cam-account-bar" aria-label="KERİM account and YAREN navigation">
+    <nav class="cam-account-bar" aria-label="{{ t('KERİM account and YAREN navigation') }}">
       <a href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>KERİM</span></a>
-      <a href="{{ url_for('auth.access') }}" class="{{ 'is-linked' if has_car_access else '' }}">{{ reicon('folder-connect') }}<span>{{ 'YAREN connected' if has_car_access else 'Connect YAREN' }}</span></a>
+      <a href="{{ url_for('auth.access') }}" class="{{ 'is-linked' if has_car_access else '' }}">{{ reicon('folder-connect') }}<span>{{ t('Remote-controlled') if has_car_access else t('Connect YAREN') }}</span></a>
+      <div class="cam-language-switcher" aria-label="{{ t('Available languages') }}">
+        {% for language, flag, label in [('tr', 'tr.svg', 'Türkçe'), ('en', 'en.svg', 'English')] %}
+        <form method="post" action="{{ url_for('auth.language') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="language" value="{{ language }}">
+          <input type="hidden" name="next" value="{{ request.full_path }}">
+          <button class="language-option {{ 'is-active' if current_language == language else '' }}" type="submit" aria-label="{{ label }}" aria-pressed="{{ 'true' if current_language == language else 'false' }}"><img src="{{ url_for('static', filename='assets/' ~ flag) }}" alt="" width="35" height="26"></button>
+        </form>
+        {% endfor %}
+      </div>
       <form method="post" action="{{ url_for('auth.logout') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit">{{ reicon('logout') }}<span>Log out</span></button>
+        <button type="submit">{{ reicon('logout') }}<span>{{ t('Log out') }}</span></button>
       </form>
     </nav>
   {% endif %}
@@ -34,7 +44,7 @@
     {% if messages %}
       <div class="flash-stack" role="status" aria-live="polite">
         {% for category, message in messages %}
-          <div class="flash {{ category }}">{{ message }}</div>
+          <div class="flash {{ category }}">{{ t(message) }}</div>
         {% endfor %}
       </div>
     {% endif %}
