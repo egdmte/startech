@@ -218,8 +218,34 @@ Status: wording approved with the displayed unit corrected to match the vehicle 
 | Description | These settings are applied in the car. (See `ayarlar.hiz`.) | Bu ayarlar araçta uygulanır. (Bakınız: `ayarlar.hiz`.) |
 | PWM explanation | These limits do not change the battery voltage. The driver uses a fixed 100 Hz PWM frequency; these controls change the minimum and maximum PWM command percentages that determine the duty cycle. | Bu limitler batarya voltajını değiştirmez. Sürücü sabit 100 Hz PWM frekansı kullanır; bu kontroller, görev oranını belirleyen asgari ve azami PWM komut yüzdelerini değiştirir. |
 | Minimum control | Minimum speed | Asgari hız |
-| Maximum control | Maximum speed | En yüksek hız |
+| Maximum control | Maximum speed | Azami hız |
 | Scale minimum | 0% | 0% |
 | Scale maximum | 100% | 100% |
 
 Technical basis: `ayarlar.hiz` contains percentage-based PWM commands. The vehicle's PWM frequency is configured separately and is currently fixed at 100 Hz. Do not label these controls as Hertz.
+
+## Page 7B — Camera editor
+
+Status: wording partially approved; implementation pending.
+
+Replace both existing camera implementation disclaimers with this single explanation:
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Component title | Camera | Kamera |
+| Implementation explanation | These options are not currently used by the car code. The settings here will take effect when their implementation is complete. You can continue changing them in the meantime. | Bu seçenekler şu anda araç kodunda kullanılmıyor. Buradaki ayarlar, ilgili kod tamamlandığında çalışacak. Bu süreç boyunca değişiklik yapmaya devam edebilirsiniz. |
+| Orientation heading | Frame orientation | Görüntü yönü |
+| Performance profile | 640×480 — maximum performance | 640×480 — Azami performans |
+| Balanced profile | 1280×720 — balanced | 1280×720 — Dengeli |
+| Quality profile | 1920×1080 — maximum quality | 1920×1080 — Azami kalite |
+| Minimum sensitivity | Conservative | Asgari |
+| Balanced sensitivity | Balanced | Dengeli |
+| Maximum sensitivity | Sensitive | Azami |
+
+The orientation values remain language-neutral: `0°`, `90°`, `180°`, and `270°`.
+
+Still awaiting Turkish translations:
+
+- `Capture profile`
+- `Recognition sensitivity`
+- `Prioritize Raspberry Pi Camera before USB`
