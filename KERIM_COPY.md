@@ -173,7 +173,7 @@ Status: wording approved; implementation pending.
 | SBC and services | Choose startup validation and enabled STARTECH modules. | TKB ve servisleri | Başlangıç onaylarını ve çalışan STARTECH modüllerini yönetin. |
 | Camera | Choose capture, orientation and recognition intent. | Kamera | Yakalama, oranlama ve tespit hedeflerini değiştirin. |
 | Drive and steering | Set command-loss policy and steering limits. | Sürüş ve dönüş | Kod kaybı ve dönüş limitlerini belirleyin. |
-| Wheels | Set wheel correction and direction intent. | Tekerlekler | Tekerlek dönüşü ve düzeltme oranlarını belirleyin. |
+| Wheels | Set wheel correction and direction intent. | Tekerler | Teker dönüşü ve düzeltme oranlarını belirleyin. |
 
 Use these same approved section names in the checklist and accessibility labels. Do not introduce alternate component names for those locations.
 
@@ -322,3 +322,24 @@ Remove the second full-output checkbox and its corresponding server-side validat
 Still awaiting replacement or Turkish wording:
 
 - `Driver output mode`
+
+## Page 7E — Wheels editor
+
+Status: wording approved; implementation pending.
+
+The latest `Tekerler` wording replaces `Tekerlekler` on the component-selection page, checklist, accessibility labels, and editor.
+
+Replace the repeated existing description with this single explanation:
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Component title | Wheels | Tekerler |
+| Implementation explanation | The car will read these settings in future updates. | Araç bu ayarları ileriki güncellemelerde okuyacaktır. |
+| Left diagram label | LEFT | SOL |
+| Right diagram label | RIGHT | SAĞ |
+| Left-correction control | Left correction | Sol düzeltmesi |
+| Right-correction control | Right correction | Sağ düzeltmesi |
+| Left-direction control | Left wheel direction | Sol teker yönü |
+| Right-direction control | Right wheel direction | Sağ teker yönü |
+| Camera-facing direction | Toward the camera | Kameraya doğru |
+| Battery-facing direction | Toward the battery holders | Pil yataklarına doğru |
