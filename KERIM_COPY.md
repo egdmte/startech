@@ -153,3 +153,40 @@ Status: wording approved; implementation pending.
 | Name-field placeholder | MySAC | Benim SAC'im |
 | Progress label | SAC progress | SAC ilerlemesi |
 | Browser title | Name this calibration · STARTECH | İsimlendirme |
+
+## Page 6 — SAC component selection
+
+Status: wording approved; implementation pending.
+
+### Main instructions
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Main heading | Which part would you like to be assisted with? | Hangi parça hakkında yardım almak istiyorsunuz? |
+| Instructions | Click or touch the relevant section to review what can be changed. | İlgili parçanın üzerine dokunarak veya tıklayarak nelerin değiştirilebileceğini görün. |
+
+### Car sections
+
+| Section | English description | Turkish section | Turkish description |
+| --- | --- | --- | --- |
+| Battery and power | Set minimum and maximum software speed limits. | Batarya ve güç | Maksimum ve minimum hız değerlerini ayarlayın. |
+| SBC (Single-board Controller) and Services | Choose startup validation and enabled STARTECH modules. | TKD (Tek kartlı denetleyici) ve servisleri | Başlangıç onaylarını ve çalışan STARTECH modüllerini yönetin. |
+| Camera | Choose capture, orientation and recognition intent. | Kamera | Yakalama, oranlama ve tespit hedeflerini değiştirin. |
+| Drive and steering | Set command-loss policy and steering limits. | Sürüş ve dönüş | Kod kaybı ve dönüş limitlerini belirleyin. |
+| Wheels | Set wheel correction and direction intent. | Tekerlekler | Tekerlek dönüşü ve düzeltme oranlarını belirleyin. |
+
+Use these same approved section names in the checklist and accessibility labels. Do not introduce alternate component names for those locations.
+
+### Selection states and actions
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Empty-state heading | NO PARTS SELECTED | PARÇA SEÇİLMEDİ |
+| Empty-state instructions | Select a blue area to inspect or edit that part. | İlgili mavi alana dokunarak bilgi alın. |
+| Complete-state heading | ALL PARTS REVIEWED | TÜM PARÇALAR İNCELENDİ |
+| Complete-state instructions | You can now review and create this calibration. | Bu kalibrasyonu inceleyebilir ve oluşturabilirsiniz. |
+| Review action | Review calibration | Kalibrasyonu incele |
+| Incomplete action | Review every section first | Önce tüm parçaları denetleyin |
+| Browser title | Choose a car section · STARTECH | Araç parçası seç |
+
+Reuse the already approved `SAC ilerlemesi` translation for the progress label.
