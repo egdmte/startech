@@ -75,3 +75,44 @@ Status: wording approved; implementation pending.
 Implementation requirement: calculate this message from the configurations added since the user's previous login. Do not display the total number of configurations as though they were all new.
 
 The browser title remains unchanged: `KERİM · STARTECH`.
+
+## Page 3 — YAREN connection
+
+Status: wording approved; implementation pending.
+
+### Always visible
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Reassurance | You can always change your mind. | Her zaman fikrinizi değiştirebilirsiniz. |
+
+Still awaiting a decision:
+
+- The `Welcome` and legal-name block.
+
+### Disconnected state
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Main heading | Connect to YAREN for remote configuration. | Uzaktan kontrol için YAREN'e bağlan. |
+| Instructions | In YAREN, select the first option and enter the one-time code here. | YAREN üzerinden ilk seçeneği seçin ve tek seferlik kodu buraya girin. |
+| Skip action | Skip for now → | Atla → |
+
+### Connected state
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Main heading | YAREN is connected. | YAREN bağlandı. |
+| Availability explanation | YAREN will continue to work as long as the car is available and the process is not terminated. | YAREN, araç kullanılabilir olduğu ve işlem sonlandırılmadığı sürece çalışmaya devam eder. |
+| Return action | Open KERİM | KERİM'i aç |
+| Disconnect action | Disconnect YAREN | Bağlantıyı kes |
+
+### Browser and accessibility text
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Browser title | Prove that you possess the code · STARTECH | Aracın kodunun sizde olduğunu doğrulayın |
+| Session label | Current session | Şimdiki oturum |
+| School-logo alternative | STARTECH school mark | STARTECH okul logosu |
+| Code-field label | Temporary YAREN web code | Geçici YAREN giriş kodu |
+| Submit-button label | Verify web code | Giriş kodunu doğrula |
