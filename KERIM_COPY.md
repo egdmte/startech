@@ -365,3 +365,21 @@ Status: wording approved; implementation pending.
 | Return action | Go back | Geri dön |
 | Review-region label | Calibration summary | Kalibrasyon özeti |
 | Browser title | Review calibration · STARTECH | Kalibrasyonu incele |
+
+## Page 9 — SAC created
+
+Status: wording approved; implementation pending.
+
+Reuse the approved summary-screen welcome line: `Hello {name}` / `Merhaba {isim}`.
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Main heading | Created! | Oluşturuldu! |
+| Created message | The calibration tagged {tag} has been created. | {etiket} etiketli kalibrasyon oluşturuldu. |
+| MAC explanation | Some values cannot be changed through Service Assisted Calibration. | Servis Asistanlı Kalibrasyon üzerinden değiştirilemeyecek değerler yer alıyor. |
+| MAC action | Edit {tag} with MAC | {etiket} etiketini MAC ile düzenle |
+| Pi-transfer action | Send this inactive profile to the Pi | Bu inaktif profili Pi'ye gönder |
+| Download action | Download the JSON | JSON'u indir |
+| Menu action | Main Menu | Ana Menü |
+| Transfer-status pattern | Sharing status: {status}. The profile is not active. | Paylaşım durumu: {durum}. Profil aktif değil. |
+| Browser title | Created - STARTECH | Oluşturuldu - STARTECH |
