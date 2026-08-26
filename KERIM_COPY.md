@@ -207,3 +207,19 @@ Status: wording approved; implementation pending.
 | Storage explanation | KERİM will save these settings in SAC v1 so they are not affected by later calibration versions. | KERİM bu ayarları, sonraki kalibrasyon sürümlerinden etkilenmemeleri için SAC v1'e kaydedecektir. |
 
 The existing browser-title pattern remains unchanged: `SAC · {component} · STARTECH`.
+
+## Page 7A — Power editor
+
+Status: wording approved with the displayed unit corrected to match the vehicle code; implementation pending.
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Component title | Power limits | Güç limitleri |
+| Description | These settings are applied in the car. (See `ayarlar.hiz`.) | Bu ayarlar araçta uygulanır. (Bakınız: `ayarlar.hiz`.) |
+| PWM explanation | These limits do not change the battery voltage. The driver uses a fixed 100 Hz PWM frequency; these controls change the minimum and maximum PWM command percentages that determine the duty cycle. | Bu limitler batarya voltajını değiştirmez. Sürücü sabit 100 Hz PWM frekansı kullanır; bu kontroller, görev oranını belirleyen asgari ve azami PWM komut yüzdelerini değiştirir. |
+| Minimum control | Minimum speed | Asgari hız |
+| Maximum control | Maximum speed | En yüksek hız |
+| Scale minimum | 0% | 0% |
+| Scale maximum | 100% | 100% |
+
+Technical basis: `ayarlar.hiz` contains percentage-based PWM commands. The vehicle's PWM frequency is configured separately and is currently fixed at 100 Hz. Do not label these controls as Hertz.
