@@ -292,3 +292,33 @@ Replace the existing repeated descriptions with these two paragraphs:
 | Feature selector heading | Enabled features | Açık özellikler |
 
 The STARTECH feature names remain language-neutral: `YAREN`, `ARDA`, `KASIM`, `KADER`, `KEREM`, `OSMAN`, and `M3TH`.
+
+## Page 7D — Drive editor
+
+Status: wording approved except for one group heading; implementation pending.
+
+Replace the repeated existing description with this single explanation:
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Component title | Command management | Komut yönetimi |
+| Explanation | The settings here will be used to determine the calibration status; these options will not affect how the car operates. | Buradaki ayarlar kalibrasyonun durumunu belirlemek için kullanılacaktır; bu seçenekler aracın çalışmasını etkilemeyecektir. |
+| Command-loss heading | When a command is lost | Komut kaybetme durumunda |
+| Reject option | Reject the request | İsteği reddet |
+| Stop option | Stop and wait | Durdur ve bekle |
+| Previous-command option | Follow previous commands | Önceki komutlara uy |
+| No-output option | No motor output | Motor çıkışı yok |
+| Steering-only option | Turning only | Sadece dönüş |
+| Full-output option | Full car control | Tam araç kontrolü |
+| Center control | Driving center point | Sürüş orta noktası |
+| Maximum-turn control | Maximum wheel turning angle | Azami teker dönme açısı |
+| Full-output heading | Full driving requires approval. | Tam sürüş onay bekler. |
+| Full-output acknowledgement | I approve this profile. | Bu profili onaylıyorum. |
+
+Remove the second full-output checkbox and its corresponding server-side validation requirement:
+
+- `I understand that KERİM does not arm or physically test the car.`
+
+Still awaiting replacement or Turkish wording:
+
+- `Driver output mode`
