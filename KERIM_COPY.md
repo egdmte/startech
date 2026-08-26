@@ -138,3 +138,18 @@ Remove from the page:
 Still awaiting a Turkish translation:
 
 - `Go back`
+
+## Page 5 — Name the SAC
+
+Status: wording approved; implementation pending.
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Main heading | Please enter a name for this calibration. | Kalibrasyon için bir isim girin. |
+| Explanation | Your legal name is used to determine the owner. Naming a calibration helps you organize it; it does not affect how STARTECH references calibrations. | Yasal isminiz, kalibrasyon sahibini belirlemek için kullanılır. Kalibrasyon isimleri işinizi kolaylaştırmak içindir; kod bu isimleri okumaz. |
+| Submit action | Agree | Onayla |
+| Change-source action | Choose another source | Başka bir hedef seç |
+| Name-field label | Calibration name | Kalibrasyon ismi |
+| Name-field placeholder | MySAC | Benim SAC'im |
+| Progress label | SAC progress | SAC ilerlemesi |
+| Browser title | Name this calibration · STARTECH | İsimlendirme |
