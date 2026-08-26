@@ -1,3 +1,10 @@
+# HISTORICAL — superseded vehicle configuration contract
+
+> This contract belongs to the deleted `arac/` configuration path. KERİM still uses
+> retained configuration-library code, but automatic installation into
+> `LEGACY/config.py` is not implemented. Preserve this as design history; its vehicle
+> commands are not current instructions.
+
 # Yapılandırma Sözleşmesi — `kalibrasyon.json` ve `ayarlar.json`
 
 Bu belge, StarTechConfig aracının ürettiği iki JSON dosyasının **v1 biçimini**

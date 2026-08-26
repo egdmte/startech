@@ -44,7 +44,7 @@ class CamReleaseTest(unittest.TestCase):
 
 class KerimVehicleBundleTest(unittest.TestCase):
     def make_repository(self, root: Path) -> str:
-        for directory in ("arac", "startech", "config"):
+        for directory in ("LEGACY", "startech", "config"):
             (root / directory).mkdir(parents=True, exist_ok=True)
             (root / directory / "kept.txt").write_text(
                 f"{directory} committed\n", encoding="utf-8"
@@ -122,7 +122,7 @@ class KerimVehicleBundleTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             commit = self.make_repository(root)
-            (root / "arac" / "uncommitted.py").write_text(
+            (root / "LEGACY" / "uncommitted.py").write_text(
                 "must not ship\n", encoding="utf-8"
             )
             revision = Revision(
@@ -141,8 +141,8 @@ class KerimVehicleBundleTest(unittest.TestCase):
             self.assertEqual(commit, bundle.commit)
             with zipfile.ZipFile(BytesIO(bundle.body)) as archive:
                 names = set(archive.namelist())
-                self.assertIn("startech-vehicle/arac/kept.txt", names)
-                self.assertNotIn("startech-vehicle/arac/uncommitted.py", names)
+                self.assertIn("startech-vehicle/LEGACY/kept.txt", names)
+                self.assertNotIn("startech-vehicle/LEGACY/uncommitted.py", names)
                 self.assertIn("KERIM_RELEASE/manifest.json", names)
                 manifest = json.loads(
                     archive.read("KERIM_RELEASE/manifest.json").decode("utf-8")

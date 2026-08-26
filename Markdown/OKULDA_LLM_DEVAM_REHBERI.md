@@ -1,3 +1,9 @@
+# HISTORICAL — superseded SCHOOL handoff
+
+> This document describes the deleted `arac/` architecture and is retained only as a
+> post-mortem/timeline record. Do not execute its commands or recreate its architecture.
+> Use root `PLAN.md` and the vehicle code in `LEGACY/` for current work.
+
 # STARTECH school workshop handoff
 
 Last source review: 25 August 2026.
