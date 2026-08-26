@@ -343,3 +343,25 @@ Replace the repeated existing description with this single explanation:
 | Right-direction control | Right wheel direction | Sağ teker yönü |
 | Camera-facing direction | Toward the camera | Kameraya doğru |
 | Battery-facing direction | Toward the battery holders | Pil yataklarına doğru |
+
+## Page 8 — SAC summary
+
+Status: wording approved; implementation pending.
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Welcome line | Hello {name} | Merhaba {isim} |
+| Main heading | Calibration is about to be created. | Kalibrasyon oluşturulmak üzere. |
+| Instructions | Please review the calibration before it is saved. | Lütfen kaydedilmeden önce kalibrasyonu gözden geçirin. |
+| Name label | Name | İsim |
+| Source label | Source | Kaynak |
+| Schema label | Schema | Şema |
+| Reviewed label | Reviewed | Değerlendirilenler |
+| Schema-value pattern | Merged v{schema_version} / SAC Contract v{contract_version} | Birleşik v{şema_sürümü} / SAC sözleşmesi v{sözleşme_sürümü} |
+| Empty reviewed value | empty | boş |
+| Blocked heading | Cannot be created | Oluşturulamıyor |
+| Missing-review label | Review required: | İncelenmesi gerekli: |
+| Create action | Create | Oluştur |
+| Return action | Go back | Geri dön |
+| Review-region label | Calibration summary | Kalibrasyon özeti |
+| Browser title | Review calibration · STARTECH | Kalibrasyonu incele |
