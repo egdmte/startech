@@ -448,8 +448,14 @@ h2, h3 { font-size: 15px; }
   gap: 28px;
 }
 .language-switcher { display: flex; gap: 8px; }
+.language-switcher form, .cam-language-switcher form { margin: 0; }
 .language-option { display: grid; width: 35px; height: 26px; place-items: center; border-radius: 7px; }
 .language-option img { display: block; width: 35px; height: 26px; }
+.language-option { cursor: pointer; opacity: .48; }
+.language-option.is-active { outline: 2px solid #0a62ff; outline-offset: 2px; opacity: 1; }
+.cam-language-switcher { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.cam-account-bar .language-option { width: 25px; height: 19px; padding: 0; border-radius: 5px; }
+.cam-account-bar .language-option img { width: 25px; height: 19px; }
 .offline-action { justify-content: flex-end; transform: translateY(-6px); font-size: 17px; letter-spacing: -.039em; }
 
 /* Access — directly adapted from examples/prototypes/login. */
@@ -546,10 +552,10 @@ fieldset { min-width: 0; margin: 0; padding: 14px; border: 1px solid #c6c6c8; bo
 .choice + .choice { margin-top: 9px; }
 input[type="checkbox"], input[type="radio"] { width: 19px; min-height: 19px; margin: 0; accent-color: #1766ff; }
 input[type="range"] { accent-color: #1766ff; }
-.editor-frame { padding-top: 45px; }
+.editor-frame { padding-top: 93px; }
 .editor-frame::before {
   position: absolute;
-  top: 0;
+  top: 48px;
   right: 0;
   left: 0;
   height: 44px;
@@ -560,7 +566,7 @@ input[type="range"] { accent-color: #1766ff; }
 .mac-topbar {
   position: absolute;
   z-index: 3;
-  top: 0;
+  top: 48px;
   right: 0;
   left: 0;
   display: flex;

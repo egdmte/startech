@@ -292,8 +292,8 @@
       buttons.forEach((button) => { button.disabled = true; });
       releasePage.hidden = true;
       releaseProgress.hidden = false;
-      if (step) step.textContent = "Rechecking the exact revision and immutable calibration on the server…";
-      if (detail) detail.textContent = `${form.dataset.releaseSource} · KERİM profile ${form.dataset.releaseProfile}`;
+      if (step) step.textContent = releasePage.dataset.releaseRechecking;
+      if (detail) detail.textContent = `${form.dataset.releaseSource} · ${releasePage.dataset.releaseProfileLabel} ${form.dataset.releaseProfile}`;
 
       const abort = () => controller.abort();
       cancel?.addEventListener("click", abort, { once: true });
@@ -317,18 +317,18 @@
         download.click();
         download.remove();
         window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
-        if (step) step.textContent = "Bundle built and download started.";
+        if (step) step.textContent = releasePage.dataset.releaseComplete;
         if (detail) {
           const commit = response.headers.get("X-STARTECH-Git-Commit")?.slice(0, 7) || "exact commit";
           const profile = response.headers.get("X-STARTECH-Profile") || form.dataset.releaseProfile;
-          detail.textContent = `${filename} · ${commit} · KERİM profile ${profile}`;
+          detail.textContent = `${filename} · ${commit} · ${releasePage.dataset.releaseProfileLabel} ${profile}`;
         }
-        if (cancel) cancel.textContent = "Return";
+        if (cancel) cancel.textContent = releasePage.dataset.releaseReturn;
         cancel?.addEventListener("click", () => window.location.reload(), { once: true });
       } catch (error) {
-        if (step) step.textContent = error.name === "AbortError" ? "Bundle build cancelled." : "The bundle was not created.";
-        if (detail) detail.textContent = error.name === "AbortError" ? "No download was produced." : error.message;
-        if (cancel) cancel.textContent = "Return";
+        if (step) step.textContent = error.name === "AbortError" ? releasePage.dataset.releaseCancelled : releasePage.dataset.releaseFailed;
+        if (detail) detail.textContent = error.name === "AbortError" ? releasePage.dataset.releaseNoDownload : error.message;
+        if (cancel) cancel.textContent = releasePage.dataset.releaseReturn;
         cancel?.addEventListener("click", () => window.location.reload(), { once: true });
       }
     });

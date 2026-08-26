@@ -84,11 +84,8 @@ def combined_semantic_errors(value: dict[str, Any]) -> list[str]:
 
     if intent["surus"]["surucu_cikis_modu"] == "full":
         evidence = value["oturum_kaniti"]
-        if not (
-            evidence["tam_cikis_onaylandi"]
-            and evidence["prototip_kilidi_onaylandi"]
-        ):
-            errors.append("full sürücü çıkışı iki SAC onayı olmadan kaydedilemez")
+        if not evidence["tam_cikis_onaylandi"]:
+            errors.append("full sürücü çıkışı SAC profil onayı olmadan kaydedilemez")
     return errors
 
 

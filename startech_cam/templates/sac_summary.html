@@ -1,47 +1,47 @@
 {% extends "base.html" %}
-{% block title %}Review calibration{% endblock %}
+{% block title %}{{ t('Review calibration') }}{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css', v=cam_asset_version) }}">{% endblock %}
 {% block page %}
 <main class="finish-shell" data-page>
-  <aside class="finish-identity" aria-label="Current session">
-    <header class="finish-welcome" data-motion data-motion-delay="1"><span>Welcome</span><strong>{{ current_actor }}</strong></header>
+  <aside class="finish-identity" aria-label="{{ t('Current session') }}">
+    <header class="finish-welcome" data-motion data-motion-delay="1"><span>{{ t('Hello {name}', name=current_actor) }}</span></header>
     <footer class="finish-session-footer" data-motion data-motion-delay="3">
-      <img class="finish-school-logo" src="{{ url_for('static', filename='assets/school-logo.png') }}" alt="STARTECH school mark" width="29" height="28">
+      <img class="finish-school-logo" src="{{ url_for('static', filename='assets/school-logo.png') }}" alt="{{ t('STARTECH school mark') }}" width="29" height="28">
     </footer>
   </aside>
   <section class="finish-stage" aria-labelledby="summary-title">
     <div class="finish-summary-layout" data-motion data-motion-delay="2">
       <header class="finish-copy">
         <span class="finish-icon" aria-hidden="true">{{ reicon('settings4') }}</span>
-        <h1 id="summary-title">Calibration is about to be created.</h1>
-        <p>Please check everything you did before creating a calibration.</p>
+        <h1 id="summary-title">{{ t('Calibration is about to be created.') }}</h1>
+        <p>{{ t('Please review the calibration before it is saved.') }}</p>
       </header>
-      <section class="summary-review" aria-label="Calibration review">
+      <section class="summary-review" aria-label="{{ t('Calibration summary') }}">
         <dl>
-          <div><dt>Name</dt><dd>{{ document.profil.ad }}</dd></div>
-          <div><dt>Source</dt><dd>{{ document.profil.kaynak }}</dd></div>
-          <div><dt>Schema</dt><dd>merged v{{ document.sema_surumu }} / SAC contract {{ document.sac_niyeti.sozlesme_surumu }}</dd></div>
-          <div><dt>Reviewed</dt><dd>{{ touched|join(', ') if touched else 'none' }}</dd></div>
+          <div><dt>{{ t('Name') }}</dt><dd>{{ document.profil.ad }}</dd></div>
+          <div><dt>{{ t('Source') }}</dt><dd>{{ document.profil.kaynak }}</dd></div>
+          <div><dt>{{ t('Schema') }}</dt><dd>{{ t('Merged v{schema_version} / SAC Contract v{contract_version}', schema_version=document.sema_surumu, contract_version=document.sac_niyeti.sozlesme_surumu) }}</dd></div>
+          <div><dt>{{ t('Reviewed') }}</dt><dd>{{ touched|join(', ') if touched else t('empty') }}</dd></div>
         </dl>
         <div class="summary-section-links">
           {% for key, definition in definitions.items() %}
-          <a href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section=key) }}">{{ definition[0] }} <span>{{ '✓' if key in touched else '—' }}</span></a>
+          <a href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section=key) }}">{{ t(definition[0]) }} <span>{{ '✓' if key in touched else '—' }}</span></a>
           {% endfor %}
         </div>
       </section>
       {% if errors or missing_sections %}
       <div class="finish-warning" role="alert">
-        <strong>Creation blocked</strong>
+        <strong>{{ t('Cannot be created') }}</strong>
         {% if errors %}<ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
-        {% if missing_sections %}<p>Review required: {{ missing_sections|join(', ') }}.</p>{% endif %}
+        {% if missing_sections %}<p>{{ t('Review required:') }} {{ missing_sections|join(', ') }}.</p>{% endif %}
       </div>
       {% endif %}
       <div class="finish-summary-actions">
         <form method="post" action="{{ url_for('cam.publish', workflow='sac', draft_id=draft_id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="cam-action cam-action--primary" type="submit" {% if errors or missing_sections %}disabled{% endif %}>{{ reicon('check') }}<span>Create</span></button>
+          <button class="cam-action cam-action--primary" type="submit" {% if errors or missing_sections %}disabled{% endif %}>{{ reicon('check') }}<span>{{ t('Create') }}</span></button>
         </form>
-        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.sac_components', draft_id=draft_id) }}">{{ reicon('arrow-left2') }}<span>Go back</span></a>
+        <a class="cam-action cam-action--secondary" href="{{ url_for('cam.sac_components', draft_id=draft_id) }}">{{ reicon('arrow-left2') }}<span>{{ t('Go back') }}</span></a>
       </div>
     </div>
   </section>

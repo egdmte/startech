@@ -21,52 +21,51 @@ class Field:
 SAC_STEPS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
     "camera": (
         "Camera",
-        "Recorded intent only. These fields do not configure KASIM; use the linked-camera editor for real camera and recognition values.",
+        "These options are not currently used by the car code. The settings here will take effect when their implementation is complete. You can continue changing them in the meantime.",
         (
             Field("sac_niyeti.kamera.yon_derecesi", "Frame rotation", "select", choices=(("0", "0°"), ("90", "90°"), ("180", "180°"), ("270", "270°"))),
-            Field("sac_niyeti.kamera.yakalama_profili", "Capture profile", "select", choices=(("640x480", "640×480 — performance"), ("1280x720", "1280×720 — balanced"), ("1920x1080", "1920×1080 — quality"))),
+            Field("sac_niyeti.kamera.yakalama_profili", "Capture profile", "select", choices=(("640x480", "640×480 — maximum performance"), ("1280x720", "1280×720 — balanced"), ("1920x1080", "1920×1080 — maximum quality"))),
             Field("sac_niyeti.kamera.tanima_hassasiyeti", "Recognition sensitivity", "select", choices=(("conservative", "Conservative"), ("balanced", "Balanced"), ("sensitive", "Sensitive"))),
             Field("sac_niyeti.kamera.raspberry_pi_oncelikli", "Try Raspberry Pi camera before USB", "checkbox"),
         ),
     ),
     "power": (
         "Power limits",
-        "Runtime-backed software limits. Saving projects these values into ayarlar.hiz, which ARDA reads; they remain neither voltage measurements nor proof of safe motion.",
+        "These settings are applied in the car. (See ayarlar.hiz.)",
         (
             Field("sac_niyeti.guc.minimum_hiz_yuzde", "Minimum speed %", "range", 0, 100, 1),
             Field("sac_niyeti.guc.maksimum_hiz_yuzde", "Maximum speed %", "range", 0, 100, 1),
         ),
     ),
     "compute": (
-        "Compute and validation",
-        "Recorded intent only. Current ARDA startup and module loading do not read these SAC fields.",
+        "SBC and services",
+        "These options can be changed now, but the features will work once they are integrated into the car code.",
         (
-            Field("sac_niyeti.hesaplama.baslangic_onlemi", "Startup precaution", "select", choices=(("individual-buttons", "Validate each segment"), ("single-button", "Validate all segments with one button"), ("keyboard-vnc", "Validate with keyboard/VNC"))),
-            Field("sac_niyeti.hesaplama.servis_durumu", "ARDA service", "select", choices=(("on", "Launch on startup"), ("off", "Manual launch"))),
-            Field("sac_niyeti.hesaplama.m3th_sikiligi", "M3TH strictness", "select", choices=(("full", "Full — invalidate run"), ("semi", "Semi — pause run"), ("low", "Low — report only"))),
-            Field("sac_niyeti.hesaplama.etkin_moduller", "Enabled modules", "multiselect", choices=(("yaren", "YAREN"), ("arda", "ARDA"), ("kasim", "KASIM"), ("kader", "KADER"), ("kerem", "KEREM"), ("osman", "OSMAN"), ("m3th", "M3TH"))),
+            Field("sac_niyeti.hesaplama.baslangic_onlemi", "Startup approval", "select", choices=(("individual-buttons", "Approve everything manually"), ("single-button", "Manually approve startup only"), ("keyboard-vnc", "Allow remote approval"))),
+            Field("sac_niyeti.hesaplama.servis_durumu", "Service status", "select", choices=(("on", "At startup"), ("off", "Manually"))),
+            Field("sac_niyeti.hesaplama.m3th_sikiligi", "M3TH response", "select", choices=(("full", "Errors end the run"), ("semi", "Errors pause the run"), ("low", "Errors are only logged"))),
+            Field("sac_niyeti.hesaplama.etkin_moduller", "Enabled features", "multiselect", choices=(("yaren", "YAREN"), ("arda", "ARDA"), ("kasim", "KASIM"), ("kader", "KADER"), ("kerem", "KEREM"), ("osman", "OSMAN"), ("m3th", "M3TH"))),
         ),
     ),
     "drive": (
-        "Command response",
-        "Publishing policy only. Full-output acknowledgements are validated, but these SAC fields do not arm, steer, or configure the live driver.",
+        "Command management",
+        "The settings here will be used to determine the calibration status; these options will not affect how the car operates.",
         (
-            Field("sac_niyeti.surus.komut_kaybi_eylemi", "Loss-of-command action", "select", choices=(("invalidate-request", "Invalidate request"), ("disarm-wait", "Disarm and wait"), ("refer-validated-commands", "Refer to validated commands"))),
-            Field("sac_niyeti.surus.surucu_cikis_modu", "Driver output mode", "select", choices=(("off", "Off — no motor output"), ("semi", "Semi — steering only"), ("full", "Full — full car control"))),
+            Field("sac_niyeti.surus.komut_kaybi_eylemi", "When a command is lost", "select", choices=(("invalidate-request", "Reject the request"), ("disarm-wait", "Stop and wait"), ("refer-validated-commands", "Follow previous commands"))),
+            Field("sac_niyeti.surus.surucu_cikis_modu", "Motor output mode", "select", choices=(("off", "No motor output"), ("semi", "Turning only"), ("full", "Full car control"))),
             Field("sac_niyeti.surus.direksiyon_merkez_yuzde", "Steering center %", "range", -30, 30, 1),
             Field("sac_niyeti.surus.direksiyon_azami_hareket_yuzde", "Maximum steering movement %", "range", 10, 100, 1),
-            Field("oturum_kaniti.tam_cikis_onaylandi", "I explicitly acknowledge full output", "checkbox"),
-            Field("oturum_kaniti.prototip_kilidi_onaylandi", "I acknowledge that KERİM does not prove hardware safety", "checkbox"),
+            Field("oturum_kaniti.tam_cikis_onaylandi", "I approve this profile.", "checkbox"),
         ),
     ),
     "wheel": (
-        "Wheel intent",
-        "Recorded intent only. These values do not change OSMAN wiring or kalibrasyon.motor trims.",
+        "Wheels",
+        "The car will read these settings in future updates.",
         (
             Field("sac_niyeti.tekerlek.sol_duzeltme_yuzde", "Left correction %", "range", -20, 20, 1),
             Field("sac_niyeti.tekerlek.sag_duzeltme_yuzde", "Right correction %", "range", -20, 20, 1),
-            Field("sac_niyeti.tekerlek.sol_yon", "Left direction", "select", choices=(("normal", "Normal"), ("reversed", "Reversed"))),
-            Field("sac_niyeti.tekerlek.sag_yon", "Right direction", "select", choices=(("normal", "Normal"), ("reversed", "Reversed"))),
+            Field("sac_niyeti.tekerlek.sol_yon", "Left direction", "select", choices=(("normal", "Toward the camera"), ("reversed", "Toward the battery holders"))),
+            Field("sac_niyeti.tekerlek.sag_yon", "Right direction", "select", choices=(("normal", "Toward the camera"), ("reversed", "Toward the battery holders"))),
         ),
     ),
 }
@@ -80,7 +79,7 @@ MAC_SECTIONS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
     ),
     "camera": (
         "Camera",
-        "Physical camera facts used by the v1 calibration contract.",
+        "Physical camera values used by the v1 calibration contract.",
         (
             Field("kalibrasyon.kamera.genislik", "Width", "integer", 1, 7680, 1),
             Field("kalibrasyon.kamera.yukseklik", "Height", "integer", 1, 4320, 1),
@@ -99,7 +98,7 @@ MAC_SECTIONS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
     ),
     "recognition": (
         "Recognition",
-        "Lane recognition thresholds and lighting profiles.",
+        "Lane-recognition thresholds and lighting profiles.",
         (
             Field("kalibrasyon.serit.beyaz_profiller", "White lane profiles", "json"),
             Field("kalibrasyon.serit.profil_esikleri", "Profile thresholds", "json"),
@@ -118,7 +117,7 @@ MAC_SECTIONS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
     ),
     "motors": (
         "Motors",
-        "Mechanical measurements. Do not mark measured without recorded physical evidence.",
+        "Motor calibration values. Use PHYSICALLY UNVERIFIED until they are measured on the car.",
         (
             Field("kalibrasyon.motor.olculdu", "Measured", "nullable_boolean"),
             Field("kalibrasyon.motor.sol_trim_dusuk", "Left low trim", "number", 0.1, 2, 0.01),
@@ -142,7 +141,7 @@ MAC_SECTIONS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
     ),
     "speed": (
         "Speed",
-        "Selected minimum, target, and maximum speed policy.",
+        "Minimum, target, and maximum PWM command percentages used by the car.",
         (
             Field("ayarlar.hiz.min", "Minimum", "integer", 0, 100, 1),
             Field("ayarlar.hiz.hedef", "Target", "integer", 0, 100, 1),

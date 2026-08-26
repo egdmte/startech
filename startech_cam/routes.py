@@ -116,9 +116,26 @@ def index() -> Any:
 @cam_blueprint.get("/dashboard")
 @login_required
 def dashboard() -> str:
+    actor = current_actor()
+    login_rows = get_db().execute(
+        """
+        SELECT happened_at FROM audit_events
+        WHERE actor = ? AND event_type = 'LOGIN'
+        ORDER BY happened_at DESC, id DESC LIMIT 2
+        """,
+        (actor,),
+    ).fetchall()
+    new_calibration_count = 0
+    if len(login_rows) == 2:
+        row = get_db().execute(
+            "SELECT COUNT(*) AS total FROM calibrations WHERE created_at > ?",
+            (int(login_rows[1]["happened_at"]),),
+        ).fetchone()
+        new_calibration_count = int(row["total"])
     return render_template(
         "dashboard.html",
         calibrations=list_calibrations()[:5],
+        new_calibration_count=new_calibration_count,
         car_linked=_session_device_link() is not None,
     )
 

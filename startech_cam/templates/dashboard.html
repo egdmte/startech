@@ -3,21 +3,21 @@
 {% block content %}
 <section class="cam-center-panel" aria-labelledby="cam-title">
   <header class="cam-page-heading" data-motion data-motion-delay="1">
-    <p id="cam-title">Welcome to Kalibrasyon Erişim, Revizyon İnceleme Merkezi (KERİM)</p>
-    <strong>Select an option to begin.</strong>
+    <p id="cam-title">{{ t('Welcome to Kalibrasyon Erişim, Revizyon İnceleme Merkezi (KERİM)') }}</p>
+    <strong>{{ t('Select an option to begin.') }}</strong>
   </header>
-  <div class="cam-action-stack" aria-label="Calibration options" data-motion data-motion-delay="2">
-    <a class="cam-action cam-action--primary" href="{{ url_for('cam.sac_source') }}">{{ reicon('settings4') }}<span>Create a SAC (Service Assisted Calibration)</span></a>
-    <a class="cam-action cam-action--secondary" href="{{ url_for('cam.new_configuration', workflow='mac') }}">{{ reicon('edit') }}<span>Create a MAC (Manual Assisted Calibration)</span></a>
-    {% if car_linked %}<a class="cam-action cam-action--secondary" href="{{ url_for('cam.camera_calibration_start') }}">{{ reicon('camera') }}<span>Calibrate the linked camera</span></a>{% endif %}
-    <a class="cam-action cam-action--secondary" href="{{ url_for('auth.access') }}">{{ reicon('folder-connect') }}<span>{{ 'Manage connected YAREN' if car_linked else 'Connect YAREN' }}</span></a>
-    <a class="cam-action cam-action--secondary" href="{{ url_for('cam.vehicle_release') }}">{{ reicon('package') }}<span>Build a vehicle release</span></a>
+  <div class="cam-action-stack" aria-label="{{ t('Calibration options') }}" data-motion data-motion-delay="2">
+    <a class="cam-action cam-action--primary" href="{{ url_for('cam.sac_source') }}">{{ reicon('settings4') }}<span>{{ t('Create a SAC (Service Assisted Calibration)') }}</span></a>
+    <a class="cam-action cam-action--secondary" href="{{ url_for('cam.new_configuration', workflow='mac') }}">{{ reicon('edit') }}<span>{{ t('Create a MAC (Manual Assisted Calibration)') }}</span></a>
+    {% if car_linked %}<a class="cam-action cam-action--secondary" href="{{ url_for('cam.camera_calibration_start') }}">{{ reicon('camera') }}<span>{{ t('Calibrate the camera remotely') }}</span></a>{% endif %}
+    <a class="cam-action cam-action--secondary" href="{{ url_for('auth.access') }}">{{ reicon('folder-connect') }}<span>{{ t('Manage YAREN') if car_linked else t('Connect YAREN') }}</span></a>
+    <a class="cam-action cam-action--secondary" href="{{ url_for('cam.vehicle_release') }}">{{ reicon('package') }}<span>{{ t('Build package for migration') }}</span></a>
   </div>
-  <a class="cam-tertiary-action" href="{{ url_for('cam.open_source') }}">{{ reicon('package') }}<span>Open-source projects</span>{{ reicon('arrow-right2', 'reicon--direction') }}</a>
-  <a class="cam-tertiary-action" href="{{ url_for('cam.history') }}">{{ reicon('history') }}<span>Access version history</span>{{ reicon('arrow-right2', 'reicon--direction') }}</a>
-  <a class="cam-tertiary-action" href="{{ url_for('cam.download_cam_diagnostic_bundle') }}" download>{{ reicon('bug') }}<span>Download KERİM diagnostic bundle</span>{{ reicon('download', 'reicon--direction') }}</a>
-  {% if calibrations %}
-    <p class="dashboard-recent">{{ calibrations|length }} recent configuration{{ '' if calibrations|length == 1 else 's' }} available in version history.</p>
+  <a class="cam-tertiary-action" href="{{ url_for('cam.open_source') }}">{{ reicon('package') }}<span>{{ t('FOS Licenses') }}</span>{{ reicon('arrow-right2', 'reicon--direction') }}</a>
+  <a class="cam-tertiary-action" href="{{ url_for('cam.history') }}">{{ reicon('history') }}<span>{{ t('Version history') }}</span>{{ reicon('arrow-right2', 'reicon--direction') }}</a>
+  <a class="cam-tertiary-action" href="{{ url_for('cam.download_cam_diagnostic_bundle') }}" download>{{ reicon('bug') }}<span>{{ t('Download diagnostic bundle') }}</span>{{ reicon('download', 'reicon--direction') }}</a>
+  {% if new_calibration_count %}
+    <p class="dashboard-recent">{{ t('Since your last login, 1 new configuration has been added.') if new_calibration_count == 1 else t('Since your last login, {count} new configurations have been added.', count=new_calibration_count) }}</p>
   {% endif %}
 </section>
 {% endblock %}

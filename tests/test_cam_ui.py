@@ -124,9 +124,9 @@ class CamInterfaceTest(unittest.TestCase):
         access = self.client.get("/access")
         self.assertIn(b'class="access-shell"', access.data)
         self.assertIn(b"Egemen Yusuf Kayra", access.data)
-        self.assertIn(b"Connect YAREN when you need the car", access.data)
+        self.assertIn(b"Connect to YAREN for remote configuration", access.data)
         self.assertIn(b"assets/email.png", access.data)
-        self.assertIn(b"Open KER\xc4\xb0M without linking now", access.data)
+        self.assertIn(b"Skip for now", access.data)
         self.assertIn(b'action="/logout"', access.data)
 
     def test_dashboard_uses_kerim_actions_and_starts_staged_sac(self):
@@ -152,12 +152,13 @@ class CamInterfaceTest(unittest.TestCase):
 
         credits = self.client.get("/open-source")
         self.assertEqual(200, credits.status_code)
-        self.assertIn(b"Open-source projects", credits.data)
+        self.assertIn(b"Free and open-source software", credits.data)
         self.assertIn(b"Reicon 1.2.0", credits.data)
         self.assertIn(b"MIT", credits.data)
         self.assertIn(b"3awnt", credits.data)
         self.assertIn(b"GPL-3.0", credits.data)
-        self.assertIn(b"not an active KER\xc4\xb0M dependency", credits.data)
+        self.assertNotIn(b"not an active KER\xc4\xb0M dependency", credits.data)
+        self.assertNotIn(b"security guarantee", credits.data)
         self.assertIn(b'rel="noopener noreferrer"', credits.data)
 
     def test_vehicle_release_builds_an_exact_zip_without_claiming_a_test(self):
@@ -165,8 +166,8 @@ class CamInterfaceTest(unittest.TestCase):
         tag = self.create_mac_calibration()
         page = self.client.get(f"/vehicle-release?profile={tag}")
         self.assertEqual(200, page.status_code)
-        self.assertIn(b"Uncommitted server files are never placed in the bundle", page.data)
-        self.assertIn(b"not an installation, activation, physical test", page.data)
+        self.assertIn(b"Uncommitted server files are excluded", page.data)
+        self.assertIn(b"Installation is a separate step", page.data)
         token = TOKEN.search(page.data).group(1).decode("ascii")
         commit = str(self.app.config["CAM_RELEASE"])
         changed = self.client.post(
@@ -274,13 +275,13 @@ class CamInterfaceTest(unittest.TestCase):
         self.authenticate()
         draft_id = self.start_sac()
         preflight = self.client.get(f"/sac/{draft_id}/preflight")
-        self.assertIn(b"Check the linked car for real", preflight.data)
+        self.assertIn(b"Check the connected car", preflight.data)
         self.assertIn(b"data-workshop-form", preflight.data)
         self.assertIn(b"Start 7-second countdown", preflight.data)
         self.assertIn(b"LIVE MOTOR OUTPUT may start", preflight.data)
         self.assertIn(b"data-workshop-now", preflight.data)
         self.assertIn(b"data-workshop-cancel", preflight.data)
-        self.assertIn(b"NOT RUN / NOT OBSERVED", preflight.data)
+        self.assertIn(b"PHYSICALLY UNVERIFIED", preflight.data)
         script = self.client.get("/static/cam.js")
         script_data = script.get_data()
         script.close()
@@ -304,6 +305,107 @@ class CamInterfaceTest(unittest.TestCase):
         self.assertIn(b"Manual Assisted Calibration", overview.data)
         self.assertIn(b"Variable manager", overview.data)
         self.assertIn(b"Review and publish", overview.data)
+
+    def test_mac_workflow_renders_the_complete_turkish_copy(self):
+        self.authenticate()
+        token = self.token("/dashboard")
+        response = self.client.post(
+            "/language",
+            data={
+                "csrf_token": token,
+                "language": "tr",
+                "next": "/new/MAC",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertIn("Manuel Asistanlı Kalibrasyon - Arayüz v0.1".encode(), response.data)
+        self.assertIn("Kalibrasyon için bir isim girin".encode(), response.data)
+        self.assertIn("Birleşik v2 JSON yükle".encode(), response.data)
+
+        token = TOKEN.search(response.data).group(1).decode("ascii")
+        started = self.client.post(
+            "/new/MAC",
+            data={
+                "csrf_token": token,
+                "name": "Türkçe MAC",
+                "source": "DEFAULT",
+            },
+        )
+        self.assertEqual(302, started.status_code)
+        match = re.search(r"/mac/([0-9a-f]{32})/overview$", started.location)
+        self.assertIsNotNone(match)
+        draft_id = match.group(1)
+
+        expected_copy = {
+            "overview": ("Genel bakış", "Kalibrasyon kimliği ve sahibi."),
+            "camera": ("Kamera", "v1 kalibrasyon sözleşmesinde kullanılan fiziksel kamera değerleri."),
+            "perspective": ("Perspektif", "Ölçülen çözünürlük [genişlik, yükseklik]"),
+            "recognition": ("Tespit", "Şerit tespit eşikleri ve aydınlatma profilleri."),
+            "colors": ("Renkler", "Tespit edilen nesnelerin HSV aralıkları"),
+            "motors": ("Motorlar", "FİZİKSEL OLARAK DOĞRULANMADI"),
+            "steering": ("Dönüş", "PD/PID denetleyici değerleri."),
+            "speed": ("Hız", "asgari, hedef ve azami PWM komut yüzdeleri"),
+            "event-response": ("Olay tepkisi", "Olay yönetiminde kullanılan yakın bölge eşiği."),
+        }
+        for section, snippets in expected_copy.items():
+            page = self.client.get(f"/mac/{draft_id}/{section}")
+            self.assertEqual(200, page.status_code, section)
+            for snippet in snippets:
+                self.assertIn(snippet.encode(), page.data, section)
+
+        variables = self.client.get(f"/mac/{draft_id}/variables")
+        self.assertEqual(200, variables.status_code)
+        self.assertIn("Değişken yönetimi".encode(), variables.data)
+        self.assertIn("Birleşik v2 JSON".encode(), variables.data)
+        self.assertIn("doğrudan düzenleyin".encode(), variables.data)
+
+        summary = self.client.get(f"/mac/{draft_id}/summary")
+        self.assertEqual(200, summary.status_code)
+        self.assertIn("Kalibrasyon oluşturulmak üzere".encode(), summary.data)
+        self.assertIn("Doğrulanmış birleşik JSON".encode(), summary.data)
+
+        token = TOKEN.search(summary.data).group(1).decode("ascii")
+        created = self.client.post(
+            f"/mac/{draft_id}/publish",
+            data={"csrf_token": token},
+            follow_redirects=True,
+        )
+        self.assertEqual(200, created.status_code)
+        self.assertIn("Oluşturuldu!".encode(), created.data)
+        self.assertIn("MAC kalibrasyonu oluşturuldu".encode(), created.data)
+
+    def test_language_switch_is_real_and_survives_login(self):
+        login = self.client.get("/login")
+        token = TOKEN.search(login.data).group(1).decode("ascii")
+        switched = self.client.post(
+            "/language",
+            data={
+                "csrf_token": token,
+                "language": "tr",
+                "next": "/login",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(200, switched.status_code)
+        self.assertIn(b'<html lang="tr">', switched.data)
+        self.assertIn("STARTECH aracınızı kalibre edin".encode(), switched.data)
+        self.assertIn("Yasal isminiz".encode(), switched.data)
+
+        token = TOKEN.search(switched.data).group(1).decode("ascii")
+        response = self.client.post(
+            "/login",
+            data={
+                "csrf_token": token,
+                "legal_name": "Egemen Yusuf Kayra",
+                "password": "school-password",
+            },
+        )
+        self.assertEqual(302, response.status_code)
+        dashboard = self.client.get("/dashboard")
+        self.assertIn(b'<html lang="tr">', dashboard.data)
+        self.assertIn("Başlamak için bir seçenek seçin".encode(), dashboard.data)
+        self.assertIn("Çıkış yap".encode(), dashboard.data)
 
     def test_shared_css_and_javascript_keep_the_design_contract(self):
         css_response = self.client.get("/static/cam.css")
