@@ -36,3 +36,42 @@ Still awaiting a decision:
 
 - `Learn how to update your code →`
 
+## Page 2 — Dashboard
+
+Status: wording approved; implementation pending.
+
+### Persistent account bar
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Home | KERİM | KERİM |
+| Connect action | Connect YAREN | YAREN'e bağlan |
+| Connected state | Remote-controlled | Uzaktan erişimli |
+| Logout action | Log out | Çıkış yap |
+
+### Dashboard actions
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Main heading | Welcome to Kalibrasyon Erişim, Revizyon İnceleme Merkezi (KERİM) | Kalibrasyon Erişim, Revizyon İnceleme Merkezi'ne (KERİM) hoş geldiniz. |
+| Instruction | Select an option to begin. | Başlamak için bir seçenek seçin. |
+| SAC action | Create a SAC (Service Assisted Calibration) | Servis Asistanlı Kalibrasyon oluştur (SAC) |
+| MAC action | Create a MAC (Manual Assisted Calibration) | Manuel Asistanlı Kalibrasyon oluştur (MAC) |
+| Camera action | Calibrate the camera remotely | Kamerayı uzaktan yönet |
+| YAREN connection action | Connect YAREN | YAREN'e bağlan |
+| YAREN management action | Manage YAREN | YAREN ayarları |
+| Vehicle package action | Build package for migration | Bakım paketi oluştur |
+| Open-source action | FOS Licenses | FOS Lisansları |
+| History action | Version history | Sürüm geçmişi |
+| Diagnostic action | Download diagnostic bundle | Önyükleme örneğini indir |
+
+### New-configuration message
+
+| Case | English | Turkish |
+| --- | --- | --- |
+| Singular | Since your last login, 1 new configuration has been added. | Siz yokken 1 yeni kalibrasyon eklendi. |
+| Plural | Since your last login, {count} new configurations have been added. | Siz yokken {count} yeni kalibrasyon eklendi. |
+
+Implementation requirement: calculate this message from the configurations added since the user's previous login. Do not display the total number of configurations as though they were all new.
+
+The browser title remains unchanged: `KERİM · STARTECH`.
