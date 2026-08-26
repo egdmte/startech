@@ -190,3 +190,20 @@ Use these same approved section names in the checklist and accessibility labels.
 | Browser title | Choose a car section · STARTECH | Araç parçası seç |
 
 Reuse the already approved `SAC ilerlemesi` translation for the progress label.
+
+## Page 7 — SAC editor shared copy
+
+Status: wording approved; implementation pending.
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Return action | Return to the car | Arabaya geri dön |
+| Heading pattern | Edit {component} settings | {component} ayarlarını değiştir |
+| Save action | Save changes and return | Kaydet ve devam et |
+| Progress label | SAC progress | SAC ilerlemesi |
+| Runtime-backed flag | RUNTIME-BACKED | SÜRÜŞ ONAYLI |
+| Publishing-policy flag | PUBLISHING POLICY ONLY | PAYLAŞIM AMAÇLI |
+| Recorded-intent flag | RECORDED INTENT ONLY | KAYIT AMAÇLI |
+| Storage explanation | KERİM will save these settings in SAC v1 so they are not affected by later calibration versions. | KERİM bu ayarları, sonraki kalibrasyon sürümlerinden etkilenmemeleri için SAC v1'e kaydedecektir. |
+
+The existing browser-title pattern remains unchanged: `SAC · {component} · STARTECH`.
