@@ -170,7 +170,7 @@ Status: wording approved; implementation pending.
 | Section | English description | Turkish section | Turkish description |
 | --- | --- | --- | --- |
 | Battery and power | Set minimum and maximum software speed limits. | Batarya ve güç | Maksimum ve minimum hız değerlerini ayarlayın. |
-| SBC (Single-board Controller) and Services | Choose startup validation and enabled STARTECH modules. | TKD (Tek kartlı denetleyici) ve servisleri | Başlangıç onaylarını ve çalışan STARTECH modüllerini yönetin. |
+| SBC and services | Choose startup validation and enabled STARTECH modules. | TKB ve servisleri | Başlangıç onaylarını ve çalışan STARTECH modüllerini yönetin. |
 | Camera | Choose capture, orientation and recognition intent. | Kamera | Yakalama, oranlama ve tespit hedeflerini değiştirin. |
 | Drive and steering | Set command-loss policy and steering limits. | Sürüş ve dönüş | Kod kaybı ve dönüş limitlerini belirleyin. |
 | Wheels | Set wheel correction and direction intent. | Tekerlekler | Tekerlek dönüşü ve düzeltme oranlarını belirleyin. |
@@ -249,3 +249,46 @@ Still awaiting Turkish translations:
 - `Capture profile`
 - `Recognition sensitivity`
 - `Prioritize Raspberry Pi Camera before USB`
+
+## Page 7C — SBC and services editor
+
+Status: wording approved; implementation pending.
+
+The Turkish component name `TKB ve servisleri` replaces the earlier `TKD` wording throughout the component-selection page, checklist, accessibility labels, and editor.
+
+Replace the existing repeated descriptions with these two paragraphs:
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Component title | SBC and services | TKB ve servisleri |
+| Implementation explanation | These options can be changed now, but the features will work once they are integrated into the car code. | Bu seçenekler şu anda değiştirilebilir ancak özellikler, araç koduna entegre edildiklerinde çalışacaktır. |
+| Responsibility explanation | KERİM will only manage how the systems should operate; it will not change the car's own safety measures. | KERİM yalnızca sistemlerin nasıl çalışması gerektiğini yönetecektir; aracın kendi güvenlik önlemlerini değiştirmeyecektir. |
+
+### Start-up approval
+
+| English | Turkish |
+| --- | --- |
+| Approve everything manually | Her şeyi elle onayla |
+| Manually approve startup only | Sadece başlangıcı elle onayla |
+| Allow remote approval | Uzaktan onaylamaya izin ver |
+
+### Service status
+
+| English | Turkish |
+| --- | --- |
+| At startup | Açılışta |
+| Manually | El ile |
+
+### M3TH response
+
+| English | Turkish |
+| --- | --- |
+| Errors end the run | Hatalar turu sonlandırır |
+| Errors pause the run | Hatalar turu durdurur |
+| Errors are only logged | Hatalar sadece kaydedilir |
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Feature selector heading | Enabled features | Açık özellikler |
+
+The STARTECH feature names remain language-neutral: `YAREN`, `ARDA`, `KASIM`, `KADER`, `KEREM`, `OSMAN`, and `M3TH`.
