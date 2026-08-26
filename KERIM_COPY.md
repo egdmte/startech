@@ -116,3 +116,25 @@ Still awaiting a decision:
 | School-logo alternative | STARTECH school mark | STARTECH okul logosu |
 | Code-field label | Temporary YAREN web code | Geçici YAREN giriş kodu |
 | Submit-button label | Verify web code | Giriş kodunu doğrula |
+
+## Page 4 — SAC source selection
+
+Status: wording approved; implementation pending.
+
+Remove from the page:
+
+- The `Abort` action. The existing `Go back` action already provides navigation away from the page.
+
+| Location | English | Turkish |
+| --- | --- | --- |
+| Main heading | Select a target for the calibration. | Kalibrasyon için bir hedef seçin. |
+| Instructions | Please provide a starting point for this calibration. | Lütfen kalibrasyonun başlangıç noktasını belirleyin. |
+| Car-source action | Update from the car | Arabadan yükle |
+| Default-source action | Use the default model | Varsayılan modeli kullan |
+| Previous-source action | Copy an old version | Eski bir sürümü kopyala |
+| Version-selector label | Version to copy | Kopyalanacak sürüm |
+| Browser title | Select a SAC target · STARTECH | SAC Kaynağı Seçin |
+
+Still awaiting a Turkish translation:
+
+- `Go back`
