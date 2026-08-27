@@ -1,0 +1,232 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dyl-startech.local/schema/yapilandirma-v2.schema.json",
+  "title": "STARTECH birleşik yapılandırma v2",
+  "description": "Doğrulanmış bir kalibrasyon.json ve ayarlar.json v1 çiftini, sabit SAC niyeti ve oturum kanıtıyla tek belgede birleştirir.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sema_surumu",
+    "profil",
+    "kalibrasyon",
+    "ayarlar",
+    "sac_niyeti",
+    "oturum_kaniti"
+  ],
+  "properties": {
+    "sema_surumu": {
+      "const": 2
+    },
+    "profil": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ad",
+        "is_akisi",
+        "kaynak",
+        "olusturuldu_utc",
+        "kimlik"
+      ],
+      "properties": {
+        "ad": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "is_akisi": {
+          "enum": ["SAC", "MAC", "IMPORT"]
+        },
+        "kaynak": {
+          "enum": ["DEFAULT", "PREVIOUS", "CAR"]
+        },
+        "olusturuldu_utc": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?(Z|\\+00:00)$"
+        },
+        "kimlik": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{6}$"
+        }
+      }
+    },
+    "kalibrasyon": {
+      "$ref": "kalibrasyon-v1.schema.json"
+    },
+    "ayarlar": {
+      "$ref": "ayarlar-v1.schema.json"
+    },
+    "sac_niyeti": {
+      "oneOf": [
+        { "$ref": "#/$defs/sacNiyeti" },
+        { "type": "null" }
+      ]
+    },
+    "oturum_kaniti": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fiziksel_cikis_aktif",
+        "fiziksel_dogrulama_yapildi",
+        "tam_cikis_onaylandi",
+        "prototip_kilidi_onaylandi",
+        "mekanik_inceleme",
+        "fiziksel_hizalama_dogrulandi"
+      ],
+      "properties": {
+        "fiziksel_cikis_aktif": { "type": "boolean" },
+        "fiziksel_dogrulama_yapildi": { "type": "boolean" },
+        "tam_cikis_onaylandi": { "type": "boolean" },
+        "prototip_kilidi_onaylandi": { "type": "boolean" },
+        "mekanik_inceleme": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["wheels-secured", "motors-mounted", "path-clear"]
+          }
+        },
+        "fiziksel_hizalama_dogrulandi": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "sacNiyeti": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sozlesme_surumu",
+        "kamera",
+        "guc",
+        "hesaplama",
+        "surus",
+        "tekerlek"
+      ],
+      "properties": {
+        "sozlesme_surumu": {
+          "const": 1
+        },
+        "kamera": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "yon_derecesi",
+            "yakalama_profili",
+            "tanima_hassasiyeti",
+            "raspberry_pi_oncelikli"
+          ],
+          "properties": {
+            "yon_derecesi": {
+              "enum": [0, 90, 180, 270]
+            },
+            "yakalama_profili": {
+              "enum": ["640x480", "1280x720", "1920x1080"]
+            },
+            "tanima_hassasiyeti": {
+              "enum": ["conservative", "balanced", "sensitive"]
+            },
+            "raspberry_pi_oncelikli": {
+              "type": "boolean"
+            }
+          }
+        },
+        "guc": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["minimum_hiz_yuzde", "maksimum_hiz_yuzde"],
+          "properties": {
+            "minimum_hiz_yuzde": { "$ref": "#/$defs/yuzde" },
+            "maksimum_hiz_yuzde": { "$ref": "#/$defs/yuzde" }
+          }
+        },
+        "hesaplama": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "baslangic_onlemi",
+            "servis_durumu",
+            "m3th_sikiligi",
+            "etkin_moduller"
+          ],
+          "properties": {
+            "baslangic_onlemi": {
+              "enum": ["individual-buttons", "single-button", "keyboard-vnc"]
+            },
+            "servis_durumu": {
+              "enum": ["on", "off"]
+            },
+            "m3th_sikiligi": {
+              "enum": ["full", "semi", "low"]
+            },
+            "etkin_moduller": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": ["yaren", "arda", "kasim", "kader", "kerem", "osman", "m3th"]
+              }
+            }
+          }
+        },
+        "surus": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "komut_kaybi_eylemi",
+            "surucu_cikis_modu",
+            "direksiyon_merkez_yuzde",
+            "direksiyon_azami_hareket_yuzde"
+          ],
+          "properties": {
+            "komut_kaybi_eylemi": {
+              "enum": ["invalidate-request", "disarm-wait", "refer-validated-commands"]
+            },
+            "surucu_cikis_modu": {
+              "enum": ["off", "semi", "full"]
+            },
+            "direksiyon_merkez_yuzde": {
+              "type": "integer",
+              "minimum": -30,
+              "maximum": 30
+            },
+            "direksiyon_azami_hareket_yuzde": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 100
+            }
+          }
+        },
+        "tekerlek": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sol_duzeltme_yuzde",
+            "sag_duzeltme_yuzde",
+            "sol_yon",
+            "sag_yon"
+          ],
+          "properties": {
+            "sol_duzeltme_yuzde": {
+              "type": "integer",
+              "minimum": -20,
+              "maximum": 20
+            },
+            "sag_duzeltme_yuzde": {
+              "type": "integer",
+              "minimum": -20,
+              "maximum": 20
+            },
+            "sol_yon": {
+              "enum": ["normal", "reversed"]
+            },
+            "sag_yon": {
+              "enum": ["normal", "reversed"]
+            }
+          }
+        }
+      }
+    },
+    "yuzde": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    }
+  }
+}

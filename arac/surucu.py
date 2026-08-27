@@ -360,7 +360,7 @@ class GpioZeroMotorDriver:
                 gpiozero = importlib.import_module("gpiozero")
             except ImportError as exc:
                 raise MotorOutputError(
-                    "gpiozero is required for the physical Raspberry Pi driver"
+                    "Cannot run motors without Pi supported GPIO engine - Windows imcompatible operation."
                 ) from exc
             digital_factory = digital_factory or gpiozero.DigitalOutputDevice
             pwm_factory = pwm_factory or gpiozero.PWMOutputDevice

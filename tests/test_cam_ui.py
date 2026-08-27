@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import json
 import tempfile
 import unittest
 from io import BytesIO
@@ -12,6 +13,7 @@ import zipfile
 from startech_cam import create_app
 from startech_cam.db import get_db
 from startech_cam.repository import create_draft, publish_draft
+from startech_cam.security import now_epoch
 
 
 TOKEN = re.compile(rb'name="csrf_token" value="([^"]+)"')
@@ -138,6 +140,7 @@ class CamInterfaceTest(unittest.TestCase):
         self.assertIn(b'href="/sac/source"', dashboard.data)
         self.assertIn(b"cam-action--primary", dashboard.data)
         self.assertIn(b'href="/vehicle-release"', dashboard.data)
+        self.assertIn(b'href="/vehicle-run"', dashboard.data)
         self.assertIn(b'href="/open-source"', dashboard.data)
         self.assertIn(b"assets/reicon.svg", dashboard.data)
         for icon in (
@@ -160,6 +163,70 @@ class CamInterfaceTest(unittest.TestCase):
         self.assertNotIn(b"not an active KER\xc4\xb0M dependency", credits.data)
         self.assertNotIn(b"security guarantee", credits.data)
         self.assertIn(b'rel="noopener noreferrer"', credits.data)
+
+    def test_vehicle_run_page_queues_one_real_arda_request_and_uses_the_animation(self):
+        self.authenticate()
+        link_id = "a" * 32
+        device_id = "YAREN-school-car"
+        current = now_epoch()
+        with self.app.app_context():
+            connection = get_db()
+            connection.execute(
+                """
+                INSERT INTO registered_devices(
+                    device_id, algorithm, public_key_b64, created_at, created_by
+                ) VALUES (?, 'Ed25519', ?, ?, 'test')
+                """,
+                (device_id, "A" * 43, current),
+            )
+            connection.execute(
+                """
+                INSERT INTO device_links(
+                    link_id, token_digest, device_id, issued_at, expires_at,
+                    activated_at, activated_by, last_seen_at
+                ) VALUES (?, ?, ?, ?, ?, ?, 'test', ?)
+                """,
+                (link_id, "b" * 64, device_id, current, current + 600, current, current),
+            )
+            connection.commit()
+        with self.client.session_transaction() as browser_session:
+            browser_session["device_id"] = device_id
+            browser_session["device_link_id"] = link_id
+
+        token = self.token("/vehicle-run")
+        started = self.client.post(
+            "/vehicle-run",
+            data={
+                "csrf_token": token,
+                "confirm_physical_run": "yes",
+                "mute_buzzer": "yes",
+            },
+        )
+        self.assertEqual(302, started.status_code)
+        self.assertRegex(started.location, r"/vehicle-runs/[0-9a-f]{32}$")
+        page = self.client.get(started.location)
+        self.assertEqual(200, page.status_code)
+        self.assertIn(b"assets/run-received.gif", page.data)
+        self.assertIn(b"data-vehicle-run", page.data)
+        self.assertIn(b"data-run-log", page.data)
+        self.assertIn(b"Cancel vehicle run", page.data)
+        with self.app.app_context():
+            job = get_db().execute(
+                """
+                SELECT operation, payload_json, status FROM device_jobs
+                WHERE operation = 'START_AUTONOMOUS_RUN'
+                """
+            ).fetchone()
+            self.assertEqual("PENDING", job["status"])
+            payload = json.loads(job["payload_json"])
+            self.assertEqual("Egemen Yusuf Kayra", payload["operator"])
+            self.assertEqual(30, payload["countdown_seconds"])
+            self.assertTrue(payload["mute_buzzer"])
+
+        script = self.client.get("/static/cam.js").get_data()
+        self.assertIn(b"data-vehicle-run", page.data)
+        self.assertIn(b"countdownTemplate", script)
+        self.assertIn(b"RUN_HALT_NOCON", script)
 
     def test_vehicle_release_builds_an_exact_zip_without_claiming_a_test(self):
         self.authenticate()

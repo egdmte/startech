@@ -1,6 +1,6 @@
 # STARTECH project map
 
-Source review: 25 August 2026.
+Source review: 26 August 2026.
 
 Use this page to find the current implementation. Read `AGENTS_READ_ME.txt` before
 editing and `PLAN.md` for status and future direction.
@@ -16,6 +16,7 @@ editing and `PLAN.md` for status and future direction.
 | `startech_cam/` | Production KERİM application (compatibility package name), SAC/MAC workflows, exact vehicle bundles, signed YAREN link, and bounded workshop UI |
 | `config/` | Current schemas and visibly inactive example configuration documents |
 | `tests/` | Software contract and regression checks; fixtures here are not vehicle evidence |
+| `firmware/adam/` | Real ADAM Arduino LED/buzzer state indicator firmware |
 | `sim/` | Isolated Webots visual environment; never physical-car evidence |
 | `Markdown/` | Current detailed contracts/handoffs plus explicitly historical records |
 | `examples/prototypes/` | Historical KERİM/CAM design references, not production behavior |
@@ -36,6 +37,7 @@ arac/main.py             ARDA operator surface and orchestration
     +-- root tawnt.py             TAWNT public validation API
     +-- arac/surucu.py            controller, watchdog, OSMAN GPIO boundary
     +-- arac/atolye.py            shared bounded physical workshop executor
+    +-- arac/adam.py              vehicle-owned 30-second warning and run states
     +-- arac/yaren_web.py         signed KERİM device identity/code request
     +-- arac/yaren_link.py        closed authenticated KERİM operation link
     +-- arac/yaren_diagnostics.py bounded real capability report
@@ -49,6 +51,7 @@ YAREN profile -> KASIM frame -> KEREM observation -> lane controller
 
 DORA supplies explicit state transitions.
 KADER records the software timeline.
+ADAM warns locally before a KERİM-requested run and indicates its run state.
 ```
 
 OSMAN is the only production motor driver. Controlled driver doubles live under
@@ -80,6 +83,15 @@ py -m arac.main --yaren
 `--observe` does not create OSMAN. `--drive` and `--bench` can reach physical GPIO and
 must be treated as live output. Apply the legal-name, warning, seven-second cancellation,
 SIGINT, and physical-power rules in `AGENTS_READ_ME.txt`.
+
+The KERİM-requested autonomous-run path is started from the persistent YAREN gateway,
+not from these direct commands. It uses a non-skippable 30-second vehicle-side ADAM
+warning and requires the real ADAM serial controller:
+
+```bash
+python3 -m arac.ayar_cli web-code --server https://dymtal.avartech.net \
+  --usb-index 0 --adam-port /dev/ttyACM0
+```
 
 ## YAREN configuration
 
@@ -121,6 +133,7 @@ The link accepts only:
 - `CAPTURE_CALIBRATION_FRAME`
 - `INSTALL_INACTIVE_CONFIGURATION`
 - `RUN_BOUNDED_WORKSHOP_COMMAND`
+- `START_AUTONOMOUS_RUN`
 
 Automatic capabilities may acquire a real camera frame and run KEREM, but do not import
 OSMAN. SAC's separate workshop form carries KERİM's authenticated legal name and time,
@@ -134,13 +147,18 @@ the source for that frame; it does not physically verify the calibration or sele
 the car.
 
 A receipt proves software execution and a stop request, not physical movement or braking.
-The supervising human records the physical observation separately. The link cannot start
-autonomous driving, activate a profile, open a shell, or become continuous remote control.
+The supervising human records the physical observation separately. `START_AUTONOMOUS_RUN`
+queues one lane-following run; ADAM owns the exact 30-second local warning, ARDA owns the
+drive loop, and loss of the authenticated KERİM heartbeat requests zero output and records
+`RUN_HALT_NOCON`. KADER events stream to KERİM and remain available after the browser is
+closed or reopened. The link cannot stream steering commands, activate a profile, open a
+shell, or replace local/manual control.
 
 `deployment/` owns the revision-aware KERİM health check, consistent SQLite backups,
 encrypted off-site export helper, proxy reference, and fast-forward-only deployment
-command. Authenticated KERİM users can download a redacted diagnostic bundle; it does not
-invent KADER car logs that KERİM has never received.
+command. Authenticated KERİM users can download a redacted diagnostic bundle. Raw KADER
+records are retained on their vehicle-run pages and are deliberately excluded from the
+general diagnostic bundle.
 
 Authenticated operators can also build a vehicle ZIP from one exact committed revision
 and one immutable YAREN profile. KERİM refreshes the configured published repository

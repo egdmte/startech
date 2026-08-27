@@ -1,0 +1,382 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dyl-startech.local/schema/kalibrasyon-v1.schema.json",
+  "title": "Dyl-Startech kalibrasyon.json v1",
+  "description": "StarTechConfig aracının ürettiği kamera, perspektif, görüntü ve motor kalibrasyonu sözleşmesi.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sema_surumu",
+    "damga",
+    "kamera",
+    "perspektif",
+    "serit",
+    "renkler",
+    "motor"
+  ],
+  "properties": {
+    "sema_surumu": {
+      "const": 1,
+      "description": "Bu sözleşmenin sürümü. Başka bir sayı v1 gibi okunamaz."
+    },
+    "damga": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "_aciklama",
+        "zaman",
+        "ozet",
+        "olusturan",
+        "not"
+      ],
+      "properties": {
+        "_aciklama": {
+          "$ref": "#/$defs/aciklama"
+        },
+        "zaman": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$",
+          "description": "StarTechConfig tarafından saat dilimi eki olmadan yazılan yerel tarih-saat."
+        },
+        "ozet": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{6}$",
+          "description": "damga bölümü çıkarıldıktan sonraki sıkıştırılmış JSON'un SHA-256 özetinin ilk üç baytı."
+        },
+        "olusturan": {
+          "type": "string",
+          "minLength": 1
+        },
+        "not": {
+          "type": "string"
+        }
+      }
+    },
+    "kamera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "_aciklama",
+        "genislik",
+        "yukseklik",
+        "bgr_cikis",
+        "dondur_180"
+      ],
+      "properties": {
+        "_aciklama": {
+          "$ref": "#/$defs/aciklama"
+        },
+        "genislik": {
+          "$ref": "#/$defs/pozitifTamSayi"
+        },
+        "yukseklik": {
+          "$ref": "#/$defs/pozitifTamSayi"
+        },
+        "bgr_cikis": {
+          "type": "boolean"
+        },
+        "dondur_180": {
+          "type": "boolean"
+        }
+      }
+    },
+    "perspektif": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "_aciklama",
+        "olculen_cozunurluk",
+        "olculen_cozunurluk_not",
+        "kaynak_noktalar",
+        "nokta_sirasi",
+        "roi_ust_oran"
+      ],
+      "properties": {
+        "_aciklama": {
+          "$ref": "#/$defs/aciklama"
+        },
+        "olculen_cozunurluk": {
+          "$ref": "#/$defs/cozunurluk"
+        },
+        "olculen_cozunurluk_not": {
+          "$ref": "#/$defs/aciklama"
+        },
+        "kaynak_noktalar": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "prefixItems": [
+            { "$ref": "#/$defs/koordinat" },
+            { "$ref": "#/$defs/koordinat" },
+            { "$ref": "#/$defs/koordinat" },
+            { "$ref": "#/$defs/koordinat" }
+          ],
+          "items": false,
+          "description": "Sırasıyla sol üst, sağ üst, sol alt ve sağ alt koordinatları."
+        },
+        "nokta_sirasi": {
+          "const": "sol-ust, sag-ust, sol-alt, sag-alt"
+        },
+        "roi_ust_oran": {
+          "$ref": "#/$defs/oran"
+        }
+      }
+    },
+    "serit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "_aciklama",
+        "beyaz_profiller",
+        "profil_esikleri",
+        "min_sinyal",
+        "min_sinyal_kalite_orani",
+        "varsayilan_serit_genisligi",
+        "sureklilik_orani",
+        "clahe_sinir",
+        "clahe_kutucuk"
+      ],
+      "properties": {
+        "_aciklama": {
+          "$ref": "#/$defs/aciklama"
+        },
+        "beyaz_profiller": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "varsayilan",
+            "karanlik",
+            "normal",
+            "parlak"
+          ],
+          "properties": {
+            "varsayilan": { "$ref": "#/$defs/hsvAraligi" },
+            "karanlik": { "$ref": "#/$defs/hsvAraligi" },
+            "normal": { "$ref": "#/$defs/hsvAraligi" },
+            "parlak": { "$ref": "#/$defs/hsvAraligi" }
+          }
+        },
+        "profil_esikleri": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "_aciklama",
+            "karanlik_alti",
+            "parlak_ustu"
+          ],
+          "properties": {
+            "_aciklama": { "$ref": "#/$defs/aciklama" },
+            "karanlik_alti": { "$ref": "#/$defs/sekizBit" },
+            "parlak_ustu": { "$ref": "#/$defs/sekizBit" }
+          }
+        },
+        "min_sinyal": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Geçerli şerit sinyali için en az piksel/örnek sayısı."
+        },
+        "min_sinyal_kalite_orani": {
+          "$ref": "#/$defs/oran"
+        },
+        "varsayilan_serit_genisligi": {
+          "$ref": "#/$defs/pozitifTamSayi"
+        },
+        "sureklilik_orani": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.5,
+          "description": "0 ile 0,5 arasında şerit süreklilik oranı."
+        },
+        "clahe_sinir": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "clahe_kutucuk": {
+          "$ref": "#/$defs/pozitifTamSayi"
+        }
+      }
+    },
+    "renkler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "_aciklama",
+        "turuncu_arac",
+        "sari_arac",
+        "kirmizi_isik",
+        "yesil_isik",
+        "mavi_levha",
+        "kirmizi_park"
+      ],
+      "properties": {
+        "_aciklama": { "$ref": "#/$defs/aciklama" },
+        "turuncu_arac": { "$ref": "#/$defs/tekAralikliRenk" },
+        "sari_arac": { "$ref": "#/$defs/tekAralikliRenk" },
+        "kirmizi_isik": { "$ref": "#/$defs/ikiAralikliRenk" },
+        "yesil_isik": { "$ref": "#/$defs/tekAralikliRenk" },
+        "mavi_levha": { "$ref": "#/$defs/tekAralikliRenk" },
+        "kirmizi_park": { "$ref": "#/$defs/parkRengi" }
+      }
+    },
+    "motor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "_aciklama",
+        "olculdu",
+        "olculdu_not",
+        "sol_trim_dusuk",
+        "sol_trim_yuksek",
+        "sag_trim_dusuk",
+        "sag_trim_yuksek",
+        "olu_bolge_min_pwm",
+        "olu_bolge_yuzde"
+      ],
+      "properties": {
+        "_aciklama": { "$ref": "#/$defs/aciklama" },
+        "olculdu": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])$",
+          "description": "null ise ölçülmemiştir; aksi durumda YYYY-MM-DD ölçüm tarihidir."
+        },
+        "olculdu_not": { "$ref": "#/$defs/aciklama" },
+        "sol_trim_dusuk": { "$ref": "#/$defs/trim" },
+        "sol_trim_yuksek": { "$ref": "#/$defs/trim" },
+        "sag_trim_dusuk": { "$ref": "#/$defs/trim" },
+        "sag_trim_yuksek": { "$ref": "#/$defs/trim" },
+        "olu_bolge_min_pwm": { "$ref": "#/$defs/pwmYuzdesi" },
+        "olu_bolge_yuzde": { "$ref": "#/$defs/pwmYuzdesi" }
+      }
+    }
+  },
+  "$defs": {
+    "aciklama": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pozitifTamSayi": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "oran": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "sekizBit": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "pwmYuzdesi": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "trim": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Motor düzeltme çarpanı. 0,5-1,5 dışı kesin şema hatası değil, insan uyarısıdır."
+    },
+    "cozunurluk": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        { "$ref": "#/$defs/pozitifTamSayi" },
+        { "$ref": "#/$defs/pozitifTamSayi" }
+      ],
+      "items": false
+    },
+    "koordinat": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "integer", "minimum": 0 }
+      ],
+      "items": false
+    },
+    "hsv": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        { "type": "integer", "minimum": 0, "maximum": 180 },
+        { "$ref": "#/$defs/sekizBit" },
+        { "$ref": "#/$defs/sekizBit" }
+      ],
+      "items": false,
+      "description": "OpenCV HSV sırasıyla H, S, V."
+    },
+    "hsvAraligi": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["alt", "ust"],
+      "properties": {
+        "alt": { "$ref": "#/$defs/hsv" },
+        "ust": { "$ref": "#/$defs/hsv" }
+      }
+    },
+    "tekAralikliRenk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["araliklar", "min_alan"],
+      "properties": {
+        "_aciklama": { "$ref": "#/$defs/aciklama" },
+        "araliklar": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/hsvAraligi" }
+        },
+        "min_alan": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Piksel kare cinsinden en küçük kabul alanı."
+        }
+      }
+    },
+    "ikiAralikliRenk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["araliklar", "min_alan"],
+      "properties": {
+        "_aciklama": { "$ref": "#/$defs/aciklama" },
+        "araliklar": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/hsvAraligi" }
+        },
+        "min_alan": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "parkRengi": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["araliklar", "min_alan", "tetik_alan"],
+      "properties": {
+        "_aciklama": { "$ref": "#/$defs/aciklama" },
+        "araliklar": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/hsvAraligi" }
+        },
+        "min_alan": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tetik_alan": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

@@ -222,6 +222,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=0,
         help="USB camera index used when CAM requests a live calibration frame",
     )
+    web_code.add_argument(
+        "--adam-port",
+        default=None,
+        help=(
+            "serial port for the real ADAM LED/buzzer controller "
+            "(or STARTECH_ADAM_SERIAL_PORT)"
+        ),
+    )
     return parser
 
 
@@ -424,6 +432,7 @@ def _run_command(args, console: TerminalUI, store: ProfileStore) -> int:
                 timeout=args.timeout,
                 poll_interval=args.poll_interval,
                 usb_index=args.usb_index,
+                adam_port=args.adam_port,
                 status=lambda message: console.write(message, style=TerminalUI.MUTED),
             )
         except KeyboardInterrupt:

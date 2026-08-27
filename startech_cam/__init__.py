@@ -1,8 +1,9 @@
 """Production KERİM web application for STARTECH configuration and SAC.
 
-KERİM validates configuration files and queues one closed, bounded workshop operation
-to the linked YAREN device.  Physical motor code remains on the car, behind ARDA,
-TAWNT and OSMAN; the web process never imports a GPIO driver.
+KERİM validates configuration files and queues closed requests to the linked YAREN
+device, including one bounded workshop operation and one vehicle-owned autonomous run.
+Physical motor code remains on the car, behind ARDA, TAWNT and OSMAN; the web process
+never imports a GPIO driver.
 
 The Python package and CAM_* environment names remain compatibility interfaces.
 """
@@ -41,7 +42,13 @@ def _static_asset_version(app: Flask) -> str:
 
     static_root = Path(app.static_folder or "")
     digest = hashlib.sha256()
-    for filename in ("cam.css", "sac.css", "cam.js", "assets/reicon.svg"):
+    for filename in (
+        "cam.css",
+        "sac.css",
+        "cam.js",
+        "assets/reicon.svg",
+        "assets/run-received.gif",
+    ):
         digest.update(filename.encode("utf-8"))
         digest.update((static_root / filename).read_bytes())
     return digest.hexdigest()[:12]

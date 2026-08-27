@@ -23,6 +23,7 @@ if __package__ in {None, ""}:
         sys.path.insert(0, root)
 
 from arac.ayar import ActiveConfiguration, load_active_configuration
+from arac.adam import AdamState, RunControl
 from arac.ayar_cli import run as run_yaren_cli
 from arac.atolye import WorkshopCommand, execute_workshop_command
 from arac.cli_ui import MenuOption, TerminalUI
@@ -44,6 +45,8 @@ APP_VERSION = "1.0.0-vehicle-core"
 EXIT_OK = 0
 EXIT_ERROR = 2
 EXIT_INTERRUPTED = 130
+EXIT_CONNECTION_LOST = 3
+EXIT_CANCELLED = 4
 LANE_PHASE = "LANE_FOLLOW"
 
 
@@ -261,6 +264,9 @@ def run_drive(
     button_factory: Callable[[], GpioStartButton] = GpioStartButton,
     output: TextIO = sys.stdout,
     preview_fn: Callable[[LaneObservation], bool] = _show_debug,
+    black_box: JsonlBlackBox | None = None,
+    remote_start_authorized: bool = False,
+    link_control: Callable[[JsonlBlackBox], RunControl] | None = None,
 ) -> int:
     """Run camera -> KEREM -> controller -> TAWNT -> GPIO -> KADER."""
 
@@ -271,7 +277,7 @@ def run_drive(
     analyzer = analyzer or LaneVisionAnalyzer(configuration.calibration)
     settings = ControllerSettings.from_mapping(configuration.settings)
     controller = controller or LaneController(settings, phase=LANE_PHASE)
-    black_box = _new_black_box(options, "drive")
+    black_box = black_box or _new_black_box(options, "drive")
     driver = driver or GpioZeroMotorDriver(configuration.calibration["motor"])
     button: GpioStartButton | None = None
     output_watchdog = OutputWatchdog(driver)
@@ -299,9 +305,10 @@ def run_drive(
         # Prove the configured camera and lane pipeline can produce one result
         # before waiting for the human/physical start control.
         analyzer.analyze(camera.read_frame())
-        button = _wait_for_start(
-            options.start, input_fn=input_fn, button_factory=button_factory
-        )
+        if not remote_start_authorized:
+            button = _wait_for_start(
+                options.start, input_fn=input_fn, button_factory=button_factory
+            )
         tawnt.heartbeat("camera")
         tawnt.heartbeat("control")
         tawnt.validateBeforeStart(profile=tawnt.LIVE)
@@ -317,6 +324,25 @@ def run_drive(
             "state": "ARMED", "operator": options.operator,
             "profile_id": configuration.profile_id,
         })
+        if link_control is not None:
+            control = link_control(black_box)
+            if not isinstance(control, RunControl):
+                raise TypeError("live link control callback returned an invalid state")
+            if control == RunControl.CONNECTION_LOST:
+                driver.stop("KERİM heartbeat lost before drive loop")
+                _log(
+                    black_box,
+                    RecordKind.STATE,
+                    "ADAM",
+                    {
+                        "state": AdamState.RUN_HALT_NOCON.value,
+                        "reason": "KERİM heartbeat lost before drive loop",
+                    },
+                )
+                return EXIT_CONNECTION_LOST
+            if control == RunControl.CANCEL_REQUESTED:
+                driver.stop("KERİM operator cancelled before drive loop")
+                return EXIT_CANCELLED
         print("ARDA armed. Live lane following has control; Q/Ctrl-C stops.", file=output)
 
         while options.frames == 0 or count < options.frames:
@@ -343,6 +369,29 @@ def run_drive(
                 "left": final_command.left, "right": final_command.right,
                 "phase": final_command.phase,
             }, frame_id=frame.frame_id)
+            if link_control is not None:
+                control = link_control(black_box)
+                if not isinstance(control, RunControl):
+                    raise TypeError("live link control callback returned an invalid state")
+                if control == RunControl.CONNECTION_LOST:
+                    driver.stop("KERİM heartbeat lost during drive")
+                    _log(
+                        black_box,
+                        RecordKind.STATE,
+                        "ADAM",
+                        {
+                            "state": AdamState.RUN_HALT_NOCON.value,
+                            "reason": "KERİM heartbeat lost during drive",
+                        },
+                    )
+                    print(
+                        "KERİM connection lost. ARDA requested stop; local manual activation is required.",
+                        file=output,
+                    )
+                    return EXIT_CONNECTION_LOST
+                if control == RunControl.CANCEL_REQUESTED:
+                    driver.stop("KERİM operator cancelled live run")
+                    return EXIT_CANCELLED
             count += 1
             if options.preview and not preview_fn(observation):
                 break

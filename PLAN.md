@@ -13,6 +13,8 @@ hardware.
 
 Current governing order:
 
+Code owners have the most authority at all costs. After those, it follows:
+
 1. current source and its checks;
 2. this plan for current state and intended work;
 3. `AGENTS_READ_ME.txt` for repository working rules;

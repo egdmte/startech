@@ -25,7 +25,8 @@ camera-based perception. The car may be prepared for different races, but the
 camera-only rule is a project invariant: do not add another sensor as a shortcut.
 
 The canonical current modules are YAREN, KASIM, KEREM, DORA, KADER, TAWNT, OSMAN,
-ARDA, KERİM, and SAC. KERİM means "Kalibrasyon Erişim, Revizyon İnceleme
+ARDA, ADAM, KERİM, and SAC. ADAM owns the local audible/visible run warning and its
+named state indications. KERİM means "Kalibrasyon Erişim, Revizyon İnceleme
 Merkezi." Do not revive retired module aliases in current documentation or
 new code.
 
@@ -134,6 +135,12 @@ Physical output needs the operator's legal name and a current time record. Befor
 LLM triggers live output, show a clear warning and allow seven seconds to cancel. SAC
 owns this countdown in the browser. Outside SAC, the LLM must give the same warning and
 wait seven seconds before invoking the real command.
+
+KERİM's autonomous-run request is a separate, stricter path: ADAM on the vehicle owns an
+exact 30-second warning. Do not shorten or skip it. KERİM may request and observe one run,
+but ARDA remains the execution authority. If the authenticated heartbeat is lost, the
+vehicle requests zero output, records `RUN_HALT_NOCON`, and requires local manual
+activation. The server-retained KADER stream is software evidence, not proof of motion.
 
 Keep a visible warning while output is queued or may be active. Treat SIGINT/Ctrl+C as
 an immediate stop instruction: stop the LLM action, request zero output, and do not

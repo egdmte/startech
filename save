@@ -1,0 +1,152 @@
+* 04e7139 (HEAD -> master, origin/master, github/master, github/HEAD, codex/kerim-bilingual-copy) Complete KERIM bilingual copy catalog
+* 241a557 Record SAC completion copy
+* 30b8a1d Record SAC summary copy
+* f52649f Record SAC wheel editor copy
+* 6b29663 Record SAC drive editor copy
+* 3ec3916 Record SAC services editor copy
+* f798c13 Record SAC camera editor copy
+* 733bdb1 Record SAC power editor copy
+* cebb978 Record shared SAC editor copy
+* ac142fe Record SAC component copy
+* 7e5459b Record SAC naming copy
+* d74890f Record SAC source copy
+* 9984ee0 Record YAREN connection copy
+* f207398 Record KERIM dashboard copy
+*   9deba83 Merge remote-tracking branch 'github/master'
+|\  
+| * 719b658 Add README with server requirements and team info
+* | a23e368 Add KERIM interface copy ledger
+|/  
+* 641c33d Add Reicon actions and open-source credits
+* 7b1eda0 Publish release refs outside KERIM sandbox
+*   cb4085a Merge KERIM vehicle release bundles
+|\  
+| * c96c50f (github/codex/kerim-release-bundles, codex/kerim-release-bundles) Add exact KERIM vehicle release bundles
+|/  
+* e915f31 Use revised buttons throughout CAM
+* 701e91c Apply revised SAC source buttons
+* 7983413 Refocus SAC wireframe on button treatment
+* 9ed8816 Add SAC starting-point interface wireframe
+* 9e244b8 Keep CAM available during live YAREN links
+* 1ca3eeb Reload CAM without root access
+* e3ef2f4 Keep CAM deploy checks server-only
+*   30c482d Merge pull request #3 from egdmte/codex/cam-real-calibration
+|\  
+| * d9f5981 (origin/codex/cam-real-calibration, github/codex/cam-real-calibration, codex/cam-real-calibration) Document real CAM workflow and legacy recovery map
+| * f4de0d7 Add revision-aware CAM deployment and backups
+| * 8f46a55 Make CAM authority and diagnostics explicit
+| * da911d9 Build real linked-camera calibration editor
+| * baf759f Add real YAREN camera frame jobs
+|/  
+* 6782c06 Stop lane following on memory-only frames
+*   6c1fd6d Merge pull request #2 from egdmte/codex/governing-docs-rewrite
+|\  
+| * 988ab6e (github/codex/governing-docs-rewrite, codex/governing-docs-rewrite) Merge pull request #1 from egdmte/codex/governing-docs-rewrite
+|/| 
+| * 8ab6673 (origin/codex/governing-docs-rewrite) Rewrite governing docs around real vehicle work
+|/  
+* f39ef1d Remove non-Webots simulation scaffolding
+* 536a0ab Add real SAC workshop control path
+* f417ac9 Goodbye SUBIRU
+* a6c4845 Replace vehicle scaffold with existing-car driving core
+* b9402c2 Improve YAREN interactive navigation
+* 5f7437c Preserve calibration order in YAREN jobs
+* 6477e61 Fix SAC preflight report sizing
+* 65b22d4 Document CAM YAREN configuration boundary
+* da60c4f Test temporary YAREN link lifecycle
+* 6a2e168 Integrate temporary YAREN configuration link
+* 36f9c14 Version CAM assets by content hash
+* a8f9524 Protect CAM workflow and prototype UI contracts
+* e333a37 Restore prototype CAM interface in production
+* 5ddddd2 docs: document YAREN device enrollment
+* 19e9aad test: cover signed YAREN CAM integration
+* 18ddb4d feat: authenticate YAREN web code requests
+* f91e4f2 fix: support package camera session imports
+* 62750cb test: expand production CAM coverage
+* 57e877e feat: complete SAC and MAC persistence workflows
+* 833cda8 feat: harden CAM sessions and access codes
+* 88b92f4 ops: add isolated CAM VPS deployment
+* 08940f9 test: cover CAM security and workflows
+* 4414ad8 feat: add production CAM service
+* e20fde8 feat: add stable SAC v1 merged config v2
+* 2f0c1cc add MAC source selection prototype
+* 7056f44 show SAC summary action after final editor
+* 167b36a add SAC summary and download flow
+* 4d89aa8 finish SAC component editors
+* 145f5f0 add CAM variable management prototype
+* 2a8948a add CAM schema warning states
+* 9ff78d7 fuck you git
+*   8e2ad70 document CAM schema reconciliation flow
+|\  
+| * 7f569f8 Update readme.txt with co-authorship details
+* | 3592f3d check
+* | 34f4b44 add guided SAC compute settings
+* | cf06d18 add guided SAC camera settings
+* | 642d1d5 add guided SAC power settings
+|/  
+* e23ddf7 add interactive SAC component map
+* 5017ccd add simulated SAC hardware preflight
+* b02be9d add SAC connection choice stage
+* a46f3f5 add SAC target selection stage
+* 24e34f3 share CAM page layout across calibration flow
+* 3b70527 Update project guidance and translate defect documentation
+* 07381b2 add SAC calibration naming step
+* 39181d3 redesign CAM calibration launch screen
+* 7b80ffe add restrained calibration reminder screen
+* 18c50b9 add motion across calibration web flow
+* 67266d9 load Inter on calibration dashboard
+* a8aae0e add dashboard character artwork
+* 4161ca9 add calibration safety acknowledgement screen
+* 28e2898 rebuild calibration login screen
+* 70f138c load Inter in login prototypes
+* b782681 rebuild web code access prototype
+* 80b47b5 add YAREN calibration and settings menu
+* 014bf95 add calibration profile registry and active loader
+* 3a899a9 add recorded camera sessions and CLI replay
+* c274e3e add comprehensive phase-gated project roadmap
+* 079b06b add a concise STARTECH project map
+* cf72fce add Webots fake-driver visual simulation
+* 70f6840 add USB-to-Pi camera diagnostic cascade
+* dbcbc99 document school hardware continuation workflow
+* 2384a0a scaffold simulated vehicle module contracts
+* 6853706 scaffold ARDA command-line entry point
+* 43a02c1 prototype: build email confirmation request screen
+* 6df8770 prototype: build calibration login screen
+* fa569ec style: use Inter 24pt in dashboard prototype
+* 7108e1b prototype: recreate calibration dashboard in HTML
+* 941042b refactor: consolidate active packages under startech
+* 4ed752c docs: update paths and record repository arrangement
+* 31d063d refactor: modularize project checks and package subiru
+* 5051365 refactor: split tawnt core and teaching demo
+* 42bc2f9 refactor: separate configuration validation from tests
+* 1eae2aa docs: iki sayfalik rapor birlesimini kaydet
+* f1d3e54 docs: rapor prototipinde islak imza alanlarini duzelt
+* 8073667 docs: kalibrasyon raporu HTML prototipi ekle
+* 5daff33 feat: Arduino LED ve buzzer bildirim demosu ekle
+* f4eca48 test(config): v1 dosyalarini ve hata durumlarini dogrula
+* 9f9f8ff docs(config): mevcut v1 JSON sozlesmelerini tanimla
+* e92a180 docs: complete 3awnt public API guide
+* 31502d5 example: add safe 3awnt teaching main
+* cdfd57d docs: 3awnt v2 durumunu ve sınırlarını açıkla
+* f54c704 feat: 3awnt v2 güvenlik çekirdeğini uygula
+* cd90a38 test: 3awnt v2 davranış sözleşmesini tanımla
+* 791d895 docs: 3awnt veri ve motor kapısını açıkla
+* d24184f docs: proje rehberlerini öğrenci dostu biçimde yenile
+* 46d194d (github/copilot/inspect-repo) Tuna.txt: fix a stray non-English word
+* 3aeca87 Correct the sign_type record: deferred deliberately, not a seam failure
+* 715cad9 Record section 6.1: the 57 percent ceiling does not fit the other speeds
+* b2bfb94 Prepare LEGACY for the September experiment; find defect 20 by running it
+* 831edee Full audit of PLAN_New.md: fix 20+ internal contradictions
+* b4d2b80 Drop per-person ownership; fix six internal contradictions
+* 032790d Withdraw the q4 start-switch warning; flag section 5's rule line as unsourced
+* 63958be Record answers to 15 open questions with provenance (15.2)
+* efe92ec Fix invented ENA/ENB labels; record the ENB jumper is deliberate
+* 1dca45e Tuna.txt: log the stale git lock, the EOL fix, and the first hook test
+* 4e0505e Move docs to Markdown/, add kontrol.py, SIRA.md, guides and diagrams
+* 3f171e5 Add .gitattributes and normalise line endings to LF
+* 059d147 Revise project overview and collaboration notes
+* 16df722 Add pdf_yap.py, list it in the plan, log both in Tuna.txt
+* 7a23252 Plan
+* 4e9d83a Add SUBIRU enforcement/monitoring screen
+* e42edc9 Initial project notes and CLAUDE.md guidance
+* 8fd5f44 (origin/main, origin/HEAD) Initial commit

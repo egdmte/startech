@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 import tawnt
 from arac import ayar, durum, goruntu, goz, kayit, main, surucu
+from arac.adam import AdamState, RunControl
 from arac.ayar import ActiveConfiguration
 from arac.goruntu import LaneObservation
 from arac.goz import CameraStatus, FramePacket
@@ -292,6 +293,39 @@ class ArdaTest(unittest.TestCase):
         )
         command = driver.applied[0].command
         self.assertEqual((0.0, 0.0), (command.left, command.right))
+
+    def test_remote_drive_requests_stop_and_standby_when_kerim_heartbeat_is_lost(self):
+        driver = RecordingDriver()
+        options = self.options(
+            "drive", frames=5, operator="Ada Lovelace", confirm_output=True
+        )
+        controls = [RunControl.ACTIVE, RunControl.CONNECTION_LOST]
+        result = main.run_drive(
+            options,
+            configuration=active_configuration(),
+            camera=StubCamera(6),
+            analyzer=StubAnalyzer(),
+            driver=driver,
+            remote_start_authorized=True,
+            link_control=lambda _black_box: controls.pop(0),
+            input_fn=lambda _prompt: self.fail("remote run must not wait for Enter"),
+            output=StringIO(),
+        )
+
+        self.assertEqual(main.EXIT_CONNECTION_LOST, result)
+        self.assertEqual(1, len(driver.applied))
+        self.assertTrue(
+            any("heartbeat lost" in reason for event, reason in driver.events if event == "stop")
+        )
+        log_path = next(options.log_dir.glob("drive-*.jsonl"))
+        records = kayit.JsonlBlackBox(log_path, log_path.stem).records
+        self.assertTrue(
+            any(
+                record.module == "ADAM"
+                and record.data.get("state") == AdamState.RUN_HALT_NOCON.value
+                for record in records
+            )
+        )
 
     def test_bench_is_real_bounded_output_even_with_unmeasured_trim(self):
         driver = RecordingDriver()

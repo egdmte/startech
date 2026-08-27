@@ -1,0 +1,22 @@
+{
+  "sema_surumu": 1,
+  "_aciklama": "Bunlar ölçülmez, seçilir. Kalibrasyondan ayrı tutulur. BU DOSYA TEST ÖRNEĞİDİR; doğrudan araca yüklenmez.",
+  "kontrol": {
+    "kp": 0.58,
+    "kd": 0.6,
+    "ki": 0.2,
+    "integral_max": 50.0,
+    "deriv_cap": 150
+  },
+  "hiz": {
+    "hedef": 50,
+    "min": 25,
+    "max": 57,
+    "max_not": "3S pil ile 6 V motorlara ~10 V geliyor. %57 anma gerilimidir. Ölç.",
+    "k_speed": 0.45
+  },
+  "olay": {
+    "yakin_roi_orani": 0.75,
+    "yakin_roi_orani_not": "Desenin ROI'nin bu oranından aşağıda görünmesi = ~30 cm."
+  }
+}

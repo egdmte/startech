@@ -8,6 +8,8 @@ import tempfile
 import unittest
 
 from arac.atolye import WorkshopCommand, WorkshopReceipt
+from arac.adam import AdamState, RunControl, VehicleRunCommand, VehicleRunReceipt
+from arac.kayit import JsonlBlackBox, RecordKind
 from arac.yaren_link import (
     CLOSE_PATH,
     LinkRunResult,
@@ -322,6 +324,82 @@ class YarenTemporaryLinkTest(unittest.TestCase):
         self.assertEqual(LinkRunResult("CLOSED", 0, 1), result)
         self.assertFalse(receipt[0]["accepted"])
         self.assertIn("expired", receipt[0]["receipt"]["error"])
+
+    def test_autonomous_run_uses_vehicle_executor_and_streams_kader_events(self):
+        payload = {
+            "operator": "Ada Lovelace",
+            "issued_at": 1000,
+            "expires_at": 1090,
+            "countdown_seconds": 30,
+            "mode": "LANE_FOLLOW",
+            "mute_buzzer": True,
+        }
+        polls = [
+            {
+                "state": "ACTIVE",
+                "job": {
+                    "job_id": "9" * 32,
+                    "operation": "START_AUTONOMOUS_RUN",
+                    "payload": payload,
+                },
+            },
+            {"state": "CLOSED", "job": None},
+        ]
+        run_batches: list[list[dict[str, object]]] = []
+        receipts: list[dict[str, object]] = []
+        executed: list[VehicleRunCommand] = []
+
+        def transport(url, body, _token, _timeout):
+            if url.endswith("/poll"):
+                return polls.pop(0)
+            if url.endswith("/run-events"):
+                run_batches.append(list(body["events"]))
+                return {"accepted": True, "cancel_requested": False}
+            if url.endswith("/receipt"):
+                receipts.append(dict(body))
+            return {"accepted": True}
+
+        def executor(command, *, heartbeat, log_dir, **kwargs):
+            executed.append(command)
+            self.assertEqual("COM7", kwargs["adam_port"])
+            path = Path(log_dir)
+            path.mkdir(parents=True, exist_ok=True)
+            records = JsonlBlackBox(path / "remote.jsonl", command.command_id)
+            records.append(
+                RecordKind.STATE,
+                "ADAM",
+                {"state": AdamState.RUN_RECEIVED.value},
+            )
+            self.assertEqual(RunControl.ACTIVE, heartbeat(records, True))
+            return VehicleRunReceipt(
+                command_id=command.command_id,
+                operator=command.operator,
+                state=AdamState.RUN_COMPLETED,
+                exit_code=0,
+                started_at_utc="2026-08-26T12:00:00+00:00",
+                finished_at_utc="2026-08-26T12:01:00+00:00",
+                log_file="remote.jsonl",
+            )
+
+        result = run_temporary_link(
+            self.access,
+            profile_root=self.root,
+            server_url="https://cam.example.test",
+            transport=transport,
+            capability_collector=self.capabilities,
+            vehicle_run_executor=executor,
+            adam_port="COM7",
+            epoch=lambda: 1000,
+            sleep=lambda _seconds: None,
+            workshop_log_dir=self.root / "runs",
+        )
+
+        self.assertEqual(LinkRunResult("CLOSED", 1, 0), result)
+        self.assertEqual(1, len(executed))
+        self.assertTrue(executed[0].mute_buzzer)
+        self.assertEqual(AdamState.RUN_RECEIVED.value, run_batches[0][0]["data"]["state"])
+        self.assertTrue(receipts[0]["accepted"])
+        self.assertEqual(AdamState.RUN_COMPLETED.value, receipts[0]["receipt"]["state"])
 
 
 if __name__ == "__main__":

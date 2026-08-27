@@ -106,8 +106,15 @@ Rotate or disable a registered device with the corresponding Flask CLI command;
 never copy the private key to KERİM. YAREN starts one authenticated live link with:
 
 ```bash
-python3 -m arac.ayar_cli web-code --server https://dymtal.avartech.net --usb-index 0
+python3 -m arac.ayar_cli web-code --server https://dymtal.avartech.net \
+  --usb-index 0 --adam-port /dev/ttyACM0
 ```
+
+Install the vehicle dependencies from `requirements-vehicle.txt` and flash
+`firmware/adam/adam.ino` to the connected Arduino before enabling KERİM vehicle runs.
+`STARTECH_ADAM_SERIAL_PORT` may provide the port instead of `--adam-port`. There is no
+silent LED/buzzer fallback: a KERİM vehicle-run request fails before ARDA starts if the
+real ADAM controller does not answer its serial handshake.
 
 The one-use code and link remain available while that YAREN process polls KERİM. Each
 authenticated poll refreshes the idle lease; the default cleanup threshold is five
@@ -115,6 +122,13 @@ minutes (`CAM_DEVICE_LINK_IDLE_SECONDS=300`). Ctrl+C asks KERİM to revoke the l
 A live camera-frame request opens KASIM's configured camera chain, captures one current
 frame, closes the device, and fails if no physical camera responds. It has no
 generated-image fallback.
+
+KERİM may queue one `START_AUTONOMOUS_RUN` request. YAREN sends it to the vehicle-owned
+ADAM executor, which performs the exact 30-second local LED/buzzer warning before ARDA
+starts. Authenticated event uploads also act as the heartbeat. A lost link requests zero
+output and records `RUN_HALT_NOCON`; SIGINT records an interruption and stops the local
+action. KADER events are retained by KERİM even when the browser is closed. The local
+JSONL file remains on the vehicle if the server itself cannot be reached.
 
 ## One-command deployment
 
@@ -215,8 +229,9 @@ and decide database compatibility before switching the service.
 Authenticated KERİM users can download `startech-kerim-diagnostic.json` from the
 dashboard. It contains the running release, SQLite integrity/counts, recent
 calibration metadata, and current-link configuration/capability/job records. It
-excludes credentials, access codes, remote addresses, session data, and captured
-JPEG bytes. KADER vehicle logs are explicitly not uploaded by the current link.
+excludes credentials, access codes, remote addresses, session data, captured JPEG bytes,
+and raw vehicle-run KADER events. Those KADER events are uploaded only for explicitly
+requested KERİM vehicle runs and remain on their authenticated run-history pages.
 
 For service failures, inspect only what is needed:
 

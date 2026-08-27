@@ -10,6 +10,7 @@
     <a class="cam-action cam-action--primary" href="{{ url_for('cam.sac_source') }}">{{ reicon('settings4') }}<span>{{ t('Create a SAC (Service Assisted Calibration)') }}</span></a>
     <a class="cam-action cam-action--secondary" href="{{ url_for('cam.new_configuration', workflow='mac') }}">{{ reicon('edit') }}<span>{{ t('Create a MAC (Manual Assisted Calibration)') }}</span></a>
     {% if car_linked %}<a class="cam-action cam-action--secondary" href="{{ url_for('cam.camera_calibration_start') }}">{{ reicon('camera') }}<span>{{ t('Calibrate the camera remotely') }}</span></a>{% endif %}
+    <a class="cam-action cam-action--secondary" href="{{ url_for('cam.vehicle_run') }}">{{ reicon('car') }}<span>{{ t('Run the car through KERİM') }}</span></a>
     <a class="cam-action cam-action--secondary" href="{{ url_for('auth.access') }}">{{ reicon('folder-connect') }}<span>{{ t('Manage YAREN') if car_linked else t('Connect YAREN') }}</span></a>
     <a class="cam-action cam-action--secondary" href="{{ url_for('cam.vehicle_release') }}">{{ reicon('package') }}<span>{{ t('Build package for migration') }}</span></a>
   </div>

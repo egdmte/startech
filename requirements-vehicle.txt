@@ -1,0 +1,4 @@
+# Runtime additions for the physical vehicle computer.
+# gpiozero and Picamera2 are supplied by Raspberry Pi OS.
+-r requirements-camera-usb.txt
+pyserial>=3.5,<4

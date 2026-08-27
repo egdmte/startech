@@ -398,10 +398,10 @@ class PiCamera2Source:
             payload = capture_array("main")
         except Exception as exc:
             self._status = CameraStatus.FAILED
-            raise CameraReadFailure(f"Raspberry Pi camera read failed: {exc}") from exc
+            raise CameraReadFailure(f"Unhandled exception: {exc}") from exc
         if payload is None:
             self._status = CameraStatus.FAILED
-            raise CameraReadFailure("Raspberry Pi camera returned no frame")
+            raise CameraReadFailure("No frames were returned.")
         payload = _prepare_rgb_frame(
             payload, source_bgr=self.bgr_output, rotate_180=self.rotate_180
         )

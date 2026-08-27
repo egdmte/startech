@@ -21,7 +21,11 @@ from startech_cam.device_security import (
     disable_device,
     register_device,
 )
-from startech_cam.device_link import queue_device_job
+from startech_cam.device_link import (
+    get_vehicle_run_for_actor,
+    queue_device_job,
+    request_vehicle_run_cancel,
+)
 from startech_cam.repository import DEFAULT_DOCUMENT
 from startech_cam.security import consume_access_code_grant
 from startech.configuration.profiles import ProfileStore
@@ -381,6 +385,83 @@ class CamDeviceApiTest(unittest.TestCase):
             self.assertTrue(disable_device(self.device_id, actor="test-admin"))
         self.assertEqual(401, self.signed_access(fresh).status_code)
         self.assertEqual(403, self.challenge().status_code)
+
+    def test_vehicle_run_events_are_retained_without_a_browser_and_return_cancel(self):
+        challenge = self.challenge().get_json()["challenge"]
+        issued = self.signed_access(challenge).get_json()
+        with self.app.app_context():
+            consume_access_code_grant(issued["access_code"], "Ada Lovelace")
+            now = int(time.time())
+            job_id = queue_device_job(
+                issued["link_id"],
+                self.device_id,
+                "START_AUTONOMOUS_RUN",
+                {
+                    "operator": "Ada Lovelace",
+                    "issued_at": now,
+                    "expires_at": now + 90,
+                    "countdown_seconds": 30,
+                    "mode": "LANE_FOLLOW",
+                    "mute_buzzer": False,
+                },
+                actor="Ada Lovelace",
+                lifetime_seconds=90,
+            )
+        base = {"device_id": self.device_id, "link_id": issued["link_id"]}
+        claimed = self.link_post(
+            "/api/device/v1/link/poll", base, issued["link_token"]
+        ).get_json()["job"]
+        self.assertEqual(job_id, claimed["job_id"])
+
+        event = {
+            "run_id": job_id,
+            "sequence": 0,
+            "recorded_at": float(time.time()),
+            "kind": "STATE",
+            "module": "ADAM",
+            "frame_id": None,
+            "data": {"state": "RUN_RECEIVED", "countdown_seconds": 30},
+        }
+        uploaded = self.link_post(
+            "/api/device/v1/link/run-events",
+            {**base, "job_id": job_id, "events": [event]},
+            issued["link_token"],
+        )
+        self.assertEqual(200, uploaded.status_code, uploaded.get_data(as_text=True))
+        self.assertFalse(uploaded.get_json()["cancel_requested"])
+        with self.app.app_context():
+            retained = get_vehicle_run_for_actor(job_id, "Ada Lovelace")
+            self.assertEqual("RUN_RECEIVED", retained["adam_state"])
+            self.assertEqual([event], retained["events"])
+            self.assertTrue(request_vehicle_run_cancel(job_id, "Ada Lovelace"))
+
+        heartbeat = self.link_post(
+            "/api/device/v1/link/run-events",
+            {**base, "job_id": job_id, "events": []},
+            issued["link_token"],
+        )
+        self.assertTrue(heartbeat.get_json()["cancel_requested"])
+        receipt = {
+            "command_id": job_id,
+            "operator": "Ada Lovelace",
+            "state": "RUN_CANCELLED",
+            "exit_code": 4,
+            "started_at_utc": "2026-08-26T12:00:00+00:00",
+            "finished_at_utc": "2026-08-26T12:00:01+00:00",
+            "log_file": f"vehicle-run-{job_id}.jsonl",
+            "stop_requested": True,
+            "physical_motion_observed": False,
+        }
+        completed = self.link_post(
+            "/api/device/v1/link/receipt",
+            {**base, "job_id": job_id, "accepted": True, "receipt": receipt},
+            issued["link_token"],
+        )
+        self.assertEqual(200, completed.status_code, completed.get_data(as_text=True))
+        with self.app.app_context():
+            retained = get_vehicle_run_for_actor(job_id, "Ada Lovelace")
+            self.assertEqual("ACCEPTED", retained["status"])
+            self.assertEqual("RUN_CANCELLED", retained["receipt"]["state"])
 
     def test_api_has_narrow_csrf_exception_and_strict_json(self):
         browser_post = self.client.post(

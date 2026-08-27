@@ -1,0 +1,26 @@
+node_modules/
+/build/
+/dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+.firestore.rules
+.env
+
+# Generated package build outputs (built from data/icon-data.json)
+cdn/*.js
+!public/cdn/
+
+# Packages dist/ and node_modules/ directories
+packages/*/dist/
+packages/*/node_modules/
+
+# Local DX symlink for VS Code absolute paths
+/favicon
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example

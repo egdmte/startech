@@ -334,6 +334,84 @@
     });
   });
 
+  const vehicleRun = document.querySelector("[data-vehicle-run]");
+  if (vehicleRun) {
+    const animation = document.querySelector("[data-run-animation]");
+    const stateIcon = document.querySelector("[data-run-state-icon]");
+    const stateOutput = document.querySelector("[data-run-state]");
+    const countdownOutput = document.querySelector("[data-run-countdown]");
+    const jobStatus = vehicleRun.querySelector("[data-run-job-status]");
+    const log = vehicleRun.querySelector("[data-run-log]");
+    const stateLabels = {
+      RUN_RECEIVED: vehicleRun.dataset.stateRunReceived,
+      RUN_INITIATED: vehicleRun.dataset.stateRunInitiated,
+      RUN_HALT_NOCON: vehicleRun.dataset.stateRunHaltNocon,
+      RUN_CANCELLED: vehicleRun.dataset.stateRunCancelled,
+      RUN_INTERRUPTED: vehicleRun.dataset.stateRunInterrupted,
+      RUN_COMPLETED: vehicleRun.dataset.stateRunCompleted,
+      RUN_FAILED: vehicleRun.dataset.stateRunFailed,
+    };
+    let cursor = Number(vehicleRun.dataset.lastSequence || -1);
+
+    window.setTimeout(() => {
+      if (animation) animation.hidden = true;
+      if (stateIcon) stateIcon.hidden = false;
+    }, 1900);
+
+    const renderState = (state) => {
+      if (stateOutput && state) stateOutput.textContent = stateLabels[state] || state;
+      if (countdownOutput && state && state !== "RUN_RECEIVED") countdownOutput.textContent = "";
+    };
+    const appendEvent = (event) => {
+      if (!log || log.querySelector(`[data-sequence="${event.sequence}"]`)) return;
+      const article = document.createElement("article");
+      article.dataset.sequence = String(event.sequence);
+      const sequence = document.createElement("span");
+      sequence.textContent = String(event.sequence);
+      const identity = document.createElement("strong");
+      identity.textContent = `${event.module} · ${event.kind}`;
+      const detail = document.createElement("code");
+      detail.textContent = JSON.stringify(event.data);
+      article.append(sequence, identity, detail);
+      log.append(article);
+      log.scrollTop = log.scrollHeight;
+      cursor = Math.max(cursor, Number(event.sequence));
+      if (event.module === "ADAM" && event.data?.state) renderState(event.data.state);
+      if (countdownOutput && Number.isInteger(event.data?.countdown_remaining)) {
+        countdownOutput.textContent = vehicleRun.dataset.countdownTemplate.replace(
+          "__SECONDS__",
+          String(event.data.countdown_remaining),
+        );
+      }
+    };
+    const terminalStatuses = new Set(["ACCEPTED", "REJECTED", "EXPIRED"]);
+    const poll = async () => {
+      let delay = 1000;
+      try {
+        const separator = vehicleRun.dataset.statusUrl.includes("?") ? "&" : "?";
+        const response = await fetch(
+          `${vehicleRun.dataset.statusUrl}${separator}after=${cursor}`,
+          { headers: { Accept: "application/json" } },
+        );
+        if (response.ok) {
+          const result = await response.json();
+          result.events.forEach(appendEvent);
+          renderState(result.adam_state);
+          vehicleRun.dataset.jobStatus = result.status;
+          if (jobStatus) jobStatus.textContent = result.status;
+          if (result.events.length >= 200) delay = 20;
+          else if (terminalStatuses.has(result.status)) return;
+        }
+      } catch (_error) {
+        // The run and warning live on the car; reconnecting this page resumes the log.
+      }
+      window.setTimeout(poll, delay);
+    };
+    if (!terminalStatuses.has(vehicleRun.dataset.jobStatus)) {
+      window.setTimeout(poll, 350);
+    }
+  }
+
   document.addEventListener("click", (event) => {
     const anchor = event.target.closest("a[href]");
     if (!anchor || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

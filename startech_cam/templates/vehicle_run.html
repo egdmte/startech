@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}{{ t('Vehicle run') }}{% endblock %}
+{% block frame_class %}cam-frame--vehicle-run{% endblock %}
+{% block content %}
+<section class="cam-center-panel vehicle-run-panel" aria-labelledby="vehicle-run-title">
+  {% if run %}
+    {% set displayed_state = run.adam_state or run.status %}
+    <header class="cam-page-heading vehicle-run-heading" data-motion data-motion-delay="1">
+      {% if displayed_state in ('PENDING', 'RUN_RECEIVED') %}
+      <div class="vehicle-run-animation" data-run-animation>
+        <img src="{{ url_for('static', filename='assets/run-received.gif', v=cam_asset_version) }}" alt="" width="160" height="160">
+      </div>
+      <div class="vehicle-run-state-icon" data-run-state-icon hidden>{{ reicon('car') }}</div>
+      {% else %}
+      <div class="vehicle-run-state-icon" data-run-state-icon>{{ reicon('car') }}</div>
+      {% endif %}
+      <p id="vehicle-run-title">{{ t('Vehicle run') }}</p>
+      <strong data-run-state>{{ t(displayed_state) }}</strong>
+      <span data-run-countdown>
+        {% set countdown = namespace(value=none) %}
+        {% for event in run.events %}
+          {% if event.data.countdown_remaining is defined %}{% set countdown.value = event.data.countdown_remaining %}{% endif %}
+        {% endfor %}
+        {% if displayed_state == 'RUN_RECEIVED' and countdown.value is not none %}{{ t('{seconds} seconds before ARDA starts', seconds=countdown.value) }}{% endif %}
+      </span>
+    </header>
+
+    <div
+      class="vehicle-run-live"
+      data-vehicle-run
+      data-status-url="{{ url_for('cam.vehicle_run_status', job_id=run.job_id) }}"
+      data-job-status="{{ run.status }}"
+      data-last-sequence="{{ run.events[-1].sequence if run.events else -1 }}"
+      data-countdown-template="{{ t('{seconds} seconds before ARDA starts', seconds='__SECONDS__') }}"
+      data-state-run-received="{{ t('RUN_RECEIVED') }}"
+      data-state-run-initiated="{{ t('RUN_INITIATED') }}"
+      data-state-run-halt-nocon="{{ t('RUN_HALT_NOCON') }}"
+      data-state-run-cancelled="{{ t('RUN_CANCELLED') }}"
+      data-state-run-interrupted="{{ t('RUN_INTERRUPTED') }}"
+      data-state-run-completed="{{ t('RUN_COMPLETED') }}"
+      data-state-run-failed="{{ t('RUN_FAILED') }}"
+    >
+      <p>{{ t('The countdown and drive code run on the car. This page reads the retained KADER log.') }}</p>
+      {% if run.status in ('PENDING', 'CLAIMED') %}
+      <p class="vehicle-run-output-warning" role="alert">{{ t('PHYSICAL VEHICLE OUTPUT IS QUEUED OR MAY BE ACTIVE.') }}</p>
+      {% endif %}
+      <dl class="vehicle-run-summary">
+        <div><dt>{{ t('Run ID') }}</dt><dd>{{ run.job_id }}</dd></div>
+        <div><dt>{{ t('Vehicle') }}</dt><dd>{{ run.device_id }}</dd></div>
+        <div><dt>{{ t('Requested') }}</dt><dd>{{ run.created_at_utc }}</dd></div>
+        <div><dt>{{ t('Server status') }}</dt><dd data-run-job-status>{{ run.status }}</dd></div>
+      </dl>
+
+      <div class="vehicle-run-log" data-run-log aria-live="polite" aria-label="{{ t('Live vehicle log') }}">
+        {% for event in run.events %}
+          <article data-sequence="{{ event.sequence }}">
+            <span>{{ event.sequence }}</span>
+            <strong>{{ event.module }} · {{ event.kind }}</strong>
+            <code>{{ event.data|tojson }}</code>
+          </article>
+        {% endfor %}
+      </div>
+
+      {% if run.status in ('PENDING', 'CLAIMED') %}
+      <form method="post" action="{{ url_for('cam.cancel_vehicle_run', job_id=run.job_id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="cam-action cam-action--danger" type="submit">{{ reicon('x-circle') }}<span>{{ t('Cancel vehicle run') }}</span></button>
+      </form>
+      {% endif %}
+    </div>
+  {% else %}
+    <header class="cam-page-heading" data-motion data-motion-delay="1">
+      {{ reicon('car', 'vehicle-run-start-icon') }}
+      <p id="vehicle-run-title">{{ t('Run the car through KERİM') }}</p>
+      <strong>{{ t('The car owns the warning, autonomous code and stop decision.') }}</strong>
+    </header>
+    <p>{{ t('KERİM sends one start request. ADAM warns locally for 30 seconds, then ARDA runs on the vehicle and sends its KADER log here.') }}</p>
+    {% if car_linked %}
+    <form class="vehicle-run-request" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="vehicle-run-check">
+        <input type="checkbox" name="confirm_physical_run" value="yes" required>
+        <span>{{ t('I intend to start the physical vehicle.') }}</span>
+      </label>
+      <label class="vehicle-run-check">
+        <input type="checkbox" name="mute_buzzer" value="yes">
+        <span>{{ t('Mute the ADAM buzzer; keep the LED warning active.') }}</span>
+      </label>
+      <button class="cam-action cam-action--primary" type="submit">{{ reicon('play') }}<span>{{ t('Send run request to the car') }}</span></button>
+    </form>
+    {% else %}
+      <a class="cam-action cam-action--secondary" href="{{ url_for('auth.access') }}">{{ reicon('folder-connect') }}<span>{{ t('Connect YAREN first') }}</span></a>
+    {% endif %}
+  {% endif %}
+
+  {% if recent_runs %}
+  <section class="vehicle-run-history" aria-labelledby="vehicle-run-history-title">
+    <h2 id="vehicle-run-history-title">{{ t('Recent vehicle runs') }}</h2>
+    {% for recent in recent_runs %}
+      <a href="{{ url_for('cam.vehicle_run_detail', job_id=recent.job_id) }}">
+        <span>{{ recent.created_at_utc }}</span>
+        <strong>{{ t(recent.adam_state or recent.status) }}</strong>
+        {{ reicon('arrow-right2', 'reicon--direction') }}
+      </a>
+    {% endfor %}
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

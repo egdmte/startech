@@ -9,6 +9,7 @@ import hashlib
 import importlib
 import json
 import math
+import os
 from pathlib import Path
 import time
 from typing import Any
@@ -18,6 +19,12 @@ from urllib.request import Request, urlopen
 from startech.configuration.combined import merge_v1_pair
 from startech.configuration.profiles import ProfileStore
 
+from .adam import (
+    RunControl,
+    VehicleRunCommand,
+    VehicleRunReceipt,
+    execute_vehicle_run,
+)
 from .atolye import WorkshopCommand, WorkshopReceipt, execute_workshop_command
 from .goz import CameraSource, build_preferred_camera
 from .yaren_diagnostics import collect_capability_report
@@ -28,6 +35,7 @@ POLL_PATH = "/api/device/v1/link/poll"
 SNAPSHOT_PATH = "/api/device/v1/link/snapshot"
 CAPABILITIES_PATH = "/api/device/v1/link/capabilities"
 RECEIPT_PATH = "/api/device/v1/link/receipt"
+RUN_EVENTS_PATH = "/api/device/v1/link/run-events"
 CLOSE_PATH = "/api/device/v1/link/close"
 MAX_CALIBRATION_JPEG_BYTES = 650_000
 ALLOWED_OPERATIONS = frozenset(
@@ -37,6 +45,7 @@ ALLOWED_OPERATIONS = frozenset(
         "INSTALL_INACTIVE_CONFIGURATION",
         "RUN_BOUNDED_WORKSHOP_COMMAND",
         "CAPTURE_CALIBRATION_FRAME",
+        "START_AUTONOMOUS_RUN",
     }
 )
 WORKSHOP_INSPECTION = frozenset(
@@ -52,6 +61,16 @@ WORKSHOP_PAYLOAD_FIELDS = frozenset(
         "right_percent",
         "duration_seconds",
         "inspection",
+    }
+)
+VEHICLE_RUN_PAYLOAD_FIELDS = frozenset(
+    {
+        "operator",
+        "issued_at",
+        "expires_at",
+        "countdown_seconds",
+        "mode",
+        "mute_buzzer",
     }
 )
 
@@ -71,6 +90,7 @@ LinkTransport = Callable[[str, Mapping[str, Any], str, float], dict[str, Any]]
 StatusCallback = Callable[[str], None]
 WorkshopExecutor = Callable[..., WorkshopReceipt]
 CalibrationFrameCollector = Callable[..., dict[str, Any]]
+VehicleRunExecutor = Callable[..., VehicleRunReceipt]
 
 
 def collect_calibration_frame(
@@ -223,6 +243,49 @@ def _workshop_command(
             cam_issued_at=issued_at,
         )
     except ValueError as exc:
+        raise YarenLinkError(str(exc)) from exc
+
+
+def _vehicle_run_command(
+    job_id: str,
+    payload: Mapping[str, Any],
+    *,
+    now: int,
+) -> VehicleRunCommand:
+    """Validate a closed autonomous-run request before ADAM is opened."""
+
+    if set(payload) != VEHICLE_RUN_PAYLOAD_FIELDS:
+        raise YarenLinkError("vehicle run request has unexpected fields")
+    operator = payload["operator"]
+    issued_at = payload["issued_at"]
+    expires_at = payload["expires_at"]
+    if (
+        not isinstance(operator, str)
+        or operator != operator.strip()
+        or not 2 <= len(operator) <= 120
+    ):
+        raise YarenLinkError("vehicle run operator is invalid")
+    if (
+        isinstance(issued_at, bool)
+        or not isinstance(issued_at, int)
+        or isinstance(expires_at, bool)
+        or not isinstance(expires_at, int)
+    ):
+        raise YarenLinkError("vehicle run times must be integer epochs")
+    if issued_at > now + 5 or issued_at < now - 60:
+        raise YarenLinkError("vehicle run request is outside its live window")
+    if expires_at <= now or expires_at <= issued_at or expires_at - issued_at > 90:
+        raise YarenLinkError("vehicle run request lifetime is invalid")
+    try:
+        return VehicleRunCommand(
+            command_id=job_id,
+            operator=operator,
+            issued_at=issued_at,
+            countdown_seconds=payload["countdown_seconds"],
+            mode=payload["mode"],
+            mute_buzzer=payload["mute_buzzer"],
+        )
+    except (TypeError, ValueError) as exc:
         raise YarenLinkError(str(exc)) from exc
 
 
@@ -414,6 +477,74 @@ def _job_fields(job: object) -> tuple[str, str, dict[str, Any]]:
     return job_id, operation, payload
 
 
+class _RunEventReporter:
+    """Batch local KADER records while using the upload as the live-link heartbeat."""
+
+    def __init__(
+        self,
+        *,
+        server: str,
+        access: WebAccessCode,
+        job_id: str,
+        transport: LinkTransport,
+        timeout: float,
+        status: StatusCallback,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self.server = server
+        self.access = access
+        self.job_id = job_id
+        self.transport = transport
+        self.timeout = timeout
+        self.status = status
+        self.clock = clock
+        self.next_sequence = 0
+        self.last_sent_at = float("-inf")
+        self.connection_lost = False
+
+    def __call__(self, black_box: Any, force: bool) -> RunControl:
+        if self.connection_lost:
+            return RunControl.CONNECTION_LOST
+        records = getattr(black_box, "records", None)
+        if not isinstance(records, tuple):
+            raise YarenLinkError("vehicle run reporter needs a KADER black box")
+        now = self.clock()
+        pending = records[self.next_sequence :]
+        if not force and len(pending) < 50 and now - self.last_sent_at < 0.25:
+            return RunControl.ACTIVE
+        sent_request = False
+        try:
+            while pending or (force and not sent_request):
+                batch = pending[:100]
+                response = self.transport(
+                    self.server + RUN_EVENTS_PATH,
+                    {
+                        **_base_payload(self.access),
+                        "job_id": self.job_id,
+                        "events": [record.to_dict() for record in batch],
+                    },
+                    self.access.link_token,
+                    self.timeout,
+                )
+                if set(response) != {"accepted", "cancel_requested"} or response["accepted"] is not True:
+                    raise YarenLinkError("KERİM rejected the vehicle run heartbeat")
+                sent_request = True
+                self.next_sequence += len(batch)
+                self.last_sent_at = self.clock()
+                if response["cancel_requested"] is True:
+                    return RunControl.CANCEL_REQUESTED
+                if response["cancel_requested"] is not False:
+                    raise YarenLinkError("KERİM returned an invalid vehicle run control state")
+                pending = records[self.next_sequence :]
+        except KeyboardInterrupt:
+            raise
+        except Exception as exc:
+            self.connection_lost = True
+            self.status(f"Vehicle run heartbeat failed: {exc}")
+            return RunControl.CONNECTION_LOST
+        return RunControl.ACTIVE
+
+
 def run_temporary_link(
     access: WebAccessCode,
     *,
@@ -424,9 +555,11 @@ def run_temporary_link(
     transport: LinkTransport | None = None,
     capability_collector: Callable[..., dict[str, Any]] = collect_capability_report,
     workshop_executor: WorkshopExecutor = execute_workshop_command,
+    vehicle_run_executor: VehicleRunExecutor = execute_vehicle_run,
     calibration_frame_collector: CalibrationFrameCollector = collect_calibration_frame,
     usb_index: int = 0,
     workshop_log_dir: str | Path = Path("runs"),
+    adam_port: str | None = None,
     status: StatusCallback = lambda _message: None,
     epoch: Callable[[], int] = lambda: int(time.time()),
     sleep: Callable[[float], None] = time.sleep,
@@ -439,8 +572,11 @@ def run_temporary_link(
         raise YarenLinkError("poll interval must be between 0.1 and 30 seconds")
     if isinstance(usb_index, bool) or not isinstance(usb_index, int) or usb_index < 0:
         raise YarenLinkError("USB camera index must be a non-negative integer")
+    if adam_port is not None and (not isinstance(adam_port, str) or not adam_port.strip()):
+        raise YarenLinkError("ADAM serial port must be non-empty text when supplied")
     server = _server_root(server_url or default_server_url())
     selected_transport = transport or _http_transport
+    selected_adam_port = (adam_port or os.environ.get("STARTECH_ADAM_SERIAL_PORT", "")).strip()
     store = ProfileStore(profile_root)
     synchronized = False
     accepted_jobs = 0
@@ -537,7 +673,7 @@ def run_temporary_link(
                         raise YarenLinkError(
                             "calibration frame collector returned an invalid receipt"
                         )
-                else:
+                elif operation == "RUN_BOUNDED_WORKSHOP_COMMAND":
                     command = _workshop_command(job_id, payload, now=epoch())
                     executed = workshop_executor(
                         command,
@@ -547,6 +683,40 @@ def run_temporary_link(
                     if not isinstance(executed, WorkshopReceipt):
                         raise YarenLinkError("workshop executor returned an invalid receipt")
                     receipt = executed.to_dict()
+                else:
+                    command = _vehicle_run_command(job_id, payload, now=epoch())
+                    reporter = _RunEventReporter(
+                        server=server,
+                        access=access,
+                        job_id=job_id,
+                        transport=selected_transport,
+                        timeout=timeout,
+                        status=status,
+                    )
+                    status(
+                        f"KERİM requested autonomous run {job_id}. Live logs: "
+                        f"{server}/vehicle-runs/{job_id}"
+                    )
+                    executed_run = vehicle_run_executor(
+                        command,
+                        heartbeat=reporter,
+                        adam_port=selected_adam_port,
+                        profile_root=profile_root,
+                        usb_index=usb_index,
+                        log_dir=Path(workshop_log_dir),
+                        status=status,
+                    )
+                    if not isinstance(executed_run, VehicleRunReceipt):
+                        raise YarenLinkError("vehicle run executor returned an invalid receipt")
+                    if reporter.connection_lost:
+                        status(
+                            "KERİM became unavailable. The car recorded RUN_HALT_NOCON "
+                            "locally and requires manual activation."
+                        )
+                        return LinkRunResult(
+                            "CONNECTION_LOST", accepted_jobs, rejected_jobs
+                        )
+                    receipt = executed_run.to_dict()
                 _send_receipt(
                     server,
                     access,
@@ -582,10 +752,12 @@ __all__ = [
     "LinkRunResult",
     "POLL_PATH",
     "RECEIPT_PATH",
+    "RUN_EVENTS_PATH",
     "SNAPSHOT_PATH",
     "YarenLinkError",
     "active_configuration_document",
     "collect_calibration_frame",
     "close_temporary_link",
+    "execute_vehicle_run",
     "run_temporary_link",
 ]
