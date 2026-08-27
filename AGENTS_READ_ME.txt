@@ -1,169 +1,100 @@
 Welcome, AGENT.
 
-AGENT is you: a large language model working with this codebase.
-This is the canonical repository-level instruction file. It replaces README.txt,
-AGENTS.md, CLAUDE.md, and similar repository prompt files as a source of project
-instructions. Higher-priority platform instructions still apply.
+AGENT is you: a large language model working with this codebase. This is the
+canonical repository-level instruction file. Higher-priority platform instructions
+still apply.
 
-Our car is currently: UNAVAILABLE
+The car is currently: UNAVAILABLE
 
-UNAVAILABLE means that you cannot access the SCHOOL, where the physical car is stored
-and tested. It does not mean that the car is imaginary or unbuilt. The hardware is
-fully built and ready to be tested; the software is the unfinished part. Until the car
-is available again, do not claim physical results for the current software.
+UNAVAILABLE means the STARTECH team cannot currently access SCHOOL, where the
+physical car is stored. The car exists and is built. Do not mistake temporary lack
+of access for nonexistent hardware, and do not claim new physical results while it
+is unavailable.
 
-SCHOOL is the environment where the car is stored and tested.
-STARTECH is the team. Do not call STARTECH "our team" or "us". Address the team as
-"you" or "the STARTECH team".
+STARTECH is the team. Address the team as "you" or "the STARTECH team", not "us".
 
----
+## What this repository is
 
-What is this project?
+This is a camera-only autonomous vehicle project. The retained systems are:
 
-This is an autonomous vehicle project. The car completes a multi-task track using
-camera-based perception. The car may be prepared for different races, but the
-camera-only rule is a project invariant: do not add another sensor as a shortcut.
+- `LEGACY/`: the active vehicle-code baseline. This lineage ran the competition
+  car. It is imperfect, but its real behavior and known defects are more valuable
+  than an untested replacement architecture.
+- `startech_cam/`: KERİM, the web calibration and maintenance service. Its old CAM
+  package, environment, service, and URL names are compatibility contracts.
+- `startech/tawnt/` and `tawnt.py`: TAWNT, a readable validation library available
+  for small, justified integrations into the vehicle code.
+- `startech/configuration/` and `config/`: configuration code still required by
+  KERİM. They do not currently replace `LEGACY/config.py`.
+- `tests/`: software checks for the retained systems.
+- `Markdown/` and the root documents: current guidance and historical records.
 
-The canonical current modules are YAREN, KASIM, KEREM, DORA, KADER, TAWNT, OSMAN,
-ARDA, KERİM, and SAC. KERİM means "Kalibrasyon Erişim, Revizyon İnceleme
-Merkezi." Do not revive retired module aliases in current documentation or
-new code.
+Do not recreate the deleted `arac/` stack, Webots scaffolding, project-control
+machinery, fake vehicle modes, or chains of modules that merely approve one another.
+If useful names such as ARDA, KASIM, KEREM, DORA, KADER, or OSMAN return, put the
+names directly on clear LEGACY responsibilities. Do not add wrappers just to obtain
+more named layers.
 
-KERİM retains `startech_cam`, CAM-prefixed deployment files, existing URLs, the
-`CAM_*` environment interface, and the `STARTECH-CAM-DEVICE-V1` signing domain as
-compatibility contracts. These internal names do not rename the current product back
-to CAM and must not be changed casually as part of display-text cleanup.
+## Real, unfinished, or historical
 
----
+A vehicle feature is real or unfinished. Never add a production fake driver,
+generated observation, simulated readiness result, or status that pretends the car
+was exercised. Tests may use controlled fixtures under `tests/`; they prove only the
+software behavior they assert.
 
-How are features implemented?
+Use these status terms precisely:
 
-Car features do not use production simulations, fake drivers, generated observations,
-or pretend readiness reports. A feature is real or unfinished. If the real path is
-implemented but cannot yet be physically exercised, mark it PHYSICALLY UNVERIFIED and
-say what observation is missing.
+- `IMPLEMENTED`: the real code path exists and its stated software behavior is checked.
+- `PHYSICALLY UNVERIFIED`: the real path exists, but the required car-side result has
+  not yet been observed or recorded.
+- `PHYSICALLY VERIFIED`: dated physical evidence supports the exact claim.
+- `NOT IMPLEMENTED`: the real path is absent or incomplete.
+- `VALIDATED`: TAWNT accepted one declared value or command. This is never proof that
+  the vehicle moved, steered, or stopped.
 
-The explicit Webots environment is separate and remains isolated under `sim/`. It is
-never evidence for the physical car.
+Old PDFs and Markdown records are post-mortems and timeline evidence, not current
+instructions. Preserve them. The active direction is in `PLAN.md`; current source and
+tests remain the authority for implemented behavior.
 
-Tests are approved under `tests/` for stress, regression, and contract checking. Test
-fixtures and call recorders stay inside tests. They prove software behavior only and
-must never become a production vehicle mode or physical evidence.
+## How to change the vehicle code
 
-Replaying actual camera recordings is real analysis of recorded data. It is not a
-simulation, and it is not evidence that a camera or car is connected now.
+- Start from the competition code in `LEGACY/` and its documented failure modes.
+- Prefer a small, understandable correction over a general framework.
+- Do not rewrite a working subsystem merely to modernize its shape.
+- Preserve original evidence while repairing defects. When practical, add a focused
+  regression check beside a software-only fix.
+- A standalone calibration tool may eventually replace the scattered LEGACY tuning
+  scripts. KERİM may expose those concrete controls, but it must not invent values or
+  silently rewrite `LEGACY/config.py`.
+- The car must remain capable of local, offline race operation. KERİM is useful, not a
+  boot dependency. Remote start/stop is unfinished until a small explicit adapter is
+  implemented and physically checked.
 
-A signed linked-camera receipt proves that the named physical camera produced that
-frame in that session. It does not prove that saved calibration values fit the school
-track, that KEREM interpreted them correctly there, or that the car can drive.
+Local vehicle start must not require a legal name or a theatrical word such as
+`OUTPUT`. For a future remote physical command, KERİM can record the authenticated
+operator and server time automatically. Any physical-output path must display a clear
+warning, allow cancellation before motion, and treat SIGINT/Ctrl+C as an immediate
+request to stop and remain stopped. A software stop request does not prove the motor
+power physically disappeared.
 
----
+## Approval and Git
 
-What work needs approval?
+Bug fixes, careful migrations from LEGACY, refactors, documentation corrections, and
+requested features do not need speculative pre-approval plans. Explain completed work
+afterward and update `PLAN.md` when the current state changes.
 
-Bug fixes, migrations from useful LEGACY behavior, refactors, and requested features
-do not need a pre-approval plan. Inspect the current code, make the change, verify it,
-update the current state in `PLAN.md`, and explain the result afterwards.
+Ask before an irreversible strategic replacement: abandoning the LEGACY baseline,
+replacing KERİM or TAWNT, rewriting several major areas together, deleting historical
+evidence, or changing repository history. Approval to edit code is never permission to
+run the physical car.
 
-Ask for pre-approval before an irreversible strategic change or a large change that
-materially replaces the current direction. Examples include replacing YAREN, abandoning
-the current architecture for a "LEGACY V2", or combining several substantial ARDA
-changes into one rewrite. Approval to change code is not approval to run the car.
+Preserve user work. Do not reset, overwrite, or discard unrelated uncommitted changes.
+Use a branch for dangerous strategic changes and ordinary commits for normal fixes.
+Never force-push or rewrite history. Commit history is the recovery mechanism.
 
-For a pre-approval, explain the intended outcome, affected boundaries, important risks,
-rollback path, and why the change is large or irreversible. Do this in chat; do not fill
-the repository with speculative pre-action plans.
+## How to report work
 
----
-
-How is Git used?
-
-- Preserve existing uncommitted work. It belongs to the user unless proven otherwise.
-- Ordinary bug fixes and small UI changes may be committed and pushed directly to
-  `master` after verification.
-- Use a secondary branch for pre-approved work and for changes whose severity makes a
-  direct `master` update dangerous.
-- Commit verified logical changes automatically. Commit history is part of the recovery
-  and evidence system.
-- Agents may push their commits. Never force-push, rewrite history, or erase unrelated
-  commits.
-- Do not discard, reset, or overwrite user changes to obtain a clean tree.
-
----
-
-How is `PLAN.md` used?
-
-`PLAN.md` is the single current-state and future-work document. It is not a recreation
-script and does not preserve obsolete implementation steps. Current source and tests
-remain the final authority for implemented behavior.
-
-When a logical part is finished, update its status and remaining work in `PLAN.md` in
-the same commit. Remove instructions that would make a later agent rebuild completed
-work. Keep the real roadmap detailed, but do not invent dates, percentages, APIs, or
-physical results.
-
-If work is interrupted, temporarily add an `Active work` section containing the goal,
-current state, completed commits, blocker, next action, and remaining verification. List
-exact changed files when the work is uncommitted. Remove that section when the work is
-finished.
-
-Old plans and PDFs are historical or post-mortem records. Keep them when they explain
-the timeline, but never treat them as instructions. `PLAN.md` points to the current
-official competition sources instead of copying rules that can become stale.
-
----
-
-Which status words are allowed?
-
-- `IMPLEMENTED`: a real code path exists and its stated software contract is checked.
-- `PHYSICALLY UNVERIFIED`: the real path exists, but the required car-side observation
-  has not happened or is not recorded.
-- `PHYSICALLY VERIFIED`: dated physical evidence demonstrates the exact stated behavior.
-- `NOT IMPLEMENTED`: no real end-to-end path exists yet.
-- `VALIDATED`: TAWNT accepted one specific command, profile, value, or relationship.
-
-Never use `VALIDATED` as a synonym for whole-feature, vehicle, or driving readiness. A
-receipt or log can prove that software requested an
-output or stop; it cannot prove that a wheel moved, steered, braked, or stopped.
-
----
-
-What rules apply to live output?
-
-Physical output needs the operator's legal name and a current time record. Before an
-LLM triggers live output, show a clear warning and allow seven seconds to cancel. SAC
-owns this countdown in the browser. Outside SAC, the LLM must give the same warning and
-wait seven seconds before invoking the real command.
-
-Keep a visible warning while output is queued or may be active. Treat SIGINT/Ctrl+C as
-an immediate stop instruction: stop the LLM action, request zero output, and do not
-continue automatically. A software stop request never replaces access to physical
-power removal.
-
-Start physical work at the smallest useful energy and duration, with wheels secured,
-the path clear, and a person able to remove motor power. Never interpret repository
-approval as live-hardware authorization.
-
----
-
-How should an agent work?
-
-- Read this file, `PLAN.md`, and the current source that owns the requested behavior.
-- Use `PROJECT_MAP.md` to find the active path. Do not follow historical names into a
-  different system.
-- Prefer the smallest real implementation that advances the car.
-- Continue useful work while the car is unavailable: real camera capture, recorded-data
-  analysis, configuration, logging, migration, regression checks, and documentation.
-- Add a regression test for a bug when practical. Test failure must remain capable of
-  blocking a bad commit.
-- Use current official competition pages before changing a rule-dependent feature.
-- Treat people as professionals. Do not invent personal authority hierarchies, forced
-  praise, or nonsense stories in change logs.
-- Write governing documentation in English. Preserve Turkish historical records as
-  history.
-- Keep secrets, personal data, school identity, and credentials out of prompts, logs,
-  commits, and reports.
-
-After changing anything, report in chat: the outcome, important files, verification,
-commit, physical boundary, and any remaining uncertainty. Be concise enough to read and
-detailed enough to make the result auditable.
+After a change, report the outcome, important files, verification, commit, remaining
+uncertainty, and whether physical verification is still required. Be readable and
+direct. Do not produce ceremonial safety prose, forced praise, fictional stories, or
+pages of pre-action planning.

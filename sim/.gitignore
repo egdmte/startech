@@ -1,4 +1,0 @@
-# Webots/editor state and runtime-only controller output
-worlds/.*.wbproj
-controllers/**/__pycache__/
-controllers/**/tawnt_guvenlik.log

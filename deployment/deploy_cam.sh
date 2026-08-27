@@ -58,17 +58,12 @@ echo "database backup: $CAM_BACKUP_PATH"
 git merge --ff-only "$CAM_TARGET_COMMIT"
 "$CAM_PIP" install -r requirements.txt
 "$CAM_PYTHON" -m unittest discover -s tests -p 'test_cam*.py'
-# Keep this set runnable with CAM's server dependencies. Vehicle perception and
-# diagnostics that import NumPy/OpenCV run in the complete pre-merge suite.
+# Keep this set runnable with KERİM's server dependencies.
 "$CAM_PYTHON" -m unittest \
-    tests.test_atolye \
-    tests.test_ayar \
-    tests.test_ayar_cli \
     tests.test_configuration \
     tests.test_configuration_v2 \
     tests.test_profiles \
-    tests.test_yaren_link \
-    tests.test_yaren_web
+    tests.test_tawnt
 
 CAM_PUBLISHED_COMMIT=$(git rev-parse --verify 'origin/master^{commit}')
 "$CAM_PYTHON" deployment/write_release_reference.py \

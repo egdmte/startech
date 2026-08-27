@@ -27,7 +27,7 @@ HEX_COMMIT = re.compile(r"^[0-9a-f]{40}$")
 GIT_NAME = re.compile(r"^[A-Za-z0-9._/-]+$")
 PUBLISHED_REFERENCE_FORMAT = "startech-published-revision-v1"
 ARCHIVE_PATHS = (
-    "arac",
+    "LEGACY",
     "startech",
     "tawnt.py",
     "config",
@@ -295,7 +295,7 @@ def _json_bytes(value: Any) -> bytes:
 def _archive(root: Path, commit: str, timeout: float) -> bytes:
     if not HEX_COMMIT.fullmatch(commit):
         raise VehicleReleaseError("bundle commit must be one full Git SHA")
-    for required in ("arac", "startech", "tawnt.py", "config"):
+    for required in ("LEGACY", "startech", "tawnt.py", "config"):
         _git(root, ["cat-file", "-e", f"{commit}:{required}"], timeout=timeout)
     return bytes(
         _git(
@@ -323,7 +323,7 @@ def build_vehicle_bundle(
     timeout: float = 30.0,
     now: datetime | None = None,
 ) -> VehicleBundle:
-    """Build a source archive plus one inactive, importable YAREN profile."""
+    """Build a source archive plus one KERİM configuration profile."""
 
     if (
         len(profile_tag) != 6
@@ -364,7 +364,7 @@ def build_vehicle_bundle(
         "dependency_file_sha256": dependencies,
         "physical_status": "PHYSICALLY UNVERIFIED",
         "limitations": [
-            "This archive does not install or activate the selected YAREN profile.",
+            "This archive does not install the selected KERİM profile into LEGACY/config.py.",
             "This archive does not arm TAWNT or request motor output.",
             "A successful build is not evidence that the car can drive.",
             "Raspberry Pi and operating-system dependencies still require a real cold-boot check.",
@@ -385,13 +385,10 @@ requirements-camera-usb.txt.
   python -m pip install -r requirements.txt
   python -m pip install -r requirements-camera-usb.txt
 
-Then import the included profile pair:
-
-  python -m arac.ayar_cli import ../KERIM_RELEASE/kalibrasyon-v1.json ../KERIM_RELEASE/ayarlar-v1.json --name \"KERIM release {profile_tag}\" --note \"source {revision.short}\"
-
-Then inspect and deliberately select it through:
-
-  python -m arac.ayar_cli interactive
+The retained race code currently reads LEGACY/config.py. Automatic installation of the
+included KERİM profile into that file is not implemented. Review the generated JSON and
+transfer only understood values through the standalone calibration workflow when it is
+available. Do not replace config.py or its constants by inference.
 
 The target Raspberry Pi still needs a real dependency, offline-boot, camera, GPIO,
 shutdown, and recovery check before this can be called a release candidate.

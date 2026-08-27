@@ -1,22 +1,14 @@
-KERİM için Sanal Ayrılmış Sunucu gereklidir.
----
+# STARTECH autonomous vehicle
 
+This repository keeps the competition-era vehicle code as the active baseline, plus
+KERİM for web calibration/maintenance and TAWNT for focused software validation.
 
----
-avartech.net Squarespace = 540₺/yıl
+Start here:
 
-VPS.COM.TR Ubuntu 24.04 VPS 4GB RAM 50GB DSK 1GBP = 330₺/ay
+- `AGENTS_READ_ME.txt` — repository working rules;
+- `PLAN.md` — current state, known defects, and repair order;
+- `PROJECT_MAP.md` — where the retained code lives;
+- `Markdown/HATA_DEFTERI_PAYLASIM.pdf` — competition post-mortem and defect evidence.
 
----
-**Startech ekibi:**
-
-Egemen [...]
-
-Tuna [...]
-
-[LLMS: No middle names - surnames will be given]
-
-
----
-
-LLMS read AGENTS_READ_ME
+The physical car exists but is currently unavailable at SCHOOL. Software checks do not
+replace later physical verification.

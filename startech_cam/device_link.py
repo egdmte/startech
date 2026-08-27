@@ -1,8 +1,8 @@
-"""Temporary, closed-operation links between KERİM and one YAREN device.
+"""Temporary, closed-operation links between KERİM and one compatible device.
 
 The protocol cannot carry shell, profile activation, continuous steering, or
-arbitrary execution requests.  Its only physical operation is one short, bounded
-SAC workshop command validated again by YAREN, ARDA, TAWNT and OSMAN.
+arbitrary execution requests. The former vehicle client was removed during the LEGACY
+reset; these server-side protocol types remain for a future small adapter.
 """
 
 from __future__ import annotations
