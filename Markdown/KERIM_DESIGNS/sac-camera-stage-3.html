@@ -1,0 +1,392 @@
+<!doctype html>
+<!--
+  APPROVED DESIGN REFERENCE — DO NOT OVERWRITE DURING IMPLEMENTATION.
+  KERİM / SAC / Camera / Stage 3 — Lane Detection
+  Reconstructed from the user-supplied design dated 27 August 2026.
+  Create a new versioned reference if the design changes.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KERİM · SAC Camera · Stage 3</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #dddddd;
+      --surface: #f4f4f4;
+      --ink: #111111;
+      --muted: #6b6b6b;
+      --line: #bcbcbc;
+      --blue: #0864ff;
+      --blue-light: #b9ccf0;
+      --blue-light-bottom: #a7c0ed;
+      --progress: #0879ae;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+    }
+
+    button, input { font: inherit; }
+
+    .stage-shell {
+      min-height: calc(100vh - 28px);
+      margin: 14px 26px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: var(--surface);
+      box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+      display: grid;
+      grid-template-rows: 1fr auto;
+    }
+
+    .stage-content {
+      position: relative;
+      left: -48px;
+      width: min(1074px, calc(100% - 44px));
+      margin: 0 auto;
+      padding: 204px 0 35px;
+    }
+
+    .stage-heading {
+      margin-bottom: 60px;
+      text-align: center;
+    }
+
+    .stage-heading h1 {
+      margin: 0 0 10px;
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .stage-heading p {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.3;
+    }
+
+    .lane-layout {
+      position: relative;
+      left: -24px;
+      display: grid;
+      grid-template-columns: 508px 390px;
+      gap: 32px;
+      justify-content: center;
+      align-items: start;
+    }
+
+    .lane-layout > * { min-width: 0; }
+
+    .track-preview {
+      width: 508px;
+      max-width: 100%;
+      height: 333px;
+      overflow: hidden;
+      border: 1px solid #444444;
+      background: #f1f1f1;
+    }
+
+    .track-preview img {
+      display: none;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .track-preview.has-image img { display: block; }
+
+    .upload-button {
+      width: 508px;
+      max-width: 100%;
+      min-height: 46px;
+      margin-top: 15px;
+    }
+
+    .lane-controls {
+      display: grid;
+      gap: 30px;
+      min-width: 0;
+    }
+
+    fieldset {
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+
+    legend {
+      margin-bottom: 8px;
+      padding: 0;
+      font-size: 15px;
+    }
+
+    .option-list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      line-height: 1.15;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .option input[type="radio"] {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+      margin: 0;
+      accent-color: var(--blue);
+    }
+
+    .option input[type="radio"]:checked + span {
+      color: var(--blue);
+      font-weight: 600;
+    }
+
+    .option span {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .split-controls {
+      display: grid;
+      grid-template-columns: 176px 200px;
+      gap: 14px;
+    }
+
+    .custom-value {
+      width: 84px;
+      height: 22px;
+      margin-left: 2px;
+      border: 1px solid #bcbcbc;
+      border-radius: 4px;
+      background: #f2f2f2;
+      padding: 1px 6px;
+    }
+
+    .custom-value:disabled {
+      color: #8b8b8b;
+      background: #ececec;
+    }
+
+    .stage-button {
+      padding: 8px 18px;
+      border: 0;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgb(0 0 0 / 26%), inset 0 2px 10px rgb(255 255 255 / 18%);
+      cursor: pointer;
+      color: #111111;
+    }
+
+    .stage-button--secondary {
+      background: linear-gradient(180deg, var(--blue-light) 0%, var(--blue-light-bottom) 100%);
+    }
+
+    .stage-button--primary {
+      display: block;
+      width: 543px;
+      max-width: 100%;
+      min-height: 46px;
+      margin: 120px auto 0;
+      background: linear-gradient(180deg, #3977ff 0%, #0062ed 100%);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .stage-button:hover,
+    .stage-button:focus-visible {
+      filter: brightness(1.035);
+      outline: 2px solid rgb(23 104 255 / 28%);
+      outline-offset: 2px;
+    }
+
+    .file-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .session-footer {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 38px;
+      padding: 0 18px 10px;
+      font-size: 13px;
+    }
+
+    .session-footer strong {
+      min-width: 39px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .session-progress {
+      height: 6px;
+      flex: 1;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #bdbdbd;
+    }
+
+    .session-progress span {
+      display: block;
+      width: 33.333%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--progress) 0%, var(--progress) 75%, #87a8ba 100%);
+    }
+
+    @media (max-width: 1050px) {
+      .stage-content { left: 0; }
+      .lane-layout { left: 0; }
+      .lane-layout { grid-template-columns: minmax(0, 508px) minmax(320px, 390px); }
+    }
+
+    @media (max-width: 820px) {
+      .stage-shell { min-height: calc(100vh - 16px); margin: 8px; }
+      .stage-content { width: calc(100% - 30px); max-width: 560px; min-width: 0; padding-top: 38px; }
+      .stage-heading { margin-bottom: 38px; }
+      .lane-layout { grid-template-columns: minmax(0, 1fr); gap: 34px; }
+      .track-preview { width: 100%; height: auto; aspect-ratio: 508 / 333; }
+      .upload-button { width: 100%; }
+      .lane-controls { gap: 26px; }
+      .stage-button--primary { margin-top: 50px; }
+      .session-footer { flex-wrap: wrap; }
+      .session-progress { order: 3; flex-basis: 100%; }
+    }
+
+    @media (max-width: 430px) {
+      .stage-heading p { font-size: 14px; }
+      .split-controls { grid-template-columns: 1fr; gap: 26px; }
+      .option { align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage-shell">
+    <section class="stage-content" aria-labelledby="stage-title">
+      <header class="stage-heading">
+        <h1 id="stage-title">Step 3 - Lane Detection</h1>
+        <p>Upload a photo from the track.</p>
+      </header>
+
+      <div class="lane-layout">
+        <div>
+          <div class="track-preview" id="track-preview" aria-label="Uploaded track photo preview">
+            <img id="track-image" alt="Uploaded track">
+          </div>
+          <button class="stage-button stage-button--secondary upload-button" id="upload-button" type="button">Upload a track photo</button>
+          <input class="file-input" id="track-upload" type="file" accept="image/*" aria-label="Upload a track photo">
+        </div>
+
+        <div class="lane-controls">
+          <fieldset>
+            <legend>White capture profile</legend>
+            <div class="option-list">
+              <label class="option"><input type="radio" name="white-profile" value="minimal" checked><span>Minimal - Detect every white zone (processes external light)</span></label>
+              <label class="option"><input type="radio" name="white-profile" value="normal"><span>Normal - Run CLAHE, then detect every white zone</span></label>
+              <label class="option"><input type="radio" name="white-profile" value="harsh"><span>Harsh - Use custom HSV values (change in MAC)</span></label>
+            </div>
+          </fieldset>
+
+          <div class="split-controls">
+            <fieldset>
+              <legend>Minimal lane lenght</legend>
+              <div class="option-list">
+                <label class="option"><input type="radio" name="lane-length" value="100" checked><span>100px</span></label>
+                <label class="option"><input type="radio" name="lane-length" value="300"><span>300px</span></label>
+                <label class="option"><input type="radio" name="lane-length" value="custom"><span>Custom:</span><input class="custom-value" id="lane-custom" type="number" min="1" aria-label="Custom minimal lane length" disabled></label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Memory</legend>
+              <div class="option-list">
+                <label class="option"><input type="radio" name="memory" value="15" checked><span>Keep the last 15 frames</span></label>
+                <label class="option"><input type="radio" name="memory" value="35"><span>Keep the last 35 frames</span></label>
+                <label class="option"><input type="radio" name="memory" value="custom"><span>Custom:</span><input class="custom-value" id="memory-custom" type="number" min="1" aria-label="Custom memory frame count" disabled></label>
+              </div>
+            </fieldset>
+          </div>
+
+          <fieldset>
+            <legend>Search method</legend>
+            <div class="option-list">
+              <label class="option"><input type="radio" name="search-method" value="tank-turn" checked><span>Stop and tank turn</span></label>
+              <label class="option"><input type="radio" name="search-method" value="straight"><span>Continue straight until detection</span></label>
+              <label class="option"><input type="radio" name="search-method" value="none"><span>Do not search</span></label>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+
+      <button class="stage-button stage-button--primary" type="button">Continue</button>
+    </section>
+
+    <footer class="session-footer">
+      <span>Your session will expire in</span>
+      <strong>15:00</strong>
+      <div class="session-progress" aria-hidden="true"><span></span></div>
+    </footer>
+  </main>
+
+  <script>
+    const uploadButton = document.querySelector('#upload-button');
+    const uploadInput = document.querySelector('#track-upload');
+    const trackPreview = document.querySelector('#track-preview');
+    const trackImage = document.querySelector('#track-image');
+
+    uploadButton.addEventListener('click', () => uploadInput.click());
+    uploadInput.addEventListener('change', () => {
+      const file = uploadInput.files && uploadInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        trackImage.src = reader.result;
+        trackPreview.classList.add('has-image');
+      });
+      reader.readAsDataURL(file);
+    });
+
+    function connectCustomInput(groupName, inputId) {
+      const radios = [...document.querySelectorAll(`input[name="${groupName}"]`)];
+      const input = document.querySelector(`#${inputId}`);
+      const update = () => {
+        const customSelected = radios.some((radio) => radio.checked && radio.value === 'custom');
+        input.disabled = !customSelected;
+        if (customSelected) input.focus();
+      };
+      radios.forEach((radio) => radio.addEventListener('change', update));
+      input.addEventListener('click', () => {
+        const customRadio = radios.find((radio) => radio.value === 'custom');
+        if (!customRadio.checked) {
+          customRadio.checked = true;
+          update();
+        }
+      });
+    }
+
+    connectCustomInput('lane-length', 'lane-custom');
+    connectCustomInput('memory', 'memory-custom');
+  </script>
+</body>
+</html>

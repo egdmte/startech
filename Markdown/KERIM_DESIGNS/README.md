@@ -15,3 +15,5 @@ add a new versioned file and retain the previous one in Git history.
   the user-supplied design dated 27 August 2026.
 - `sac-camera-stage-2.html` — SAC Camera, Stage 2: perspective frames. Reconstructed
   from the user-supplied design dated 27 August 2026.
+- `sac-camera-stage-3.html` — SAC Camera, Stage 3: lane detection. Reconstructed from
+  the user-supplied design dated 27 August 2026.
