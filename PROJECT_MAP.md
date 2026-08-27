@@ -1,14 +1,16 @@
 # STARTECH project map
 
+<<<<<<< HEAD
 Source review: 26 August 2026.
+=======
+Updated: 27 August 2026.
+>>>>>>> e4d7860e9d13127d958148aa228119aafed20e3b
 
-Use this page to find the current implementation. Read `AGENTS_READ_ME.txt` before
-editing and `PLAN.md` for status and future direction.
+Read `AGENTS_READ_ME.txt` for working rules and `PLAN.md` for the current state.
 
-## Repository areas
-
-| Path | Current purpose |
+| Path | Purpose |
 |---|---|
+<<<<<<< HEAD
 | `arac/` | Real vehicle application: configuration, camera, perception, state, logging, workshop execution, orchestration, and GPIO boundary |
 | `startech/tawnt/` | TAWNT implementation behind the public root `tawnt.py` API |
 | `startech/configuration/` | Configuration validation, immutable profiles, and combined-document conversion |
@@ -21,9 +23,21 @@ editing and `PLAN.md` for status and future direction.
 | `Markdown/` | Current detailed contracts/handoffs plus explicitly historical records |
 | `examples/prototypes/` | Historical KERİM/CAM design references, not production behavior |
 | `LEGACY/` | Previous moving-car implementation and rule snapshot; migration/history reference only |
+=======
+| `LEGACY/` | Active competition-era vehicle baseline: camera, lanes, controller, motors, events, logging, configuration, and concrete tuning tools |
+| `startech_cam/` | KERİM web application: SAC, MAC, configuration records, diagnostics, access, and maintenance bundles |
+| `deployment/` | KERİM VPS service, deployment, backup, proxy, and release-reference support |
+| `startech/tawnt/` | TAWNT validation library implementation |
+| `tawnt.py` | Stable public TAWNT import surface |
+| `startech/configuration/` | Configuration validation still used by KERİM |
+| `config/` | KERİM configuration schema/default material; not automatically installed into LEGACY |
+| `tests/` | Retained KERİM, configuration, profile, and TAWNT software checks |
+| `Markdown/` | Detailed current notes and historical/post-mortem records |
+>>>>>>> e4d7860e9d13127d958148aa228119aafed20e3b
 
-## Real vehicle chain
+## Vehicle code
 
+<<<<<<< HEAD
 ```text
 arac/main.py             ARDA operator surface and orchestration
     |
@@ -42,31 +56,47 @@ arac/main.py             ARDA operator surface and orchestration
     +-- arac/yaren_link.py        closed authenticated KERİM operation link
     +-- arac/yaren_diagnostics.py bounded real capability report
 ```
+=======
+The vehicle pipeline is the readable code under `LEGACY/`. Start with:
+>>>>>>> e4d7860e9d13127d958148aa228119aafed20e3b
 
-ARDA's live drive composes:
+- `LEGACY/main.py` — runtime orchestration;
+- `LEGACY/camera.py` — camera acquisition/debug display;
+- `LEGACY/lane.py` — lane perception;
+- `LEGACY/controller.py` — steering/control calculation;
+- `LEGACY/motor.py` — motor output;
+- `LEGACY/events.py` — track events;
+- `LEGACY/logger.py` — run records;
+- `LEGACY/config.py` — values currently read by the runtime.
 
-```text
-YAREN profile -> KASIM frame -> KEREM observation -> lane controller
-      -> TAWNT-validated request -> OSMAN gpiozero/L298N output
+Other LEGACY scripts are retained because they contain calibration and bug-history
+evidence. Do not delete or merge them until their concrete behavior has been inventoried.
 
+<<<<<<< HEAD
 DORA supplies explicit state transitions.
 KADER records the software timeline.
 ADAM warns locally before a KERİM-requested run and indicates its run state.
 ```
+=======
+## KERİM boundaries
+>>>>>>> e4d7860e9d13127d958148aa228119aafed20e3b
 
-OSMAN is the only production motor driver. Controlled driver doubles live under
-`tests/`; they cannot be selected as a real vehicle mode.
+KERİM is deployed from the compatibility-named `startech_cam` package. It can create,
+store, inspect, and bundle configuration documents. Its release builder includes
+`LEGACY/`, but automatic conversion into `LEGACY/config.py` is `NOT IMPLEMENTED`.
 
-## Operator commands
+The former `arac/` YAREN client no longer exists. KERİM's server-side signed-link API is
+retained as a compatibility surface for a possible small LEGACY adapter. It is not an
+active vehicle connection after the reset.
 
-Open the small ARDA menu:
+## TAWNT boundary
 
-```powershell
-py -m arac.main --interactive
-```
+TAWNT validates declared software values and commands. It does not write GPIO or prove
+physical results. It is retained and tested but is not currently imported by LEGACY.
 
-Inspect the exact current interface:
+## Historical material
 
+<<<<<<< HEAD
 ```powershell
 py -m arac.main --help
 ```
@@ -207,3 +237,9 @@ py kontrol.py
 
 Each command proves only its own checked boundary. None of them proves that the physical
 car moved or stopped.
+=======
+Old plans, PDFs, and defect records explain earlier versions. In particular,
+`Markdown/HATA_DEFTERI_PAYLASIM.pdf` documents the competition behavior and defects that
+guide minimal repairs. Historical text must not be treated as an instruction to restore
+the deleted architecture.
+>>>>>>> e4d7860e9d13127d958148aa228119aafed20e3b

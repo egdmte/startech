@@ -261,7 +261,7 @@ def _vehicle_release_sources() -> ReleaseSources:
 @cam_blueprint.route("/vehicle-release", methods=["GET", "POST"])
 @login_required
 def vehicle_release() -> Any:
-    """Build one exact car-source revision with one immutable YAREN profile."""
+    """Build one exact car-source revision with one KERİM configuration profile."""
 
     calibrations = list_calibrations()
     selected_tag = request.values.get("profile", "").strip()

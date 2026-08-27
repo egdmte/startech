@@ -377,7 +377,7 @@ h2, h3 { font-size: 15px; }
 .flash.error { border-left: 5px solid var(--cam-danger); }
 .flash.success { border-left: 5px solid var(--cam-success); }
 
-/* Login — directly adapted from examples/prototypes/login. */
+/* Login */
 .login-shell {
   display: grid;
   min-height: 100vh;
@@ -458,7 +458,7 @@ h2, h3 { font-size: 15px; }
 .cam-account-bar .language-option img { width: 25px; height: 19px; }
 .offline-action { justify-content: flex-end; transform: translateY(-6px); font-size: 17px; letter-spacing: -.039em; }
 
-/* Access — directly adapted from examples/prototypes/login. */
+/* Access */
 .access-shell {
   display: grid;
   min-height: 100vh;

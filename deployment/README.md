@@ -1,11 +1,10 @@
 # KERİM VPS operations
 
 This directory describes the production service at `dymtal.avartech.net`. KERİM
-creates and stores real configuration documents. A temporary authenticated YAREN
-link can report the active profile, run bounded capability checks, capture one
-live calibration frame, install an inactive profile, and execute one explicitly
-requested SAC workshop motor command. KERİM cannot select a profile, start the
-autonomous runtime, or turn a software receipt into physical evidence.
+creates and stores real configuration documents. Its server-side signed device-link
+API is retained, but the former `arac/` vehicle client was removed in the repository
+reset. Until a small LEGACY adapter exists, the link does not connect the retained
+vehicle runtime, capture its camera, install its configuration, or run its motors.
 
 The public wiki at `wiki.avartech.net` is a separate service. Do not mix its files,
 database, proxy rules, or deployment lifecycle with KERİM.
@@ -78,10 +77,14 @@ login from a known external address and confirm the corresponding database audit
 address is that client—not `127.0.0.1`, the VPS address, or a Cloudflare edge.
 Never paste the address into a public issue or diagnostic bundle.
 
-## Register YAREN
+## Vehicle link status
 
-Create the private identity on the vehicle computer or Raspberry Pi:
+The signed registration and polling endpoints remain as a compatibility surface, but
+the car-side client was removed with `arac/`. There is currently no supported command
+in this repository to register or connect the retained LEGACY runtime. Older commands
+using `python -m arac.ayar_cli` are obsolete and must not be run.
 
+<<<<<<< HEAD
 ```bash
 python3 -m arac.ayar_cli web-key --device school-car
 ```
@@ -122,6 +125,11 @@ minutes (`CAM_DEVICE_LINK_IDLE_SECONDS=300`). Ctrl+C asks KERİM to revoke the l
 A live camera-frame request opens KASIM's configured camera chain, captures one current
 frame, closes the device, and fails if no physical camera responds. It has no
 generated-image fallback.
+=======
+A future small LEGACY adapter may reuse the protocol. It must implement explicit key
+creation, polling, camera capture, configuration conversion, log transport, heartbeat,
+RUN, and STOP behavior without making KERİM necessary for local race startup.
+>>>>>>> e4d7860e9d13127d958148aa228119aafed20e3b
 
 KERİM may queue one `START_AUTONOMOUS_RUN` request. YAREN sends it to the vehicle-owned
 ADAM executor, which performs the exact 30-second local LED/buzzer warning before ARDA
@@ -135,7 +143,7 @@ JSONL file remains on the vehicle if the server itself cannot be reached.
 The target must be the exact full commit already present in `origin/master`. The
 script refuses a dirty checkout, another branch, a non-master target, or a
 non-fast-forward update. It creates an online SQLite backup, fast-forwards,
-installs dependencies, runs the KERİM/YAREN/configuration/workshop checks, reloads
+installs dependencies, runs the retained KERİM/configuration checks, reloads
 Gunicorn, and waits until `/health` reports the requested revision. The complete
 repository suite, including OpenCV vehicle perception, is run before the release is
 merged; those vehicle-only dependencies are not installed into KERİM's VPS environment.
@@ -158,7 +166,7 @@ non-zero. It does not rewrite Git history or silently restore an older schema.
 ## Vehicle release bundles
 
 The authenticated **Build a vehicle release** page packages one exact Git commit and
-one immutable KERİM/YAREN profile. It fetches the configured published repository branch
+one immutable KERİM configuration profile. It fetches the configured published repository branch
 before offering that revision as current; if the refresh fails, cached remote data is
 labelled unavailable for selection. The server revision remains buildable from its
 exact deployed commit. Production currently uses `origin/master`, the VPS bare published
@@ -168,12 +176,12 @@ are deliberately installed.
 
 The builder reads Git objects rather than the working directory. Uncommitted server
 files are reported and excluded without being changed. Each ZIP contains the committed
-vehicle source, the combined configuration and split v1 pair, and a manifest with full
+LEGACY vehicle source, the combined configuration and split v1 pair, and a manifest with full
 source/profile/dependency hashes. The audit log records the operator, ZIP filename,
 commit, profile tag, and final bundle digest.
 
-Creating the ZIP does not install, activate, boot, arm, command, or physically verify
-the car. The disabled update control is intentional: update the live server only with
+The included profile is not automatically converted into `LEGACY/config.py`. Creating
+the ZIP does not install, boot, command, or physically verify the car. Update the live server only with
 the backup-first, fast-forward-only deployment command above.
 
 The systemd sandbox intentionally makes the checkout read-only and hides `/home`, so

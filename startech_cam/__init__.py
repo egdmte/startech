@@ -1,9 +1,15 @@
 """Production KERİM web application for STARTECH configuration and SAC.
 
+<<<<<<< HEAD
 KERİM validates configuration files and queues closed requests to the linked YAREN
 device, including one bounded workshop operation and one vehicle-owned autonomous run.
 Physical motor code remains on the car, behind ARDA, TAWNT and OSMAN; the web process
 never imports a GPIO driver.
+=======
+KERİM validates configuration files and retains a signed device-link protocol. The
+former vehicle client was removed during the LEGACY reset; the web process never
+imports a GPIO driver.
+>>>>>>> e4d7860e9d13127d958148aa228119aafed20e3b
 
 The Python package and CAM_* environment names remain compatibility interfaces.
 """
