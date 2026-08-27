@@ -1,0 +1,328 @@
+<!doctype html>
+<!--
+  APPROVED DESIGN REFERENCE — DO NOT OVERWRITE DURING IMPLEMENTATION.
+  KERİM / SAC / Camera / Stage 1 — Frame settings
+  Reconstructed from the user-supplied design dated 27 August 2026.
+  Create a new versioned reference if the design changes.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KERİM · SAC Camera · Stage 1</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #dddddd;
+      --surface: #f4f4f4;
+      --ink: #111111;
+      --muted: #666666;
+      --quiet: #a8a8a8;
+      --line: #bcbcbc;
+      --blue: #1768ff;
+      --blue-soft: #b9cef8;
+      --blue-deep: #0062ec;
+      --progress: #0879ae;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+    }
+
+    button,
+    input { font: inherit; }
+
+    .stage-shell {
+      min-height: calc(100vh - 28px);
+      margin: 14px 26px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: var(--surface);
+      box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+      display: grid;
+      grid-template-rows: 1fr auto;
+    }
+
+    .stage-content {
+      width: min(834px, calc(100% - 44px));
+      margin: auto;
+      padding: 44px 0 28px;
+    }
+
+    .stage-heading {
+      margin-bottom: 67px;
+      text-align: center;
+    }
+
+    .stage-heading h1 {
+      margin: 0 0 9px;
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .stage-heading p {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.32;
+      overflow-wrap: anywhere;
+    }
+
+    .frame-layout {
+      display: grid;
+      grid-template-columns: 408px minmax(0, 1fr);
+      gap: 26px;
+      align-items: start;
+    }
+
+    .frame-preview {
+      position: relative;
+      height: 274px;
+      border: 1px solid #383838;
+      background: #f5f5f5;
+      transition: aspect-ratio 160ms ease;
+    }
+
+    .orientation {
+      position: absolute;
+      display: grid;
+      place-items: center;
+      min-width: 36px;
+      min-height: 36px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: #080808;
+      cursor: pointer;
+      font-size: 19px;
+    }
+
+    .orientation:hover,
+    .orientation:focus-visible { background: rgb(23 104 255 / 9%); outline: none; }
+
+    .orientation[data-active="true"] { font-weight: 700; }
+    .orientation--top { top: 8px; left: 50%; transform: translateX(-50%); }
+    .orientation--right { top: 50%; right: 0; transform: translateY(-50%) rotate(90deg); }
+    .orientation--bottom { bottom: 7px; left: 50%; transform: translateX(-50%) rotate(180deg); }
+    .orientation--left { top: 50%; left: 1px; transform: translateY(-50%) rotate(270deg); }
+
+    .frame-note {
+      margin: 12px 0 0;
+      color: var(--quiet);
+      font-size: 16px;
+    }
+
+    fieldset {
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+
+    fieldset + fieldset { margin-top: 26px; }
+
+    legend {
+      margin-bottom: 7px;
+      padding: 0;
+      font-size: 14px;
+    }
+
+    .field-help {
+      margin: -2px 0 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .choice {
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+      margin: 0 0 9px;
+      line-height: 1.2;
+      cursor: pointer;
+    }
+
+    .choice input {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+      margin: 0;
+      accent-color: var(--blue);
+    }
+
+    .choice span {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .choice input:checked + span {
+      color: var(--blue);
+      font-weight: 600;
+    }
+
+    .stage-options {
+      width: 520px;
+      max-width: 100%;
+      margin: 72px auto 0;
+    }
+
+    .stage-options .choice { color: #444444; }
+
+    .continue-button {
+      display: block;
+      width: 543px;
+      max-width: 100%;
+      height: 46px;
+      margin: 37px auto 0;
+      border: 0;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #c3d3f4 0%, #a8c5f5 100%);
+      box-shadow: 0 0 8px rgb(0 0 0 / 26%), inset 0 2px 10px rgb(255 255 255 / 18%);
+      color: #ffffff;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .continue-button:hover,
+    .continue-button:focus-visible {
+      background: linear-gradient(180deg, #b8cdf7 0%, #94b9f7 100%);
+      outline: 2px solid rgb(23 104 255 / 25%);
+      outline-offset: 2px;
+    }
+
+    .session-footer {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 38px;
+      padding: 0 18px 10px;
+      font-size: 13px;
+    }
+
+    .session-footer strong {
+      min-width: 39px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .session-progress {
+      height: 6px;
+      flex: 1;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #bdbdbd;
+    }
+
+    .session-progress span {
+      display: block;
+      width: 33.333%;
+      height: 100%;
+      background: linear-gradient(90deg, #0879ae 0%, #0879ae 75%, #87a8ba 100%);
+    }
+
+    @media (max-width: 850px) {
+      .stage-shell { margin: 8px; min-height: calc(100vh - 16px); }
+      .stage-content { width: calc(100% - 30px); max-width: 560px; min-width: 0; padding-top: 38px; }
+      .stage-heading { margin-bottom: 34px; }
+      .frame-layout { grid-template-columns: 1fr; }
+      .frame-preview { width: 100%; height: auto; aspect-ratio: 3 / 2; }
+      .stage-options { margin-top: 38px; }
+      .session-footer { flex-wrap: wrap; }
+      .session-progress { flex-basis: 100%; order: 3; }
+    }
+
+    @media (max-width: 470px) {
+      .stage-heading p { font-size: 14px; }
+      .frame-note { font-size: 14px; }
+      .stage-options { margin-top: 30px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage-shell">
+    <section class="stage-content" aria-labelledby="stage-title">
+      <header class="stage-heading">
+        <h1 id="stage-title">Step 1 - Frame settings</h1>
+        <p>Camera can be used in both Windows via VideoCapture or Linux via libcamera or rpicam.<br>
+          Motors and other GPIO dependencies will raise exceptions during run.</p>
+      </header>
+
+      <div class="frame-layout">
+        <div>
+          <div class="frame-preview" aria-label="Camera orientation preview">
+            <button class="orientation orientation--top" type="button" data-angle="0" data-active="false" aria-label="Rotate frame to 0 degrees">0</button>
+            <button class="orientation orientation--right" type="button" data-angle="90" data-active="false" aria-label="Rotate frame to 90 degrees">90</button>
+            <button class="orientation orientation--bottom" type="button" data-angle="180" data-active="true" aria-label="Rotate frame to 180 degrees">180</button>
+            <button class="orientation orientation--left" type="button" data-angle="270" data-active="false" aria-label="Rotate frame to 270 degrees">270</button>
+          </div>
+          <p class="frame-note">Switching between frames is unavailable.</p>
+        </div>
+
+        <div>
+          <fieldset>
+            <legend>Capture profile</legend>
+            <label class="choice"><input type="radio" name="capture-profile" value="640x480" checked><span>640×480 (SD) - Ultra performance</span></label>
+            <label class="choice"><input type="radio" name="capture-profile" value="1280x720"><span>1280×720 (HD) - Balanced</span></label>
+            <label class="choice"><input type="radio" name="capture-profile" value="1920x1080"><span>1920×1080 (Full HD) - Ultra quality</span></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Recognition sensitivity</legend>
+            <p class="field-help">How many consecutive requests should be processed</p>
+            <label class="choice"><input type="radio" name="sensitivity" value="conservative" checked><span>Conservative - car reacts less to sudden changes</span></label>
+            <label class="choice"><input type="radio" name="sensitivity" value="balanced"><span>Balanced - car reacts normally to sudden changes</span></label>
+            <label class="choice"><input type="radio" name="sensitivity" value="sensitive"><span>Sensitive - car reacts more to sudden changes</span></label>
+          </fieldset>
+        </div>
+      </div>
+
+      <div class="stage-options">
+        <label class="choice"><input type="checkbox" name="bgr-to-rgb"><span>Turn BGR footage to RGB for convenience.</span></label>
+        <label class="choice"><input type="checkbox" name="prefer-rpicam"><span>Prioritize Raspberry Camera (try rpicam before USB)</span></label>
+      </div>
+
+      <button class="continue-button" type="button">Continue</button>
+    </section>
+
+    <footer class="session-footer">
+      <span>Your session will expire in</span>
+      <strong id="session-time">15:00</strong>
+      <div class="session-progress" aria-hidden="true"><span></span></div>
+    </footer>
+  </main>
+
+  <script>
+    const orientationButtons = [...document.querySelectorAll('.orientation')];
+    orientationButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        orientationButtons.forEach((candidate) => candidate.dataset.active = 'false');
+        button.dataset.active = 'true';
+      });
+    });
+
+    const profileRatios = {
+      '640x480': '4 / 3',
+      '1280x720': '16 / 9',
+      '1920x1080': '16 / 9'
+    };
+    const preview = document.querySelector('.frame-preview');
+    document.querySelectorAll('input[name="capture-profile"]').forEach((radio) => {
+      radio.addEventListener('change', () => {
+        if (window.matchMedia('(max-width: 850px)').matches) {
+          preview.style.aspectRatio = profileRatios[radio.value];
+        }
+      });
+    });
+  </script>
+</body>
+</html>
