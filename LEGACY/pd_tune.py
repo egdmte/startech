@@ -18,11 +18,12 @@ import sys
 import time
 import threading
 import collections
+import math
 
 try:
     from lane import LaneDetector
     from controller import PDController
-    from motor import MotorDriver
+    from motor import MotorDriver, MotorHardwareUnavailable
 except ImportError:
     print("lane.py / controller.py / motor.py bulunamadı. Aynı klasörde çalıştır.")
     sys.exit(1)
@@ -34,7 +35,6 @@ except ImportError:
     _USE_PI = False
 
 import cv2
-import numpy as np
 from config import WIDTH, HEIGHT
 
 
@@ -43,14 +43,27 @@ from config import WIDTH, HEIGHT
 # ---------------------------------------------------------------------------
 class _Cam:
     def __init__(self):
+        self._c = None
+        self._cap = None
         if _USE_PI:
             self._c = Picamera2()
-            self._c.configure(self._c.create_preview_configuration(
-                main={"size": (WIDTH, HEIGHT), "format": "RGB888"}
-            ))
-            self._c.start(); time.sleep(1)
+            try:
+                self._c.configure(self._c.create_preview_configuration(
+                    main={"size": (WIDTH, HEIGHT), "format": "RGB888"}
+                ))
+                self._c.start()
+                time.sleep(1)
+            except BaseException:
+                try:
+                    self._c.close()
+                except Exception:
+                    pass
+                raise
         else:
             self._cap = cv2.VideoCapture(0)
+            if not self._cap.isOpened():
+                self._cap.release()
+                raise RuntimeError("USB kamera açılamadı")
             self._cap.set(cv2.CAP_PROP_FRAME_WIDTH,  WIDTH)
             self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
 
@@ -59,12 +72,19 @@ class _Cam:
             return self._c.capture_array()
         ret, f = self._cap.read()
         if not ret:
-            return np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
+            raise RuntimeError("USB kamera kare üretemedi")
         return cv2.cvtColor(cv2.resize(f, (WIDTH, HEIGHT)), cv2.COLOR_BGR2RGB)
 
     def stop(self):
-        if _USE_PI: self._c.stop()
-        else: self._cap.release()
+        if _USE_PI:
+            try:
+                self._c.stop()
+            finally:
+                close = getattr(self._c, "close", None)
+                if close is not None:
+                    close()
+        else:
+            self._cap.release()
 
 
 # ---------------------------------------------------------------------------
@@ -100,58 +120,70 @@ def draw_graph(errors: collections.deque) -> str:
 # Ana döngü
 # ---------------------------------------------------------------------------
 def run_tuning(kp: float, kd: float, duration: float = 10.0):
-    cam  = _Cam()
-    det  = LaneDetector()
-    ctrl = PDController()
+    if not all(math.isfinite(v) for v in (kp, kd, duration)) or duration <= 0:
+        raise ValueError("KP, KD ve süre sonlu olmalı; süre sıfırdan büyük olmalı")
+
     mot  = MotorDriver()
-
-    # ctrl'nin config değerleri yerine test değerlerini kullan
-    import controller as ctrl_mod
-    ctrl_mod.KP = kp
-    ctrl_mod.KD = kd
-
+    mot.require_hardware()
     errors  = collections.deque(maxlen=GRAPH_WIDTH * 2)
     running = True
-    start   = time.time()
-
-    print(f"\nKP={kp}  KD={kd}  |  {duration}s test  |  q=dur")
-    print("─" * 50)
-
-    try:
-        import tty, termios
-        fd  = sys.stdin.fileno()
-        old = termios.tcgetattr(fd)
-        tty.setraw(fd)
-        nonblock = True
-    except Exception:
-        nonblock = False
-
-    def key_listener():
-        nonlocal running
-        if not nonblock: return
-        import select
-        while running:
-            if select.select([sys.stdin], [], [], 0.1)[0]:
-                ch = sys.stdin.read(1)
-                if ch in ('q', 'Q'):
-                    running = False
-
-    t = threading.Thread(target=key_listener, daemon=True)
-    t.start()
+    cam = None
+    thread = None
+    nonblock = False
+    fd = None
+    old = None
 
     try:
+        cam = _Cam()
+        det = LaneDetector()
+        ctrl = PDController()
+
+        # ctrl'nin config değerleri yerine test değerlerini kullan
+        import controller as ctrl_mod
+        ctrl_mod.KP = kp
+        ctrl_mod.KD = kd
+
+        start = time.time()
+        print(f"\nKP={kp}  KD={kd}  |  {duration}s test  |  q=dur")
+        print("─" * 50)
+
+        try:
+            import tty, termios
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            tty.setraw(fd)
+            nonblock = True
+        except Exception:
+            nonblock = False
+
+        def key_listener():
+            nonlocal running
+            if not nonblock:
+                return
+            import select
+            while running:
+                if select.select([sys.stdin], [], [], 0.1)[0]:
+                    ch = sys.stdin.read(1)
+                    if ch in ('q', 'Q'):
+                        running = False
+
+        thread = threading.Thread(target=key_listener, daemon=True)
+        thread.start()
+
         while running and (time.time() - start) < duration:
             frame = cam.capture()
             error, _ = det.process(frame)
-            errors.append(error if error is not None else 0)
+            if error is not None:
+                errors.append(float(error))
 
             l, r = ctrl.compute(error)
             mot.set_speed(l, r)
 
             # Terminali temizle ve grafik çiz
             print("\033[H\033[J", end="")
+            error_text = f"{error:+.0f}px" if error is not None else "SERIT YOK"
             print(f"KP={kp:.3f}  KD={kd:.3f}  |  "
-                  f"hata={errors[-1]:+.0f}px  |  "
+                  f"hata={error_text}  |  "
                   f"süre={time.time()-start:.1f}s  |  q=dur")
             print(draw_graph(errors))
 
@@ -162,12 +194,27 @@ def run_tuning(kp: float, kd: float, duration: float = 10.0):
                       f"Std: {(sum((e - sum(stats_arr)/len(stats_arr))**2 for e in stats_arr)/len(stats_arr))**0.5:.1f}px")
 
     finally:
-        mot.brake()
-        time.sleep(0.3)
-        mot.stop()
-        cam.stop()
-        if nonblock:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        running = False
+        try:
+            if thread is not None:
+                thread.join(timeout=0.5)
+        finally:
+            try:
+                try:
+                    mot.brake()
+                    time.sleep(0.3)
+                finally:
+                    mot.stop()
+            finally:
+                try:
+                    if cam is not None:
+                        cam.stop()
+                finally:
+                    if nonblock and fd is not None and old is not None:
+                        try:
+                            termios.tcsetattr(fd, termios.TCSADRAIN, old)
+                        except Exception as exc:
+                            print(f"\nTerminal geri yüklenemedi: {exc}")
 
     # Özet
     if errors:
@@ -178,7 +225,7 @@ def run_tuning(kp: float, kd: float, duration: float = 10.0):
         print(f"SONUÇ  KP={kp}  KD={kd}")
         print(f"  Ortalama hata : {mean:+.1f} px  (0'a yakın = iyi)")
         print(f"  Std sapma     : {std:.1f} px   (düşük = stabil)")
-        print(f"  Tavsiye:")
+        print("  Tavsiye:")
         if std > 30:
             print("  ⚠️  Yüksek salınım → KP'yi azalt veya KD'yi artır")
         elif std > 15:
@@ -187,6 +234,8 @@ def run_tuning(kp: float, kd: float, duration: float = 10.0):
             print("  ✅  Stabil görünüyor!")
         if abs(mean) > 20:
             print(f"  ⚠️  Kalıcı sapma ({mean:+.0f}px) → LEFT_TRIM/RIGHT_TRIM kontrol et")
+    else:
+        print("\nSONUÇ: Geçerli şerit hatası ölçülemedi.")
 
 
 # ---------------------------------------------------------------------------
@@ -208,11 +257,13 @@ if __name__ == "__main__":
 
         run_tuning(kp, kd, dur)
 
-        print(f"\n📋 config.py'ye yaz:")
+        print("\n📋 config.py'ye yaz:")
         print(f"   KP = {kp}")
         print(f"   KD = {kd}")
 
     except KeyboardInterrupt:
         print("\nKesintiye uğradı.")
+    except MotorHardwareUnavailable as exc:
+        print(f"\nBaşlatılamadı: {exc}")
     except ValueError:
         print("Geçersiz sayı girişi.")

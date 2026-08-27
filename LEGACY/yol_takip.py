@@ -31,7 +31,17 @@ import time
 import cv2
 import numpy as np
 
-# Kamera: Pi'de picamera2, geliştirme için OpenCV
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except (AttributeError, OSError):
+    pass
+
+# Kamera: Pi'de picamera2, USB/Windows tarafında OpenCV
 try:
     from picamera2 import Picamera2
     _USE_PICAMERA = True
@@ -43,17 +53,16 @@ from config import WIDTH, HEIGHT, CAMERA_BGR_OUTPUT
 from controller import PDController
 from lane import LaneDetector
 from logger import ErrorLogger
-from motor import MotorDriver
+from motor import MotorDriver, MotorHardwareUnavailable
 
-# ---------------------------------------------------------------------------
-# Komut satırı argümanları
-# ---------------------------------------------------------------------------
-parser = argparse.ArgumentParser(description='Otonom Araç - SADECE ŞERİT TAKİBİ')
-parser.add_argument('--no-stream', action='store_true',
-                    help='Flask MJPEG yayınını devre dışı bırak')
-parser.add_argument('--auto', action='store_true',
-                    help='GG/EZ beklemeden hemen başla (otomatik mod)')
-args = parser.parse_args()
+def parse_args(argv=None):
+    """Komut satırını yalnızca program gerçekten çalıştırıldığında oku."""
+    parser = argparse.ArgumentParser(description='Otonom Araç - SADECE ŞERİT TAKİBİ')
+    parser.add_argument('--no-stream', action='store_true',
+                        help='Flask MJPEG yayınını devre dışı bırak')
+    parser.add_argument('--auto', action='store_true',
+                        help='GG/EZ beklemeden hemen başla (otomatik mod)')
+    return parser.parse_args(argv)
 
 
 # ---------------------------------------------------------------------------
@@ -63,16 +72,27 @@ class Camera:
     """Pi kamerası veya USB kamerasını yönetir."""
     
     def __init__(self):
+        self.cam = None
         if _USE_PICAMERA:
             self.cam = Picamera2()
-            self.cam.configure(self.cam.create_preview_configuration(
-                main={"size": (WIDTH, HEIGHT), "format": "RGB888"}
-            ))
-            self.cam.start()
-            time.sleep(1)
+            try:
+                self.cam.configure(self.cam.create_preview_configuration(
+                    main={"size": (WIDTH, HEIGHT), "format": "RGB888"}
+                ))
+                self.cam.start()
+                time.sleep(1)
+            except BaseException:
+                try:
+                    self.cam.close()
+                except Exception:
+                    pass
+                raise
             print("[yol_takip] Pi kamerası açıldı")
         else:
             self.cam = cv2.VideoCapture(0)
+            if not self.cam.isOpened():
+                self.cam.release()
+                raise RuntimeError("USB kamera açılamadı")
             self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
             self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
             print("[yol_takip] USB kamera açıldı")
@@ -88,13 +108,18 @@ class Camera:
         else:
             ret, frame = self.cam.read()
             if not ret:
-                return np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
+                raise RuntimeError("USB kamera kare üretemedi")
             # OpenCV BGR döner, RGB'ye çevir
             return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     
     def close(self):
         if _USE_PICAMERA:
-            self.cam.stop()
+            try:
+                self.cam.stop()
+            finally:
+                close = getattr(self.cam, "close", None)
+                if close is not None:
+                    close()
         else:
             self.cam.release()
 
@@ -103,10 +128,29 @@ class Camera:
 # Global durum
 # ---------------------------------------------------------------------------
 _running = True
-_started = args.auto  # --auto bayrağıyla hemen başla
+_started = False
 _latest_frame: np.ndarray | None = None
 _cur_error: float | None = None
 _fps = 0.0
+camera = None
+lane_detector = None
+controller = None
+motor = None
+logger = None
+_cleanup_done = False
+_worker_failed = False
+
+
+def read_key_nonblocking() -> str:
+    """Windows veya POSIX terminalinden varsa tek karakter oku."""
+    if msvcrt is not None:
+        return msvcrt.getwch() if msvcrt.kbhit() else ""
+    try:
+        if sys.stdin in select.select([sys.stdin], [], [], 0.001)[0]:
+            return sys.stdin.read(1)
+    except (OSError, ValueError):
+        return ""
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +158,7 @@ _fps = 0.0
 # ---------------------------------------------------------------------------
 def drive_loop():
     """Ana sürüş döngüsü — sadece şerit takibi."""
-    global _latest_frame, _running, _started, _cur_error, _fps
+    global _latest_frame, _started, _cur_error, _fps
     
     print("[yol_takip] Sürüş döngüsü başladı")
     
@@ -135,20 +179,20 @@ def drive_loop():
         
         # 3. Klayvye girdisi (GG veya EZ ile başla)
         if not _started:
-            if sys.stdin in select.select([sys.stdin], [], [], 0.001)[0]:
-                try:
-                    ch = sys.stdin.read(1).upper()
-                    _input_buffer += ch
-                    
-                    if len(_input_buffer) >= 2:
-                        last_two = _input_buffer[-2:]
-                        if last_two == "GG" or last_two == "EZ":
-                            print(f"\n[KLAYVYE] '{last_two}' yazıldı — ŞERİT TAKİBİ BAŞLATILIYOR!")
-                            _started = True
-                            controller.reset()
-                            _input_buffer = ""
-                except:
-                    pass
+            ch = read_key_nonblocking().upper()
+            if ch:
+                _input_buffer += ch
+
+                if len(_input_buffer) >= 2:
+                    last_two = _input_buffer[-2:]
+                    if last_two in ("GG", "EZ"):
+                        print(
+                            f"\n[KLAVYE] '{last_two}' yazıldı — "
+                            "ŞERİT TAKİBİ BAŞLATILIYOR!"
+                        )
+                        _started = True
+                        controller.reset()
+                        _input_buffer = ""
         
         # 4. Motor kontrolü
         if _started:
@@ -172,7 +216,7 @@ def drive_loop():
             logger.update(error)   # None DA gonderilir; kayip kareyi o sayar
         else:
             # Henüz başlamadı — durur
-            motor.brake()
+            motor.coast()
         
         # 5. Debug görüntüsünü kaydet (web yayını için)
         _latest_frame = debug
@@ -193,6 +237,25 @@ def drive_loop():
                       f"Sağ: {motor._right_pwm.value*100:.0f}%", end='', flush=True)
     
     print("\n[yol_takip] Sürüş döngüsü durdu")
+
+
+def guarded_drive_loop():
+    """Sürüş thread'i çökerse son PWM komutunu taşımadan motoru durdur."""
+    global _running, _worker_failed
+    try:
+        drive_loop()
+    except Exception as exc:
+        import traceback
+        print(f"\n[yol_takip] SÜRÜŞ HATASI: {exc}")
+        traceback.print_exc()
+        _worker_failed = True
+        _running = False
+    finally:
+        if motor is not None:
+            try:
+                motor.stop()
+            except Exception as exc:
+                print(f"[yol_takip] Acil motor kapatma hatası: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -303,89 +366,136 @@ def setup_flask():
 # ---------------------------------------------------------------------------
 # Ana program
 # ---------------------------------------------------------------------------
-def _shutdown(sig, frame):
+def _shutdown(sig=None, frame=None):
     """Ctrl+C ile temiz çıkış."""
-    global _running
+    global _running, _cleanup_done
+    if _cleanup_done:
+        if sig is not None:
+            raise SystemExit(128 + int(sig))
+        return
+    _cleanup_done = True
     print("\n[yol_takip] Kapatılıyor...")
     _running = False
-    motor.brake()
-    time.sleep(0.5)
-    motor.stop()
-    camera.close()
+    if motor is not None:
+        try:
+            motor.stop()
+        except Exception as exc:
+            print(f"[yol_takip] Motor kapatma hatası: {exc}")
+    if camera is not None:
+        try:
+            camera.close()
+        except Exception as exc:
+            print(f"[yol_takip] Kamera kapatma hatası: {exc}")
     # Eklendi 5 Agustos 2026: finish() hicbir yerde cagrilmiyordu, yani
     # stabilite raporu da CSV de asla uretilmiyordu. 20.7 adim 3 "raporu oku"
     # diyor; okunacak rapor yoktu.
+    if logger is not None:
+        try:
+            logger.finish()
+        except Exception as exc:
+            print(f"[yol_takip] Logger kapatma hatası: {exc}")
+    if controller is not None:
+        try:
+            controller.tani_raporu()
+        except Exception as exc:
+            print(f"[yol_takip] Denetleyici raporu üretilemedi: {exc}")
+    if sig is not None:
+        raise SystemExit(128 + int(sig))
+
+
+def main(argv=None) -> int:
+    global camera, lane_detector, controller, motor, logger
+    global _started, _running, _cleanup_done, _worker_failed
+    global _latest_frame, _cur_error, _fps
+
+    _running = True
+    _cleanup_done = False
+    _worker_failed = False
+    _started = False
+    _latest_frame = None
+    _cur_error = None
+    _fps = 0.0
+    args = parse_args(argv)
+    exit_code = 0
+
+    # Tüm bileşenleri başlat
     try:
-        logger.finish()
-        controller.tani_raporu()
-    except Exception as _e:
-        print("[yol_takip] Rapor uretilemedi: %s" % _e)
-    sys.exit(0)
+        signal.signal(signal.SIGINT, _shutdown)
+        signal.signal(signal.SIGTERM, _shutdown)
+        print()
+        print("╔══════════════════════════════════════════════════════════╗")
+        print("║   🚗 YOL TAKİP — BASİT SİSTEMİ 🚗                        ║")
+        print("║                                                          ║")
+        print("║   Sadece şerit takibi (olay tespiti yok)                ║")
+        print("╚══════════════════════════════════════════════════════════╝")
+        print()
 
+        print("[yol_takip] Bileşenler başlatılıyor...")
 
-signal.signal(signal.SIGINT, _shutdown)
-signal.signal(signal.SIGTERM, _shutdown)
+        motor = MotorDriver()
+        motor.require_hardware()
+        camera = Camera()
+        lane_detector = LaneDetector()
+        controller = PDController()
+        logger = ErrorLogger()
+
+        print("[yol_takip] ✅ Tüm bileşenler hazır")
+        print()
+
+        if args.auto:
+            print("[yol_takip] 🚀 OTOMATİK MOD — Hemen başlıyor!")
+            _started = True
+        else:
+            print("[yol_takip] BAŞLAMA YÖNTEMİ:")
+            print("[yol_takip]   • Konsola 'GG' veya 'EZ' yazın → Araç başlar")
+            print("[yol_takip]   • Ctrl+C → Durdurmak için")
+
+        print()
+        print("[yol_takip] Sürüş thread'i başlatılıyor...")
+
+        t = threading.Thread(target=guarded_drive_loop, daemon=True)
+        t.start()
+
+        if args.no_stream:
+            print("[yol_takip] --no-stream modu: Web yayını kapalı")
+            print("[yol_takip] Durdurmak için Ctrl+C")
+            while _running:
+                time.sleep(1)
+        else:
+            app = setup_flask()
+            if app:
+                print("[yol_takip] 🌐 Web yayını: http://0.0.0.0:5000")
+                print("[yol_takip] Tarayıcıdan açabilirsiniz (debug için)")
+                print()
+                from werkzeug.serving import make_server
+                server = make_server('0.0.0.0', 5000, app)
+                server.timeout = 0.5
+                try:
+                    while _running:
+                        server.handle_request()
+                finally:
+                    server.server_close()
+            else:
+                print("[yol_takip] Flask yok, sadece konsol modu")
+                while _running:
+                    time.sleep(1)
+        if _worker_failed:
+            exit_code = 1
+    except MotorHardwareUnavailable as exc:
+        exit_code = 1
+        print(f"[yol_takip] BAŞLATILAMADI: {exc}")
+    except KeyboardInterrupt:
+        exit_code = 1 if _worker_failed else 130
+    except Exception as exc:
+        import traceback
+        exit_code = 1
+        print(f"[yol_takip] FATAL HATA: {exc}")
+        traceback.print_exc()
+    finally:
+        _shutdown()
+
+    return exit_code
 
 
 if __name__ == "__main__":
-    # Tüm bileşenleri başlat
-    print()
-    print("╔══════════════════════════════════════════════════════════╗")
-    print("║   🚗 YOL TAKİP — BASİT SİSTEMİ 🚗                        ║")
-    print("║                                                          ║")
-    print("║   Sadece şerit takibi (olay tespiti yok)                ║")
-    print("╚══════════════════════════════════════════════════════════╝")
-    print()
-    
-    print("[yol_takip] Bileşenler başlatılıyor...")
-    
-    camera         = Camera()
-    lane_detector  = LaneDetector()
-    controller     = PDController()
-    motor          = MotorDriver()
-    logger         = ErrorLogger()
-    
-    print("[yol_takip] ✅ Tüm bileşenler hazır")
-    print()
-    
-    if args.auto:
-        print("[yol_takip] 🚀 OTOMATİK MOD — Hemen başlıyor!")
-        _started = True
-    else:
-        print("[yol_takip] BAŞLAMA YÖNTEMİ:")
-        print("[yol_takip]   • Konsola 'GG' veya 'EZ' yazın → Araç başlar")
-        print("[yol_takip]   • Ctrl+C → Durdurmak için")
-    
-    print()
-    print("[yol_takip] Sürüş thread'i başlatılıyor...")
-    
-    # Sürüş döngüsünü ayrı thread'de başlat
-    t = threading.Thread(target=drive_loop, daemon=True)
-    t.start()
-    
-    # Flask sunucusu (eğer istenirse)
-    if args.no_stream:
-        print("[yol_takip] --no-stream modu: Web yayını kapalı")
-        print("[yol_takip] Durdurmak için Ctrl+C")
-        try:
-            while _running:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            _shutdown(None, None)
-    else:
-        app = setup_flask()
-        if app:
-            print("[yol_takip] 🌐 Web yayını: http://0.0.0.0:5000")
-            print("[yol_takip] Tarayıcıdan açabilirsiniz (debug için)")
-            print()
-            try:
-                app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
-            except KeyboardInterrupt:
-                _shutdown(None, None)
-        else:
-            print("[yol_takip] Flask yok, sadece konsol modu")
-            try:
-                while _running:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                _shutdown(None, None)
+    raise SystemExit(main())

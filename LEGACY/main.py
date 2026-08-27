@@ -3,7 +3,7 @@
 #
 # Özellikler:
 #   - Web sitesi YOK (sadece CMD/terminal)
-#   - GG veya EZ yazıncaaraç başlar (yeşil ışık simüle)
+#   - GG veya EZ yazınca araç elle başlatılır
 #   - SPACE (boşluk) tuşu = HEMEN başlat (anında, tek tuş)
 #   - Q tuşu = programdan çık
 #   - GPIO 16 buton kaldırıldı
@@ -12,10 +12,20 @@
 # =============================================================================
 import signal
 import sys
-import termios
 import threading
 import time
-import tty
+
+try:
+    import termios
+    import tty
+except ImportError:
+    termios = None
+    tty = None
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None
 
 import cv2
 import numpy as np
@@ -26,9 +36,9 @@ try:
     _USE_PICAMERA = True
 except ImportError:
     _USE_PICAMERA = False
-    print("[main] picamera2 bulunamadı — OpenCV VideoCapture kullanılıyor (geliştirme modu)")
+    print("[main] picamera2 bulunamadı — USB/Windows kamera yolu kullanılıyor")
 
-# GPIO buton: Pi'de gpiozero.Button, yoksa sessizce skip (geliştirme modu).
+# GPIO buton: Pi'de gpiozero.Button; yoksa fiziksel buton kullanılamaz.
 # Bu try/except sayesinde Pi olmadan da kod çalışır; buton beklenmez.
 try:
     from gpiozero import Button as _GpioButton
@@ -50,14 +60,14 @@ from config import (
     PARKING_MIN_AREA, PARKING_ROI_TOP,
     PARKING_SPEED, PARKING_CENTER_TOL,
     CAMERA_BGR_OUTPUT, CAMERA_ROTATE_180, SHOW_PREVIEW,
-    LANE_LOST_TURN_SEC, LANE_LOST_TURN_BIAS,
+    LANE_LOST_TURN_SEC,
     START_BUTTON_PIN,
 )
 from controller import PDController
 from events import EventDetector
 from lane import LaneDetector
 from logger import ErrorLogger
-from motor import MotorDriver
+from motor import MotorDriver, MotorHardwareUnavailable
 
 
 # ---------------------------------------------------------------------------
@@ -69,19 +79,32 @@ class _Camera:
         self._error: Exception | None = None
         self._lock    = threading.Lock()
         self._running = True
+        self._stopped = False
+        self._pi = None
+        self._cv = None
 
         if _USE_PICAMERA:
             self._pi = Picamera2()
-            cfg = self._pi.create_preview_configuration(
-                main={"format": "RGB888", "size": (WIDTH, HEIGHT)},
-                buffer_count=4,          # starvation önleme
-            )
-            self._pi.configure(cfg)
-            self._pi.start()
-            time.sleep(2)                # AWB ısınma
-            threading.Thread(target=self._loop, daemon=True).start()
+            try:
+                cfg = self._pi.create_preview_configuration(
+                    main={"format": "RGB888", "size": (WIDTH, HEIGHT)},
+                    buffer_count=4,          # starvation önleme
+                )
+                self._pi.configure(cfg)
+                self._pi.start()
+                time.sleep(2)                # AWB ısınma
+                threading.Thread(target=self._loop, daemon=True).start()
+            except BaseException:
+                try:
+                    self._pi.close()
+                except Exception:
+                    pass
+                raise
         else:
             self._cv = cv2.VideoCapture(0)
+            if not self._cv.isOpened():
+                self._cv.release()
+                raise RuntimeError("USB camera could not be opened")
             self._cv.set(cv2.CAP_PROP_FRAME_WIDTH,  WIDTH)
             self._cv.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
 
@@ -127,10 +150,18 @@ class _Camera:
             return frame
 
     def stop(self):
+        if self._stopped:
+            return
+        self._stopped = True
         self._running = False
         if _USE_PICAMERA:
-            time.sleep(0.1)
-            self._pi.stop()
+            try:
+                time.sleep(0.1)
+                self._pi.stop()
+            finally:
+                close = getattr(self._pi, "close", None)
+                if close is not None:
+                    close()
         else:
             self._cv.release()
 
@@ -138,12 +169,12 @@ class _Camera:
 # ---------------------------------------------------------------------------
 # Bileşenler
 # ---------------------------------------------------------------------------
-camera         = _Camera()
-lane_detector  = LaneDetector()
-controller     = PDController()
-motor          = MotorDriver()
-logger         = ErrorLogger()
-event_detector = EventDetector()
+camera = None
+lane_detector = None
+controller = None
+motor = None
+logger = None
+event_detector = None
 
 
 # ---------------------------------------------------------------------------
@@ -153,14 +184,20 @@ _running         = True
 _state           = 'BEKLIYOR'
 _state_timer     = 0.0
 _ovt_phase       = 0
-_manual_green    = False   # GG/EZ/SPACE/buton ile yeşil ışık simülasyonu
+_manual_green    = False   # GG/EZ/SPACE/buton ile elle yeşil başlangıç onayı
 _lane_lost_time: float | None = None   # şerit kayıp failsafe zamanlayıcısı
+_crosswalk_consumed = False
+_hemzemin_consumed = False
+_speed_bump_consumed = False
+_orange_car_consumed = False
 
 # Yarış zaman tracking (Görev/PDF 4.4: 240 sn üst sınır + bitirme katsayısı)
 _race_start_time: float | None = None
 _finish_printed       = False
 _time_warning_printed = False
 _button_handle = None      # gpiozero.Button referansı (shutdown'da close)
+_shutdown_complete = False
+_kb_thread = None
 
 # Tabela tabanlı sollama yasağı
 _NO_OVERTAKE_SEC = 8.0          # sollamabam tabelası sonrası yasak süresi
@@ -173,18 +210,34 @@ _no_overtake_until: float = 0.0 # bu zamana kadar sollama yapma
 def keyboard_listener():
     """Ayrı thread'de klavye dinler. GG, EZ veya SPACE = başlat."""
     global _manual_green, _running
-    
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    
+
+    fd = None
+    old_settings = None
     try:
-        # cbreak mode — tek tuş okuma (ENTER gerekli değil)
-        tty.setcbreak(fd)
-        
+        if termios is not None and tty is not None:
+            import select
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
+            tty.setcbreak(fd)
+
+            def read_key():
+                if select.select([sys.stdin], [], [], 0.1)[0]:
+                    return sys.stdin.read(1)
+                return ""
+        elif msvcrt is not None:
+            def read_key():
+                if msvcrt.kbhit():
+                    return msvcrt.getwch()
+                time.sleep(0.05)
+                return ""
+        else:
+            print("\n[KLAVYE] Tek tuş girişi bu sistemde kullanılamıyor.")
+            return
+
         buffer = ""
-        
+
         while _running:
-            ch = sys.stdin.read(1)
+            ch = read_key()
             
             if not ch:
                 continue
@@ -221,10 +274,11 @@ def keyboard_listener():
         print(f"\n[KLAVYE] Hata: {e}")
     finally:
         # Terminal'i normal moda döndür
-        try:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        except Exception:
-            pass
+        if termios is not None and fd is not None and old_settings is not None:
+            try:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            except Exception:
+                pass
 
 
 # ---------------------------------------------------------------------------
@@ -240,11 +294,16 @@ def _apply_dir(left: float, right: float) -> tuple:
 # ---------------------------------------------------------------------------
 def _run_overtaking(error, now: float) -> None:
     global _state, _ovt_phase, _state_timer
-    
+
+    if error is None:
+        motor.brake()
+        _state_timer = now
+        return
+
     elapsed = now - _state_timer
     
     if _ovt_phase == 0:
-        eff_error = (error or 0) - OVERTAKING_STEER_BIAS
+        eff_error = error - OVERTAKING_STEER_BIAS
         l, r = controller.compute(eff_error)
         scale = OVERTAKING_SPEED / max(abs(l), abs(r), 1)
         motor.set_speed(*_apply_dir(l * scale, r * scale))
@@ -259,7 +318,7 @@ def _run_overtaking(error, now: float) -> None:
             _ovt_phase = 2
             _state_timer = now
     elif _ovt_phase == 2:
-        eff_error = (error or 0) + OVERTAKING_STEER_BIAS
+        eff_error = error + OVERTAKING_STEER_BIAS
         l, r = controller.compute(eff_error)
         scale = OVERTAKING_SPEED / max(abs(l), abs(r), 1)
         motor.set_speed(*_apply_dir(l * scale, r * scale))
@@ -296,6 +355,9 @@ def _run_parking(frame: np.ndarray, error) -> None:
                 best_cx = int(M['m10'] / M['m00'])
     
     if best_area < PARKING_MIN_AREA or best_cx is None:
+        if error is None:
+            motor.brake()
+            return
         l, r = controller.compute(error)
         scale = PARKING_SPEED / max(abs(l), abs(r), 1)
         motor.set_speed(*_apply_dir(l * scale, r * scale))
@@ -317,8 +379,10 @@ def _run_parking(frame: np.ndarray, error) -> None:
 # Sürüş döngüsü (ana mantık)
 # ---------------------------------------------------------------------------
 def drive_loop() -> None:
-    global _running, _state, _state_timer, _ovt_phase, _manual_green, _lane_lost_time
+    global _running, _state, _state_timer, _ovt_phase, _lane_lost_time
     global _race_start_time, _finish_printed, _time_warning_printed, _no_overtake_until
+    global _crosswalk_consumed, _hemzemin_consumed
+    global _speed_bump_consumed, _orange_car_consumed
 
     frame_count = 0
     last_print = time.time()
@@ -331,10 +395,18 @@ def drive_loop() -> None:
         error, debug = lane_detector.process(frame)
         events = event_detector.detect(frame)
         light = events['traffic_light']
-        _err_count = 0
         now = time.time()
 
-        # GG/EZ/SPACE/buton ile yeşil ışık simüle
+        if not events['crosswalk']:
+            _crosswalk_consumed = False
+        if not events['hemzemin']:
+            _hemzemin_consumed = False
+        if not events['speed_bump']:
+            _speed_bump_consumed = False
+        if not events['orange_car']:
+            _orange_car_consumed = False
+
+        # GG/EZ/SPACE/buton ile elle başlangıç onayı
         if _manual_green:
             light = 'green'
 
@@ -365,49 +437,60 @@ def drive_loop() -> None:
                 _state = 'CIKMAZSOKAK'
                 motor.brake()
                 print("[main] 🚫 ÇIKMAZ SOKAK tabelası — araç durdu")
+                # Aynı karedeki başka bir olayın bu duruşu geçersiz kılmasına izin verme.
+                logger.update(error)
+                _err_count = 0
+                continue
             elif sign == 'sollamabam':
                 _no_overtake_until = now + _NO_OVERTAKE_SEC
                 print(f"[main] ⛔ SOLLAMA YASAĞI — {_NO_OVERTAKE_SEC:.0f}s geçerli")
 
-            if events['crosswalk']:
+            if events['crosswalk'] and not _crosswalk_consumed:
                 if events['crosswalk_close']:
                     _state = 'YAYA_GECİDİ'
                     _state_timer = now
+                    _crosswalk_consumed = True
                     motor.brake()
                 else:
                     _state = 'YAYA_YAKLAS'
                     _state_timer = now
-            elif events['hemzemin']:
+                    motor.brake()
+            elif events['hemzemin'] and not _hemzemin_consumed:
                 if events['hemzemin_close']:
                     _state = 'HEMZEMIN'
                     _state_timer = now
+                    _hemzemin_consumed = True
                     motor.brake()
                 else:
                     _state = 'HEMZEMIN_YAKLAS'
                     _state_timer = now
-            elif events['speed_bump']:
+                    motor.brake()
+            elif events['speed_bump'] and not _speed_bump_consumed:
                 _state = 'TUMSEK'
                 _state_timer = now
-            elif events['orange_car'] and not events['yellow_car'] and now >= _no_overtake_until:
+                _speed_bump_consumed = True
+                motor.brake()
+            elif (events['orange_car'] and not _orange_car_consumed
+                  and not events['yellow_car'] and now >= _no_overtake_until):
                 _state = 'SOLLAMA'
                 _state_timer = now
                 _ovt_phase = 0
+                _orange_car_consumed = True
+                motor.brake()
             elif events['parking_zone']:
                 _state = 'PARK'
                 controller.reset()
+                motor.brake()
             else:
                 # Normal sürüş — şerit kayıp failsafe
                 if error is None:
                     if _lane_lost_time is None:
                         _lane_lost_time = now
-                        print("[main] ⚠  SERIT KAYIP — sola donus basladi")
+                        print("[main] ⚠  SERIT KAYIP — son gerçek yön korunuyor")
                     lost_sec = now - _lane_lost_time
                     if lost_sec < LANE_LOST_TURN_SEC:
-                        # Son bilinen dönüş yönünü koru
-                        bias = (LANE_LOST_TURN_BIAS
-                                if controller.prev_error >= 0
-                                else -LANE_LOST_TURN_BIAS)
-                        l, r = controller.compute(bias)
+                        # Denetleyicinin son gerçek yönünü türev üretmeden azalt.
+                        l, r = controller.compute(None)
                         motor.set_speed(*_apply_dir(l, r))
                     else:
                         # Süre doldu, hâlâ şerit yok → güvenli dur
@@ -426,6 +509,7 @@ def drive_loop() -> None:
             if events['crosswalk_close'] or timeout:
                 _state = 'YAYA_GECİDİ'
                 _state_timer = now
+                _crosswalk_consumed = True
                 motor.brake()
             elif error is None:
                 motor.brake()
@@ -439,6 +523,7 @@ def drive_loop() -> None:
             if events['hemzemin_close'] or timeout:
                 _state = 'HEMZEMIN'
                 _state_timer = now
+                _hemzemin_consumed = True
                 motor.brake()
             elif error is None:
                 motor.brake()
@@ -460,9 +545,12 @@ def drive_loop() -> None:
                 controller.reset()
 
         elif _state == 'TUMSEK':
-            l, r = controller.compute(error)
-            scale = SPEED_BUMP_SPEED / max(abs(l), abs(r), 1)
-            motor.set_speed(*_apply_dir(l * scale, r * scale))
+            if error is None:
+                motor.brake()
+            else:
+                l, r = controller.compute(error)
+                scale = SPEED_BUMP_SPEED / max(abs(l), abs(r), 1)
+                motor.set_speed(*_apply_dir(l * scale, r * scale))
             if now - _state_timer >= SPEED_BUMP_SLOW_SEC:
                 _state = 'SURUYOR'
 
@@ -519,6 +607,8 @@ def drive_loop() -> None:
             frame_count = 0
             last_print  = now
 
+        _err_count = 0
+
       except Exception as _e:
         _err_count += 1
         import traceback
@@ -527,22 +617,26 @@ def drive_loop() -> None:
         motor.brake()
         if _err_count == 1:
             traceback.print_exc()
-        if _err_count > 30:
-            print("[main] Art arda 30+ hata — çıkılıyor.")
-            _running = False
+        if _err_count >= 30:
+            raise RuntimeError("Art arda 30 kare işlenemedi") from _e
 
 
 # ---------------------------------------------------------------------------
 # Kapatma
 # ---------------------------------------------------------------------------
 def _shutdown(sig=None, frame=None) -> None:
-    global _running
+    global _running, _shutdown_complete
+    if _shutdown_complete:
+        if sig is not None:
+            raise SystemExit(128 + int(sig))
+        return
+    _shutdown_complete = True
     print("\n[main] Kapatılıyor...")
     _running = False
     for name, cleanup in (
-        ("motor", motor.stop),
-        ("camera", camera.stop),
-        ("logger", logger.finish),
+        ("motor", motor.stop if motor is not None else None),
+        ("camera", camera.stop if camera is not None else None),
+        ("logger", logger.finish if logger is not None else None),
         ("button", _button_handle.close if _button_handle is not None else None),
         ("windows", cv2.destroyAllWindows),
     ):
@@ -552,11 +646,14 @@ def _shutdown(sig=None, frame=None) -> None:
             cleanup()
         except Exception as e:
             print(f"[main] {name} kapatma hatasi: {e}")
-    sys.exit(0)
+    if _kb_thread is not None and _kb_thread is not threading.current_thread():
+        _kb_thread.join(timeout=0.5)
+    if sig is not None:
+        raise SystemExit(128 + int(sig))
 
 
 def _on_button_pressed() -> None:
-    """Fiziksel start butonu (Kural 3.4.1, +50 puan): yeşil ışık simülasyonu."""
+    """Fiziksel start butonu (Kural 3.4.1, +50 puan): elle başlangıç onayı."""
     global _manual_green
     if not _manual_green:
         print("\n[main] 🔘 BUTON basıldı — YEŞİL IŞIK! 🚦")
@@ -585,51 +682,93 @@ def _setup_start_button():
         print(f"[main] Buton kurulumu basarisiz ({e}) — klavye/ışık ile başlatın.")
 
 
-signal.signal(signal.SIGINT,  _shutdown)
-signal.signal(signal.SIGTERM, _shutdown)
-
-
 # ---------------------------------------------------------------------------
 # Giriş noktası
 # ---------------------------------------------------------------------------
-if __name__ == '__main__':
-    print()
-    print("[main] ╔════════════════════════════════════════════╗")
-    print("[main] ║   OTONOM ARAÇ — BAŞLAMA MODUNDA            ║")
-    print("[main] ╚════════════════════════════════════════════╝")
-    print()
-    print("[main] BAŞLAMA YÖNTEMI:")
-    print("[main]   1️⃣  Trafik ışığı yeşil olur     → Araç otomatik başlar")
-    print("[main]   2️⃣  'GG' veya 'EZ' yazın        → Araç başlar (test)")
-    print("[main]   3️⃣  SPACE (boşluk) tuşu basın   → Araç hemen başlar (kısayol)")
-    print(f"[main]   4️⃣  Fiziksel buton (GPIO {START_BUTTON_PIN}) → +50 puan (Kural 3.4.1)")
-    print()
-    print("[main] DİĞER:")
-    print("[main]   Q tuşu        → Programdan çık")
-    print("[main]   Ctrl+C        → Acil durdurma")
-    print()
-    
-    # Klavye dinleyiciyi ayrı thread'de başlat
-    kb_thread = threading.Thread(target=keyboard_listener, daemon=True)
-    kb_thread.start()
+def main() -> int:
+    global camera, lane_detector, controller, motor, logger, event_detector
+    global _kb_thread, _running, _shutdown_complete, _state, _state_timer
+    global _ovt_phase, _manual_green, _lane_lost_time, _race_start_time
+    global _finish_printed, _time_warning_printed, _button_handle
+    global _crosswalk_consumed, _hemzemin_consumed
+    global _speed_bump_consumed, _orange_car_consumed, _no_overtake_until
 
-    # Fiziksel start butonu (varsa) — bekletmez, donanım yoksa pas geçer
-    _setup_start_button()
+    _running = True
+    _shutdown_complete = False
+    _state = 'BEKLIYOR'
+    _state_timer = 0.0
+    _ovt_phase = 0
+    _manual_green = False
+    _lane_lost_time = None
+    _race_start_time = None
+    _finish_printed = False
+    _time_warning_printed = False
+    _button_handle = None
+    _crosswalk_consumed = False
+    _hemzemin_consumed = False
+    _speed_bump_consumed = False
+    _orange_car_consumed = False
+    _no_overtake_until = 0.0
+    _kb_thread = None
 
-    print("[main] Kamera, lane detector, event detector hazir.")
-    print("[main] Ayar icin: python tune.py")
-    print("[main]")
-    print("[main] ✅ Sistem hazir - YESIL ISIK BEKLENIYOR...")
-    print()
-    
-    # Ana sürüş döngüsü
+    exit_code = 0
     try:
+        signal.signal(signal.SIGINT, _shutdown)
+        signal.signal(signal.SIGTERM, _shutdown)
+
+        motor = MotorDriver()
+        motor.require_hardware()
+        camera = _Camera()
+        lane_detector = LaneDetector()
+        controller = PDController()
+        logger = ErrorLogger()
+        event_detector = EventDetector()
+
+        print()
+        print("[main] ╔════════════════════════════════════════════╗")
+        print("[main] ║   OTONOM ARAÇ — BAŞLAMA MODUNDA            ║")
+        print("[main] ╚════════════════════════════════════════════╝")
+        print()
+        print("[main] BAŞLAMA YÖNTEMI:")
+        print("[main]   1️⃣  Trafik ışığı yeşil olur     → Araç otomatik başlar")
+        print("[main]   2️⃣  'GG' veya 'EZ' yazın        → Elle başlangıç onayı")
+        print("[main]   3️⃣  SPACE (boşluk) tuşu basın   → Araç hemen başlar (kısayol)")
+        print(f"[main]   4️⃣  Fiziksel buton (GPIO {START_BUTTON_PIN}) → +50 puan (Kural 3.4.1)")
+        print()
+        print("[main] DİĞER:")
+        print("[main]   Q tuşu        → Programdan çık")
+        print("[main]   Ctrl+C        → Acil durdurma")
+        print()
+
+        # Klavye dinleyiciyi ayrı thread'de başlat
+        _kb_thread = threading.Thread(target=keyboard_listener, daemon=True)
+        _kb_thread.start()
+
+        # Fiziksel start butonu (varsa) — bekletmez, donanım yoksa pas geçer
+        _setup_start_button()
+
+        print("[main] Kamera, lane detector, event detector hazir.")
+        print("[main] Ayar icin: python tune.py")
+        print("[main]")
+        print("[main] ✅ Sistem hazir - YESIL ISIK BEKLENIYOR...")
+        print()
+
         drive_loop()
     except KeyboardInterrupt:
-        pass
+        exit_code = 130
+    except MotorHardwareUnavailable as e:
+        exit_code = 1
+        print(f"[main] BAŞLATILAMADI: {e}")
     except Exception as e:
         import traceback
+        exit_code = 1
         print(f"[main] FATAL HATA: {e}")
         traceback.print_exc()
     finally:
         _shutdown()
+
+    return exit_code
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

@@ -8,7 +8,6 @@ import numpy as np
 from config import (
     WIDTH, HEIGHT, ROI_TOP_RATIO, PERSP_SRC,
     MIN_LANE_SIGNAL, ASSUMED_LANE_WIDTH,
-    WHITE_HSV_LOW, WHITE_HSV_HIGH,
     WHITE_HSV_LOW_DARK, WHITE_HSV_HIGH_DARK,
     WHITE_HSV_LOW_NORMAL, WHITE_HSV_HIGH_NORMAL,
     WHITE_HSV_LOW_BRIGHT, WHITE_HSV_HIGH_BRIGHT,
@@ -193,13 +192,20 @@ class LaneDetector:
             w_lo, w_hi = lo, hi
 
         region = histogram[w_lo:w_hi]
-        total  = float(region.sum())
+        total = float(region.sum())
 
-        if total < MIN_LANE_SIGNAL:
+        def has_lane_signal(values: np.ndarray, signal_total: float) -> bool:
+            """Reject broad low-level noise as well as an empty histogram."""
+            if values.size == 0 or signal_total < MIN_LANE_SIGNAL:
+                return False
+            peak = float(values.max())
+            return peak >= MIN_LANE_SIGNAL * MIN_LANE_SIGNAL_QUALITY_RATIO
+
+        if not has_lane_signal(region, total):
             # Dar pencerede bulunamadı — tam yarıya bak
             region = histogram[lo:hi]
-            total  = float(region.sum())
-            if total < MIN_LANE_SIGNAL:
+            total = float(region.sum())
+            if not has_lane_signal(region, total):
                 fallback = last_known if last_known is not None else (lo + hi) // 2
                 return fallback, False
             centroid = int(np.average(np.arange(lo, hi), weights=region))

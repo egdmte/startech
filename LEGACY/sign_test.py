@@ -44,31 +44,53 @@ def find_blue_blob(frame_hsv):
         return None
     return cv2.boundingRect(c)
 
-classes, vecs, labels = load_model(MODEL)
-print(f"Model loaded: {len(classes)} classes -> {classes}")
 
-cap = cv2.VideoCapture(0)
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
+def main() -> int:
+    """Run the real webcam classifier tool; importing this module opens nothing."""
+    classes, vecs, labels = load_model(MODEL)
+    if not classes or len(vecs) == 0 or len(vecs) != len(labels):
+        raise RuntimeError("Tabela modeli boş veya tutarsız")
+    print(f"Model loaded: {len(classes)} classes -> {classes}")
 
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        cap.release()
+        print("Kamera açılamadı.")
+        return 1
 
-    label = "---"
-    rect = find_blue_blob(hsv)
-    if rect:
-        x, y, w, h = rect
-        crop = rgb[y:y+h, x:x+w]
-        if crop.size > 0:
-            label = classify(crop, classes, vecs, labels)
-        cv2.rectangle(frame, (x,y), (x+w,y+h), (255,0,0), 2)
+    status = 0
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                print("Kamera kare üretemedi.")
+                status = 1
+                break
 
-    cv2.putText(frame, label, (10,40), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0,200,0), 2)
-    cv2.imshow("Sign Test", frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-cap.release()
-cv2.destroyAllWindows()
+            label = "---"
+            rect = find_blue_blob(hsv)
+            if rect:
+                x, y, w, h = rect
+                crop = rgb[y:y+h, x:x+w]
+                if crop.size > 0:
+                    label = classify(crop, classes, vecs, labels)
+                cv2.rectangle(frame, (x,y), (x+w,y+h), (255,0,0), 2)
+
+            cv2.putText(
+                frame, label, (10,40), cv2.FONT_HERSHEY_SIMPLEX,
+                1.2, (0,200,0), 2,
+            )
+            cv2.imshow("Sign Test", frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+    return status
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

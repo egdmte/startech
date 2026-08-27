@@ -11,41 +11,67 @@
 import time
 
 import cv2
-import numpy as np
-from picamera2 import Picamera2
 
 from config import WIDTH, HEIGHT
 from lane import LaneDetector
 
 
-def main():
-    picam2 = Picamera2()
-    cfg = picam2.create_preview_configuration(
-        main={"size": (WIDTH, HEIGHT), "format": "RGB888"}
-    )
-    picam2.configure(cfg)
-    picam2.start()
-    time.sleep(2)
-
-    detector = LaneDetector()
-    cursor   = {"x": WIDTH // 2, "y": HEIGHT // 2}
-
-    def on_mouse(event, x, y, flags, param):
-        if event == cv2.EVENT_MOUSEMOVE:
-            cursor["x"], cursor["y"] = x, y
-
-    cv2.namedWindow("Kamera")
-    cv2.setMouseCallback("Kamera", on_mouse)
-
-    show_thresh = False
-    show_bird   = False
-
-    print("Kontroller: 't' = eşik | 'b' = kuş bakışı | 'q' = çık")
-
+def main() -> int:
+    picam2 = None
+    usb_camera = None
     try:
+        try:
+            from picamera2 import Picamera2
+            picam2 = Picamera2()
+            cfg = picam2.create_preview_configuration(
+                main={"size": (WIDTH, HEIGHT), "format": "RGB888"}
+            )
+            picam2.configure(cfg)
+            picam2.start()
+            time.sleep(2)
+            print("Kamera: Picamera2")
+        except Exception as pi_error:
+            if picam2 is not None:
+                try:
+                    picam2.close()
+                except Exception:
+                    pass
+                picam2 = None
+            usb_camera = cv2.VideoCapture(0)
+            if not usb_camera.isOpened():
+                usb_camera.release()
+                raise RuntimeError(
+                    f"Pi kamera ve USB kamera açılamadı (Pi: {pi_error})"
+                ) from pi_error
+            usb_camera.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
+            usb_camera.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
+            print("Kamera: USB / VideoCapture")
+
+        detector = LaneDetector()
+        cursor = {"x": WIDTH // 2, "y": HEIGHT // 2}
+
+        def on_mouse(event, x, y, flags, param):
+            if event == cv2.EVENT_MOUSEMOVE:
+                cursor["x"], cursor["y"] = x, y
+
+        cv2.namedWindow("Kamera")
+        cv2.setMouseCallback("Kamera", on_mouse)
+
+        show_thresh = False
+        show_bird = False
+
+        print("Kontroller: 't' = eşik | 'b' = kuş bakışı | 'q' = çık")
+
         while True:
-            frame_rgb = picam2.capture_array()
-            frame     = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+            if picam2 is not None:
+                frame_rgb = picam2.capture_array()
+            else:
+                ok, frame = usb_camera.read()
+                if not ok:
+                    raise RuntimeError("USB kamera kare üretemedi")
+                frame = cv2.resize(frame, (WIDTH, HEIGHT))
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
             # HSV bilgisi
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -76,12 +102,24 @@ def main():
                 show_bird   = not show_bird
                 show_thresh = False
 
+        return 0
     except Exception as exc:
         print(f"[camera.py] HATA: {exc}")
+        return 1
     finally:
-        picam2.stop()
-        cv2.destroyAllWindows()
+        try:
+            if picam2 is not None:
+                try:
+                    picam2.stop()
+                finally:
+                    close = getattr(picam2, "close", None)
+                    if close is not None:
+                        close()
+            if usb_camera is not None:
+                usb_camera.release()
+        finally:
+            cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

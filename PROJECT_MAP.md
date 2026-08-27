@@ -13,7 +13,7 @@ Read `AGENTS_READ_ME.txt` for working rules and `PLAN.md` for the current state.
 | `tawnt.py` | Stable public TAWNT import surface |
 | `startech/configuration/` | Configuration validation still used by KERİM |
 | `config/` | KERİM configuration schema/default material; not automatically installed into LEGACY |
-| `tests/` | Retained KERİM, configuration, profile, and TAWNT software checks |
+| `tests/` | Vehicle regressions plus retained KERİM, configuration, profile, and TAWNT software checks |
 | `Markdown/` | Detailed current notes and historical/post-mortem records |
 
 ## Vehicle code
@@ -29,8 +29,10 @@ The vehicle pipeline is the readable code under `LEGACY/`. Start with:
 - `LEGACY/logger.py` — run records;
 - `LEGACY/config.py` — values currently read by the runtime.
 
-Other LEGACY scripts are retained because they contain calibration and bug-history
-evidence. Do not delete or merge them until their concrete behavior has been inventoried.
+Other LEGACY scripts contain concrete calibration tools and bug-history evidence.
+Camera, HSV, perspective, PD, motor-balance, motor-command, and sign tools have been
+kept as real utilities: unavailable hardware now fails instead of generating a passing
+result. Do not merge or delete them merely to reduce the file count.
 
 ## KERİM boundaries
 

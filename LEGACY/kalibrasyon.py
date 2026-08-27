@@ -15,13 +15,18 @@
 # - Kameranın gördüklerini gösterir
 # =============================================================================
 import os
+import subprocess
 import sys
 import time
+from pathlib import Path
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 # Türkçe karakter desteği
 try:
     sys.stdout.reconfigure(encoding='utf-8')
-except:
+except (AttributeError, OSError):
     pass
 
 
@@ -47,6 +52,16 @@ def bekle(saniye=1):
 def basinca_devam():
     """Kullanıcı ENTER'a basana kadar bekle."""
     input("\n[ENTER]'a basın...")
+
+
+def araci_calistir(script_name):
+    """Bir LEGACY aracını doğru klasörden çalıştır ve hatasını gizleme."""
+    script_path = SCRIPT_DIR / script_name
+    subprocess.run(
+        [sys.executable, str(script_path)],
+        cwd=str(SCRIPT_DIR),
+        check=True,
+    )
 
 
 # =============================================================================
@@ -79,22 +94,27 @@ def motor_dengeleme():
     try:
         from motor import MotorDriver
         motor = MotorDriver()
+        motor.require_hardware()
     except Exception as e:
         print(f"❌ Motor başlatılamadı: {e}")
         basinca_devam()
         return
     
-    print("\n3 saniye sonra başlıyor...")
-    for i in [3, 2, 1]:
-        print(f"  {i}...")
-        bekle(1)
-    
-    print("\n🚗 İLERİ! (2 saniye)")
-    motor.set_speed(50, 50)
-    bekle(2.0)
-    motor.brake()
-    bekle(0.5)
-    motor.stop()
+    try:
+        print("\n3 saniye sonra başlıyor...")
+        for i in [3, 2, 1]:
+            print(f"  {i}...")
+            bekle(1)
+
+        print("\n🚗 İLERİ! (2 saniye)")
+        motor.set_speed(50, 50)
+        bekle(2.0)
+    finally:
+        try:
+            motor.brake()
+            bekle(0.5)
+        finally:
+            motor.stop()
     
     print("\n✅ Araç durdu!")
     print()
@@ -172,160 +192,169 @@ def hsv_kalibrasyon():
         return
     
     # Kamera başlat
+    camera = None
+    is_picam = False
     try:
         from picamera2 import Picamera2
         camera = Picamera2()
-        camera.configure(camera.create_preview_configuration(main={"size": (640, 480), "format": "RGB888"}))
-        camera.start()
-        time.sleep(1)
+        try:
+            camera.configure(camera.create_preview_configuration(
+                main={"size": (640, 480), "format": "RGB888"}
+            ))
+            camera.start()
+            time.sleep(1)
+        except BaseException:
+            try:
+                camera.close()
+            except Exception:
+                pass
+            raise
         is_picam = True
         print("✅ Pi kamerası açıldı")
-    except:
+    except Exception as pi_error:
         camera = cv2.VideoCapture(0)
         if not camera.isOpened():
+            camera.release()
             print("❌ Kamera açılamadı!")
+            print(f"   Pi kamera sonucu: {pi_error}")
             basinca_devam()
             return
-        is_picam = False
         print("✅ USB kamera açıldı")
     
     bekle(1)
     
-    # Slider penceresi oluştur
-    cv2.namedWindow("HSV Ayarları", cv2.WINDOW_NORMAL)
-    cv2.resizeWindow("HSV Ayarları", 400, 300)
-    
-    # Mevcut değerleri yükle
     try:
-        from config import WHITE_HSV_LOW_NORMAL, WHITE_HSV_HIGH_NORMAL
-        h_low, s_low, v_low = WHITE_HSV_LOW_NORMAL
-        h_high, s_high, v_high = WHITE_HSV_HIGH_NORMAL
-    except:
-        h_low, s_low, v_low = 0, 0, 120
-        h_high, s_high, v_high = 180, 85, 255
-    
-    cv2.createTrackbar("H Min", "HSV Ayarları", h_low, 180, lambda x: None)
-    cv2.createTrackbar("S Min", "HSV Ayarları", s_low, 255, lambda x: None)
-    cv2.createTrackbar("V Min", "HSV Ayarları", v_low, 255, lambda x: None)
-    cv2.createTrackbar("H Max", "HSV Ayarları", h_high, 180, lambda x: None)
-    cv2.createTrackbar("S Max", "HSV Ayarları", s_high, 255, lambda x: None)
-    cv2.createTrackbar("V Max", "HSV Ayarları", v_high, 255, lambda x: None)
-    
-    print("\n🎮 PENCERE AÇILDI — Slider'ları ayarla")
-    print("   's' = Kaydet | 'q' = Çık")
-    
-    while True:
-        # Frame al
-        if is_picam:
-            frame = camera.capture_array()
-            frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        else:
-            ret, frame_bgr = camera.read()
-            if not ret:
+        # Slider penceresi oluştur
+        cv2.namedWindow("HSV Ayarları", cv2.WINDOW_NORMAL)
+        cv2.resizeWindow("HSV Ayarları", 400, 300)
+
+        # Mevcut değerleri yükle
+        try:
+            from config import WHITE_HSV_LOW_NORMAL, WHITE_HSV_HIGH_NORMAL
+            h_low, s_low, v_low = WHITE_HSV_LOW_NORMAL
+            h_high, s_high, v_high = WHITE_HSV_HIGH_NORMAL
+        except (ImportError, AttributeError, TypeError, ValueError):
+            h_low, s_low, v_low = 0, 0, 120
+            h_high, s_high, v_high = 180, 85, 255
+
+        cv2.createTrackbar("H Min", "HSV Ayarları", h_low, 180, lambda x: None)
+        cv2.createTrackbar("S Min", "HSV Ayarları", s_low, 255, lambda x: None)
+        cv2.createTrackbar("V Min", "HSV Ayarları", v_low, 255, lambda x: None)
+        cv2.createTrackbar("H Max", "HSV Ayarları", h_high, 180, lambda x: None)
+        cv2.createTrackbar("S Max", "HSV Ayarları", s_high, 255, lambda x: None)
+        cv2.createTrackbar("V Max", "HSV Ayarları", v_high, 255, lambda x: None)
+
+        print("\n🎮 PENCERE AÇILDI — Slider'ları ayarla")
+        print("   's' = Kaydet | 'q' = Çık")
+
+        while True:
+            if is_picam:
+                frame = camera.capture_array()
+                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            else:
+                ret, frame_bgr = camera.read()
+                if not ret:
+                    raise RuntimeError("USB kamera kare üretemedi")
+
+            h_low = cv2.getTrackbarPos("H Min", "HSV Ayarları")
+            s_low = cv2.getTrackbarPos("S Min", "HSV Ayarları")
+            v_low = cv2.getTrackbarPos("V Min", "HSV Ayarları")
+            h_high = cv2.getTrackbarPos("H Max", "HSV Ayarları")
+            s_high = cv2.getTrackbarPos("S Max", "HSV Ayarları")
+            v_high = cv2.getTrackbarPos("V Max", "HSV Ayarları")
+
+            hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
+            v_mean = np.mean(hsv[:, :, 2])
+            mask = cv2.inRange(
+                hsv,
+                np.array([h_low, s_low, v_low]),
+                np.array([h_high, s_high, v_high]),
+            )
+            result = cv2.bitwise_and(frame_bgr, frame_bgr, mask=mask)
+
+            info = f"V_mean: {v_mean:.0f} | "
+            if v_mean < 100:
+                info += "KARANLIK"
+            elif v_mean > 200:
+                info += "PARLAK"
+            else:
+                info += "NORMAL"
+            cv2.putText(
+                frame_bgr, info, (10, 30), cv2.FONT_HERSHEY_SIMPLEX,
+                0.7, (0, 255, 255), 2,
+            )
+            cv2.putText(
+                mask, "BEYAZ SERIT BURADA OLMALI", (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, 200, 2,
+            )
+
+            cv2.imshow("Orjinal Görüntü", frame_bgr)
+            cv2.imshow("Maske (Beyaz=ŞERİT)", mask)
+            cv2.imshow("Sonuç", result)
+
+            key = cv2.waitKey(30) & 0xFF
+            if key == ord('q'):
                 break
-        
-        # Slider değerlerini al
-        h_low = cv2.getTrackbarPos("H Min", "HSV Ayarları")
-        s_low = cv2.getTrackbarPos("S Min", "HSV Ayarları")
-        v_low = cv2.getTrackbarPos("V Min", "HSV Ayarları")
-        h_high = cv2.getTrackbarPos("H Max", "HSV Ayarları")
-        s_high = cv2.getTrackbarPos("S Max", "HSV Ayarları")
-        v_high = cv2.getTrackbarPos("V Max", "HSV Ayarları")
-        
-        # HSV maskeleme
-        hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
-        v_mean = np.mean(hsv[:, :, 2])
-        mask = cv2.inRange(hsv,
-                          np.array([h_low, s_low, v_low]),
-                          np.array([h_high, s_high, v_high]))
-        
-        # Sonucu göster
-        result = cv2.bitwise_and(frame_bgr, frame_bgr, mask=mask)
-        
-        # Bilgi yazısı ekle
-        info = f"V_mean: {v_mean:.0f} | "
-        if v_mean < 100:
-            info += "KARANLIK"
-        elif v_mean > 200:
-            info += "PARLAK"
-        else:
-            info += "NORMAL"
-        cv2.putText(frame_bgr, info, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-        
-        cv2.putText(mask, "BEYAZ SERIT BURADA OLMALI", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, 200, 2)
-        
-        # Pencerelerde göster
-        cv2.imshow("Orjinal Görüntü", frame_bgr)
-        cv2.imshow("Maske (Beyaz=ŞERİT)", mask)
-        cv2.imshow("Sonuç", result)
-        
-        key = cv2.waitKey(30) & 0xFF
-        
-        if key == ord('q'):
-            break
-        elif key == ord('s'):
-            # Değerleri kaydet
+            if key != ord('s'):
+                continue
+
+            if v_mean < 100:
+                profile = "DARK"
+            elif v_mean > 200:
+                profile = "BRIGHT"
+            else:
+                profile = "NORMAL"
+
             print()
             print("=" * 62)
             print("✅ HSV DEĞERLERİ KAYDEDİLİYOR...")
             print("=" * 62)
-            print()
-            print("📋 config.py'de şu değerleri yaz (satır 51-60):")
-            print()
-            
-            if v_mean < 100:
-                profile = "DARK"
-                line_low = 51
-                line_high = 52
-            elif v_mean > 200:
-                profile = "BRIGHT"
-                line_low = 59
-                line_high = 60
-            else:
-                profile = "NORMAL"
-                line_low = 55
-                line_high = 56
-            
             print(f"   # {profile} ortam (V_mean={v_mean:.0f})")
             print(f"   WHITE_HSV_LOW_{profile}  = ({h_low}, {s_low}, {v_low})")
             print(f"   WHITE_HSV_HIGH_{profile} = ({h_high}, {s_high}, {v_high})")
             print()
-            
-            # config.py'yi güncelle
+
             try:
-                config_path = os.path.join(os.path.dirname(__file__), 'config.py')
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
+                import re
+                config_path = SCRIPT_DIR / "config.py"
+                content = config_path.read_text(encoding="utf-8")
                 old_low = f"WHITE_HSV_LOW_{profile}"
                 old_high = f"WHITE_HSV_HIGH_{profile}"
-                
-                # Bu profili otomatik güncelle
-                import re
                 pattern_low = rf'{old_low}\s*=\s*\([^)]+\)'
                 pattern_high = rf'{old_high}\s*=\s*\([^)]+\)'
-                
-                new_content = re.sub(pattern_low, f'{old_low} = ({h_low}, {s_low}, {v_low})', content, count=1)
-                new_content = re.sub(pattern_high, f'{old_high} = ({h_high}, {s_high}, {v_high})', new_content, count=1)
-                
-                with open(config_path, 'w', encoding='utf-8') as f:
-                    f.write(new_content)
-                
+                new_content, low_count = re.subn(
+                    pattern_low,
+                    f'{old_low} = ({h_low}, {s_low}, {v_low})',
+                    content,
+                    count=1,
+                )
+                new_content, high_count = re.subn(
+                    pattern_high,
+                    f'{old_high} = ({h_high}, {s_high}, {v_high})',
+                    new_content,
+                    count=1,
+                )
+                if low_count != 1 or high_count != 1:
+                    raise RuntimeError("config.py içinde hedef HSV profili bulunamadı")
+                config_path.write_text(new_content, encoding="utf-8")
                 print("✅ config.py OTOMATİK GÜNCELLENDİ!")
-                print()
-            except Exception as e:
-                print(f"⚠️  Otomatik güncelleme başarısız: {e}")
+            except Exception as exc:
+                print(f"⚠️  Otomatik güncelleme başarısız: {exc}")
                 print("   Yukarıdaki değerleri manuel olarak yaz.")
-            
             break
-    
-    # Temizle
-    if is_picam:
-        camera.stop()
-    else:
-        camera.release()
-    cv2.destroyAllWindows()
+    finally:
+        try:
+            if is_picam:
+                try:
+                    camera.stop()
+                finally:
+                    close = getattr(camera, "close", None)
+                    if close is not None:
+                        close()
+            else:
+                camera.release()
+        finally:
+            cv2.destroyAllWindows()
     
     basinca_devam()
 
@@ -348,7 +377,7 @@ def kamera_testi():
     basinca_devam()
     
     try:
-        os.system(f"{sys.executable} camera.py")
+        araci_calistir("camera.py")
     except Exception as e:
         print(f"❌ Hata: {e}")
         basinca_devam()
@@ -379,7 +408,7 @@ def perspektif_kalibrasyon():
     basinca_devam()
     
     try:
-        os.system(f"{sys.executable} calibrate.py")
+        araci_calistir("calibrate.py")
     except Exception as e:
         print(f"❌ Hata: {e}")
         basinca_devam()
@@ -412,7 +441,7 @@ def pd_tuning():
     basinca_devam()
     
     try:
-        os.system(f"{sys.executable} pd_tune.py")
+        araci_calistir("pd_tune.py")
     except Exception as e:
         print(f"❌ Hata: {e}")
         basinca_devam()
@@ -444,7 +473,7 @@ def motor_interaktif():
     basinca_devam()
     
     try:
-        os.system(f"{sys.executable} camtester.py")
+        araci_calistir("camtester.py")
     except Exception as e:
         print(f"❌ Hata: {e}")
         basinca_devam()
@@ -482,7 +511,7 @@ def yol_takip_test():
         return
     
     try:
-        os.system(f"{sys.executable} yol_takip.py")
+        araci_calistir("yol_takip.py")
     except Exception as e:
         print(f"❌ Hata: {e}")
     
@@ -514,7 +543,7 @@ def ana_program():
         return
     
     try:
-        os.system(f"{sys.executable} main.py")
+        araci_calistir("main.py")
     except Exception as e:
         print(f"❌ Hata: {e}")
     

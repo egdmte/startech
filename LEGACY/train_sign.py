@@ -79,26 +79,27 @@ def main():
     if not os.path.isdir(data_dir):
         sys.exit(f"HATA: klasör bulunamadı → {data_dir}")
 
-    classes = sorted(
+    class_dirs = sorted(
         d for d in os.listdir(data_dir)
         if os.path.isdir(os.path.join(data_dir, d))
     )
-    if not classes:
+    if not class_dirs:
         sys.exit("HATA: alt klasör bulunamadı (her sınıf bir klasör olmalı)")
 
-    print(f"Sınıflar ({len(classes)}): {', '.join(classes)}")
+    print(f"Aday sınıflar ({len(class_dirs)}): {', '.join(class_dirs)}")
 
+    classes: list[str] = []
     vectors: list = []
     labels:  list = []
 
-    for cls_idx, cls_name in enumerate(classes):
+    for cls_name in class_dirs:
         cls_dir = os.path.join(data_dir, cls_name)
         imgs = [
             f for f in os.listdir(cls_dir)
             if f.lower().endswith(('.jpg', '.jpeg', '.png'))
         ]
 
-        cls_count = 0
+        class_vectors: list[list[float]] = []
         for fname in imgs:
             img = cv2.imread(os.path.join(cls_dir, fname))
             if img is None:
@@ -106,11 +107,20 @@ def main():
                 continue
             for aug in _augment(img):
                 feat = _hog_feat(_preprocess(aug))
-                vectors.append([round(float(v), 6) for v in feat])
-                labels.append(cls_idx)
-                cls_count += 1
+                class_vectors.append([round(float(v), 6) for v in feat])
 
-        print(f"  [{cls_idx}] {cls_name:15s}: {len(imgs)} gorsel -> {cls_count} vektor")
+        if not class_vectors:
+            print(f"  [ATLANDI] {cls_name:15s}: okunabilir görsel yok")
+            continue
+
+        cls_idx = len(classes)
+        classes.append(cls_name)
+        vectors.extend(class_vectors)
+        labels.extend([cls_idx] * len(class_vectors))
+        print(
+            f"  [{cls_idx}] {cls_name:15s}: "
+            f"{len(imgs)} gorsel -> {len(class_vectors)} vektor"
+        )
 
     if not vectors:
         sys.exit("HATA: hiç vektör üretilemedi")

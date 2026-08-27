@@ -12,9 +12,10 @@
 # =============================================================================
 import time
 import sys
+import math
 
 try:
-    from motor import MotorDriver
+    from motor import MotorDriver, MotorHardwareUnavailable
 except ImportError:
     print("motor.py bulunamadı. Aynı klasörde çalıştır.")
     sys.exit(1)
@@ -23,9 +24,11 @@ TEST_SPEED    = 50    # % — test hızı
 TEST_DURATION = 2.0   # saniye — ne kadar ileri gideceği
 TRACK_LENGTH  = None  # cm — gerçek mesafe (ölçeceksin)
 
-motor = MotorDriver()
+motor = None
 
 def run_straight_test():
+    if motor is None:
+        raise RuntimeError("Motor başlatılmadı")
     print("\n" + "="*50)
     print("  MOTOR DENGE TESTİ")
     print("="*50)
@@ -38,6 +41,7 @@ def run_straight_test():
     time.sleep(TEST_DURATION)
     motor.brake()
     time.sleep(0.5)
+    motor.coast()
 
     print("\nAraç durdu.")
     print("Şimdi aracın başlangıç çizgisinden ne kadar saptığını ölç.")
@@ -50,8 +54,8 @@ def run_straight_test():
         print("Geçersiz giriş.")
         return
 
-    if mesafe <= 0:
-        print("Mesafe sıfırdan büyük olmalı.")
+    if not math.isfinite(sapma) or not math.isfinite(mesafe) or mesafe <= 0:
+        print("Sapma sonlu, mesafe sonlu ve sıfırdan büyük olmalı.")
         return
 
     # Sapma oranı hesabı
@@ -117,6 +121,8 @@ def run_straight_test():
 
 def run_pwm_sweep():
     """Her iki motoru ayrı ayrı test eder — fiziksel fark var mı kontrol eder."""
+    if motor is None:
+        raise RuntimeError("Motor başlatılmadı")
     print("\n" + "="*50)
     print("  PWM SÜPÜRME TESTİ (tek tek motor)")
     print("="*50)
@@ -131,6 +137,7 @@ def run_pwm_sweep():
         time.sleep(1.5)
         motor.brake()
         time.sleep(0.3)
+        motor.coast()
 
     print("\nTest bitti. Motor seslerini / hızlarını karşılaştır.")
     print("Belirgin fark varsa fiziksel sorun (motor bağlantısı, direnç) olabilir.")
@@ -150,6 +157,10 @@ if __name__ == "__main__":
     TEST_SPEED    = _a.hiz
     TEST_DURATION = _a.sure
 
+    if (not math.isfinite(TEST_SPEED) or not 0 < TEST_SPEED <= 100
+            or not math.isfinite(TEST_DURATION) or TEST_DURATION <= 0):
+        _ap.error("--hiz 0..100 arasında, --sure sıfırdan büyük ve sonlu olmalı")
+
     print("Motor Denge Kalibrasyonu")
     print(f"   TEST_SPEED = {TEST_SPEED}  TEST_DURATION = {TEST_DURATION}")
     print("")
@@ -158,8 +169,10 @@ if __name__ == "__main__":
     print("")
     print("1) Düz gidiş testi (trim hesapla)")
     print("2) PWM süpürme testi (motor fiziksel kontrolü)")
-    
+
     try:
+        motor = MotorDriver()
+        motor.require_hardware()
         sec = input("\nSeçim (1/2): ").strip()
         if sec == "1":
             run_straight_test()
@@ -169,5 +182,8 @@ if __name__ == "__main__":
             print("Geçersiz seçim.")
     except KeyboardInterrupt:
         print("\nKesintiye uğradı.")
+    except MotorHardwareUnavailable as exc:
+        print(f"\nBaşlatılamadı: {exc}")
     finally:
-        motor.stop()
+        if motor is not None:
+            motor.stop()

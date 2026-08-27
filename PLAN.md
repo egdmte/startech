@@ -45,18 +45,41 @@ testing.
 
 Software repair batch completed 27 August 2026:
 
-- lane loss no longer differentiates its synthetic fallback value;
+- lane loss no longer calculates a derivative from its fading fallback value;
 - derivative thresholds now operate in their documented pixel-per-frame unit;
 - lane following cannot command opposite wheel directions;
-- the motor layer enforces the configured dead-zone floor after later speed scaling;
+- a missing lane before the first real detection requests zero motion, and the 30th
+  consecutive lost frame stops both wheels;
+- medium derivative slowdown cannot accidentally accelerate a sharp curve;
+- the lane histogram now enforces the already-configured peak-quality threshold instead
+  of accepting broad low-level image noise as a lane;
+- the motor layer is the only trim owner and enforces the configured dead-zone floor
+  after later speed scaling;
 - the speed-bump command is no longer below that floor;
-- camera capture failures raise an error and the frame-error path brakes immediately;
-- shutdown now calls the logger's real `finish()` method and attempts every cleanup even
-  if one component fails.
+- missing/mock GPIO now fails explicitly instead of accepting commands through a no-op
+  output, and invalid/non-finite commands close the motor outputs;
+- direction pins change only after PWM is zero, active braking and coasting are distinct,
+  and shutdown is idempotent;
+- camera-open and capture failures raise errors rather than yielding generated black
+  frames; Pi, USB, and OpenCV resources are closed on failure and interruption;
+- `main.py` and `yol_takip.py` construct motor hardware before camera acquisition, work
+  with Windows or POSIX keyboard input, preserve non-zero failures, and do not leave a
+  worker/server alive after the drive loop fails;
+- state transitions stop the previous command before crosswalk, level-crossing,
+  speed-bump, overtake, and parking work; one visible event is not repeatedly consumed;
+- the logger records a lost lane as missing data instead of a perfect zero-error sample;
+- calibration launchers use their own directory, hardware tools no longer open outputs
+  merely because they were imported, and interruption follows a real cleanup path;
+- the standalone sign-camera tool no longer opens a webcam on import, and sign training
+  omits empty/unreadable classes rather than publishing unusable labels;
+- shutdown calls the logger's real `finish()` method and attempts every cleanup even if
+  one component fails;
 - the retained baseline already records for 300 seconds and includes the GPIO 16 physical
   start-button path, so those two historical defects are no longer in the repair queue.
 
-Six focused software regressions cover these corrections. They are `IMPLEMENTED` and
+Fifteen focused vehicle regressions cover the controller, lane-signal, logger,
+motor-boundary, and import-side-effect corrections. The repository suite currently
+passes 148 tests plus two subtests. These repairs are `IMPLEMENTED` and
 `PHYSICALLY UNVERIFIED`.
 
 ### KERİM — implemented service, incomplete vehicle bridge
@@ -100,10 +123,12 @@ the remaining repair queue; completed software repairs are recorded in Current t
 
 - The perspective quadrilateral was tuned for 640×480 while runtime frames were
   configured as 800×680.
-- Motor balance tooling writes names that do not match the values read by the runtime.
-- Trim is duplicated or applied to the wrong wheel in parts of the old path.
 - Configuration values and brightness handling are duplicated across files.
-- The sign classifier exists but is not connected to the runtime decision path.
+- The sign classifier and model exist as standalone tools but are not connected to the
+  runtime decision path. `EventDetector` explicitly returns `sign_type=None`; blue-sign
+  presence is not presented as sign recognition.
+- Camera/event thresholds, perspective, controller gains, and wheel direction still need
+  track-side measurement even where their software paths now reject obvious bad inputs.
 
 Each fix should preserve the simple pipeline and state exactly what changed. Avoid a
 general configuration framework when one constant or function boundary is enough.
@@ -158,8 +183,9 @@ protocol is compatibility material, not proof that the car currently connects.
 ## First repair order
 
 1. Fix the dimension/perspective mismatch using a real calibration capture.
-2. Repair motor-balance output names and connect the existing sign classifier.
-3. Add focused recorded-frame regressions when real camera footage is available.
+2. Add focused recorded-frame regressions when real camera footage is available.
+3. Connect the existing sign classifier only after real sign captures establish its
+   labels, confidence behavior, and false-positive rate.
 4. Fix KERİM's MAC circular-save bug after the vehicle repair queue is stable.
 5. At SCHOOL, perform bounded camera, motor-direction, trim, stop, and lane checks.
 6. Only after those results, decide whether a small TAWNT motor-boundary integration or
@@ -195,7 +221,7 @@ Run the retained software suite from the repository root:
 ```powershell
 $env:CAM_RELEASE = (git rev-parse HEAD).Trim()
 py -m pytest -q
-py -m compileall LEGACY startech startech_cam tawnt.py wsgi.py
+py -m compileall -q LEGACY startech startech_cam tawnt.py wsgi.py
 node --check startech_cam/static/cam.js
 ```
 

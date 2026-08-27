@@ -29,15 +29,29 @@ def nothing(_): pass
 
 def main():
     # Kamera başlat
+    cam = None
+    cap = None
     if _USE_PI:
-        cam = Picamera2()
-        cam.configure(cam.create_preview_configuration(
-            main={"size": (WIDTH, HEIGHT), "format": "RGB888"}
-        ))
-        cam.start()
-        time.sleep(2)
-    else:
+        try:
+            cam = Picamera2()
+            cam.configure(cam.create_preview_configuration(
+                main={"size": (WIDTH, HEIGHT), "format": "RGB888"}
+            ))
+            cam.start()
+            time.sleep(2)
+        except Exception as exc:
+            print(f"Pi kamera açılamadı, USB deneniyor: {exc}")
+            if cam is not None:
+                try:
+                    cam.close()
+                except Exception:
+                    pass
+            cam = None
+    if cam is None:
         cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            cap.release()
+            raise RuntimeError("USB kamera açılamadı")
         cap.set(cv2.CAP_PROP_FRAME_WIDTH,  WIDTH)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
 
@@ -79,17 +93,18 @@ def main():
     print(f"\nMevcut profil: {profile_keys[profile_idx]}")
 
     saved: list = []
+    apply_profile(profile_keys[profile_idx])
 
     try:
         while True:
             # Kare al
-            if _USE_PI:
+            if cam is not None:
                 frame_rgb = cam.capture_array()
                 frame = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
             else:
                 ret, frame = cap.read()
                 if not ret:
-                    continue
+                    raise RuntimeError("USB kamera kare üretemedi")
                 frame = cv2.resize(frame, (WIDTH, HEIGHT))
 
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -143,9 +158,14 @@ def main():
                 print(f"[Kaydedildi] ({h_lo},{s_lo},{v_lo}) → ({h_hi},{s_hi},{v_hi})")
 
     finally:
-        if _USE_PI:
-            cam.stop()
-        else:
+        if cam is not None:
+            try:
+                cam.stop()
+            finally:
+                close = getattr(cam, "close", None)
+                if close is not None:
+                    close()
+        if cap is not None:
             cap.release()
         cv2.destroyAllWindows()
 
@@ -160,7 +180,7 @@ def main():
 
     if not saved:
         # En son slider değerlerini yazdır
-        print(f"\nSon değerler (kaydetmedin ama bunları kullanabilirsin):")
+        print("\nSon değerler (kaydetmedin ama bunları kullanabilirsin):")
         h_lo = cv2.getTrackbarPos("H Min", "HSV Ayar") if False else h_lo
         print(f"  ALT = ({h_lo}, {s_lo}, {v_lo})")
         print(f"  ÜST = ({h_hi}, {s_hi}, {v_hi})")

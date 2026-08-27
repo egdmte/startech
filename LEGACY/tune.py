@@ -30,7 +30,6 @@ Perspektif modunda (mod 4):
 
 import os
 import re
-import sys
 import time
 
 import cv2
@@ -191,18 +190,33 @@ class _Camera:
     def __init__(self, w, h):
         self.w = w
         self.h = h
+        self._pi = None
+        self._cv = None
+        self._mode = None
         if _USE_PI:
-            self._pi = Picamera2()
-            cfg = self._pi.create_preview_configuration(
-                main={"format": "RGB888", "size": (w, h)},
-                buffer_count=4,          # starvation önleme
-            )
-            self._pi.configure(cfg)
-            self._pi.start()
-            time.sleep(1)
-            self._mode = 'pi'
-        else:
+            try:
+                self._pi = Picamera2()
+                cfg = self._pi.create_preview_configuration(
+                    main={"format": "RGB888", "size": (w, h)},
+                    buffer_count=4,          # starvation önleme
+                )
+                self._pi.configure(cfg)
+                self._pi.start()
+                time.sleep(1)
+                self._mode = 'pi'
+            except Exception as exc:
+                print(f"[tune] Pi kamera açılamadı, USB deneniyor: {exc}")
+                if self._pi is not None:
+                    try:
+                        self._pi.close()
+                    except Exception:
+                        pass
+                self._pi = None
+        if self._mode is None:
             self._cv = cv2.VideoCapture(0)
+            if not self._cv.isOpened():
+                self._cv.release()
+                raise RuntimeError("USB kamera açılamadı")
             self._cv.set(cv2.CAP_PROP_FRAME_WIDTH, w)
             self._cv.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
             self._mode = 'cv'
@@ -217,7 +231,7 @@ class _Camera:
         else:
             ret, frame = self._cv.read()
             if not ret:
-                return np.zeros((self.h, self.w, 3), dtype=np.uint8)
+                raise RuntimeError("USB kamera kare üretemedi")
             frame = cv2.resize(frame, (self.w, self.h))
         if _ROTATE_180:
             frame = cv2.rotate(frame, cv2.ROTATE_180)
@@ -225,8 +239,13 @@ class _Camera:
 
     def stop(self):
         if self._mode == 'pi':
-            self._pi.stop()
-        else:
+            try:
+                self._pi.stop()
+            finally:
+                close = getattr(self._pi, "close", None)
+                if close is not None:
+                    close()
+        elif self._cv is not None:
             self._cv.release()
 
 
@@ -473,14 +492,18 @@ def main():
     print("=" * 56)
     print("  TUNE v1.0  —  MEB 2026 Otonom Arac Ayar Araci")
     print("=" * 56)
-    print(f"  Kamera: {'Picamera2 (Pi)' if _USE_PI else 'USB / VideoCapture'}")
     print(f"  Config: {CONFIG_PATH}")
     print()
     print("  Pencere aciliyor...  (q / Esc = cik)")
     print()
 
-    cam  = _Camera(WIDTH, HEIGHT)
-    proc = _Processor(WIDTH, HEIGHT)
+    cam = _Camera(WIDTH, HEIGHT)
+    print(f"  Kamera: {'Picamera2 (Pi)' if cam._mode == 'pi' else 'USB / VideoCapture'}")
+    try:
+        proc = _Processor(WIDTH, HEIGHT)
+    except BaseException:
+        cam.stop()
+        raise
 
     # Parametre grupları
     all_params = _build_params()
@@ -573,7 +596,7 @@ def main():
             persp_pts = [list(p) for p in _read_cfg('PERSP_SRC',
                             [[160, 300], [480, 300], [0, 480], [640, 480]])]
             _update_proc_persp(persp_pts)
-        print(f'[tune] Yeniden yuklendi')
+        print('[tune] Yeniden yuklendi')
 
     try:
         while True:

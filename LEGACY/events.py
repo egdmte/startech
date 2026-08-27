@@ -168,6 +168,7 @@ class EventDetector:
             yellow_car     : bool  — sollama YASAĞI bölgesi sarı engel araç
             parking_zone   : bool  — kırmızı park slotu görünür (kural 3.4.7)
             sign_blue      : bool  — mavi levha (Park P tabelası)
+            sign_type      : None  — sınıflandırıcı henüz çalışma yoluna bağlı değil
         """
         hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
 
@@ -252,6 +253,9 @@ class EventDetector:
             'yellow_car':      c_yellow,
             'parking_zone':    c_parking_zone,
             'sign_blue':       c_sign_blue,
+            # sign_test.py ve sign_model.json gerçek araçlardan ayrı bir araçtır.
+            # Bir levhayı sınıflandırmadığımız halde tür uydurmayız.
+            'sign_type':       None,
         }
 
     # ------------------------------------------------------------------

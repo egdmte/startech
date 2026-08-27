@@ -43,27 +43,54 @@ def draw_overlay(frame: np.ndarray, pts: list, selected: int) -> np.ndarray:
 
 def main():
     # Kamera başlat (Pi veya USB)
+    picam2 = None
+    cap = None
     if _USE_PI:
-        import time
-        picam2 = Picamera2()
-        cfg = picam2.create_preview_configuration(
-            main={"format": "RGB888", "size": (WIDTH, HEIGHT)}
-        )
-        picam2.configure(cfg)
-        picam2.start()
-        time.sleep(1)
+        try:
+            import time
+            picam2 = Picamera2()
+            cfg = picam2.create_preview_configuration(
+                main={"format": "RGB888", "size": (WIDTH, HEIGHT)}
+            )
+            picam2.configure(cfg)
+            picam2.start()
+            time.sleep(1)
+        except Exception as exc:
+            print(f"Pi kamera açılamadı, USB deneniyor: {exc}")
+            if picam2 is not None:
+                try:
+                    picam2.close()
+                except Exception:
+                    pass
+            picam2 = None
+
+    if picam2 is not None:
         def _get_frame():
             f = picam2.capture_array()
             return cv2.cvtColor(f, cv2.COLOR_RGB2BGR)
-        def _stop(): picam2.stop()
+        def _stop():
+            try:
+                picam2.stop()
+            finally:
+                close = getattr(picam2, "close", None)
+                if close is not None:
+                    close()
+        cam_label = "Pi Camera"
     else:
         cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            cap.release()
+            raise RuntimeError("USB kamera açılamadı")
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
         def _get_frame():
             ret, f = cap.read()
-            return f if ret else np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
-        def _stop(): cap.release()
+            if not ret:
+                raise RuntimeError("USB kamera kare üretemedi")
+            return f
+        def _stop():
+            cap.release()
+        cam_label = "USB Camera"
 
     pts      = [list(p) for p in PERSP_SRC]
     selected = -1
@@ -82,7 +109,6 @@ def main():
         elif event == cv2.EVENT_LBUTTONUP:
             dragging = False
 
-    cam_label = "Pi Camera" if _USE_PI else "USB Camera"
     cv2.namedWindow(f"Kalibrasyon ({cam_label})")
     cv2.setMouseCallback(f"Kalibrasyon ({cam_label})", on_mouse)
 
