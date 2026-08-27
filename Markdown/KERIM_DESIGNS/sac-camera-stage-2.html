@@ -109,7 +109,9 @@
     .perspective-polygon {
       fill: rgb(255 255 255 / 3%);
       stroke: #111111;
-      stroke-width: 1;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
       vector-effect: non-scaling-stroke;
     }
 
@@ -235,11 +237,11 @@
         <div class="perspective-editor">
           <svg id="perspective-svg" viewBox="0 0 506 274" role="img" aria-label="Draggable perspective shape">
             <image class="track-image" id="track-image" x="0" y="0" width="506" height="274" preserveAspectRatio="xMidYMid slice"></image>
-            <polygon class="perspective-polygon" id="perspective-polygon" points="55,4 461,4 506,268 10,268"></polygon>
-            <circle class="perspective-point" data-point="0" cx="55" cy="4" r="5" tabindex="0" aria-label="Top-left perspective point"></circle>
-            <circle class="perspective-point" data-point="1" cx="461" cy="4" r="5" tabindex="0" aria-label="Top-right perspective point"></circle>
-            <circle class="perspective-point" data-point="2" cx="10" cy="268" r="5" tabindex="0" aria-label="Bottom-left perspective point"></circle>
-            <circle class="perspective-point" data-point="3" cx="506" cy="268" r="5" tabindex="0" aria-label="Bottom-right perspective point"></circle>
+            <polygon class="perspective-polygon" id="perspective-polygon" points="55,6 461,6 500,268 10,268"></polygon>
+            <circle class="perspective-point" data-point="0" cx="55" cy="6" r="5.5" tabindex="0" aria-label="Top-left perspective point"></circle>
+            <circle class="perspective-point" data-point="1" cx="461" cy="6" r="5.5" tabindex="0" aria-label="Top-right perspective point"></circle>
+            <circle class="perspective-point" data-point="2" cx="10" cy="268" r="5.5" tabindex="0" aria-label="Bottom-left perspective point"></circle>
+            <circle class="perspective-point" data-point="3" cx="500" cy="268" r="5.5" tabindex="0" aria-label="Bottom-right perspective point"></circle>
           </svg>
         </div>
       </div>
@@ -272,10 +274,10 @@
     const saveResult = document.querySelector('#save-result');
 
     const defaultPoints = () => [
-      { x: 55, y: 4 },
-      { x: 461, y: 4 },
+      { x: 55, y: 6 },
+      { x: 461, y: 6 },
       { x: 10, y: 268 },
-      { x: 506, y: 268 }
+      { x: 500, y: 268 }
     ];
 
     const frames = [defaultPoints()];
@@ -297,8 +299,8 @@
     function svgPosition(event) {
       const rect = svg.getBoundingClientRect();
       return {
-        x: Math.max(4, Math.min(502, (event.clientX - rect.left) * 506 / rect.width)),
-        y: Math.max(4, Math.min(270, (event.clientY - rect.top) * 274 / rect.height))
+        x: Math.max(6, Math.min(500, (event.clientX - rect.left) * 506 / rect.width)),
+        y: Math.max(6, Math.min(268, (event.clientY - rect.top) * 274 / rect.height))
       };
     }
 
