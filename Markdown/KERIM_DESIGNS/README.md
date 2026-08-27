@@ -13,3 +13,5 @@ add a new versioned file and retain the previous one in Git history.
 
 - `sac-camera-stage-1.html` — SAC Camera, Stage 1: frame settings. Reconstructed from
   the user-supplied design dated 27 August 2026.
+- `sac-camera-stage-2.html` — SAC Camera, Stage 2: perspective frames. Reconstructed
+  from the user-supplied design dated 27 August 2026.
