@@ -76,7 +76,7 @@
     }
 
     .perspective-area {
-      width: 506px;
+      width: 508px;
       max-width: 100%;
       margin: 0 auto;
     }
@@ -89,9 +89,11 @@
 
     .perspective-editor {
       position: relative;
-      width: 100%;
-      aspect-ratio: 506 / 274;
-      overflow: hidden;
+      box-sizing: content-box;
+      width: 506px;
+      height: 274px;
+      max-width: 100%;
+      overflow: visible;
       border: 1px solid #444444;
       background: #f1f1f1;
     }
@@ -100,6 +102,7 @@
       display: block;
       width: 100%;
       height: 100%;
+      overflow: visible;
       touch-action: none;
       user-select: none;
     }
@@ -217,6 +220,7 @@
       .stage-content { width: calc(100% - 30px); max-width: 560px; min-width: 0; padding-top: 38px; }
       .stage-heading { margin-bottom: 38px; }
       .stage-heading p { font-size: 14px; }
+      .perspective-editor { box-sizing: border-box; width: 100%; height: auto; aspect-ratio: 506 / 274; }
       .stage-actions { margin-top: 38px; }
       .session-footer { flex-wrap: wrap; }
       .session-progress { order: 3; flex-basis: 100%; }
@@ -237,11 +241,11 @@
         <div class="perspective-editor">
           <svg id="perspective-svg" viewBox="0 0 506 274" role="img" aria-label="Draggable perspective shape">
             <image class="track-image" id="track-image" x="0" y="0" width="506" height="274" preserveAspectRatio="xMidYMid slice"></image>
-            <polygon class="perspective-polygon" id="perspective-polygon" points="55,6 461,6 500,268 10,268"></polygon>
-            <circle class="perspective-point" data-point="0" cx="55" cy="6" r="5.5" tabindex="0" aria-label="Top-left perspective point"></circle>
-            <circle class="perspective-point" data-point="1" cx="461" cy="6" r="5.5" tabindex="0" aria-label="Top-right perspective point"></circle>
-            <circle class="perspective-point" data-point="2" cx="10" cy="268" r="5.5" tabindex="0" aria-label="Bottom-left perspective point"></circle>
-            <circle class="perspective-point" data-point="3" cx="500" cy="268" r="5.5" tabindex="0" aria-label="Bottom-right perspective point"></circle>
+            <polygon class="perspective-polygon" id="perspective-polygon" points="55,0 461,0 506,274 0,274"></polygon>
+            <circle class="perspective-point" data-point="0" cx="55" cy="0" r="5.5" tabindex="0" aria-label="Top-left perspective point"></circle>
+            <circle class="perspective-point" data-point="1" cx="461" cy="0" r="5.5" tabindex="0" aria-label="Top-right perspective point"></circle>
+            <circle class="perspective-point" data-point="2" cx="0" cy="274" r="5.5" tabindex="0" aria-label="Bottom-left perspective point"></circle>
+            <circle class="perspective-point" data-point="3" cx="506" cy="274" r="5.5" tabindex="0" aria-label="Bottom-right perspective point"></circle>
           </svg>
         </div>
       </div>
@@ -274,10 +278,10 @@
     const saveResult = document.querySelector('#save-result');
 
     const defaultPoints = () => [
-      { x: 55, y: 6 },
-      { x: 461, y: 6 },
-      { x: 10, y: 268 },
-      { x: 500, y: 268 }
+      { x: 55, y: 0 },
+      { x: 461, y: 0 },
+      { x: 0, y: 274 },
+      { x: 506, y: 274 }
     ];
 
     const frames = [defaultPoints()];
@@ -299,8 +303,8 @@
     function svgPosition(event) {
       const rect = svg.getBoundingClientRect();
       return {
-        x: Math.max(6, Math.min(500, (event.clientX - rect.left) * 506 / rect.width)),
-        y: Math.max(6, Math.min(268, (event.clientY - rect.top) * 274 / rect.height))
+        x: Math.max(0, Math.min(506, (event.clientX - rect.left) * 506 / rect.width)),
+        y: Math.max(0, Math.min(274, (event.clientY - rect.top) * 274 / rect.height))
       };
     }
 
