@@ -43,6 +43,22 @@ This is stronger evidence than a new architecture passing software tests. It doe
 mean the current baseline is safe or race-ready without repairs and renewed physical
 testing.
 
+Software repair batch completed 27 August 2026:
+
+- lane loss no longer differentiates its synthetic fallback value;
+- derivative thresholds now operate in their documented pixel-per-frame unit;
+- lane following cannot command opposite wheel directions;
+- the motor layer enforces the configured dead-zone floor after later speed scaling;
+- the speed-bump command is no longer below that floor;
+- camera capture failures raise an error and the frame-error path brakes immediately;
+- shutdown now calls the logger's real `finish()` method and attempts every cleanup even
+  if one component fails.
+- the retained baseline already records for 300 seconds and includes the GPIO 16 physical
+  start-button path, so those two historical defects are no longer in the repair queue.
+
+Six focused software regressions cover these corrections. They are `IMPLEMENTED` and
+`PHYSICALLY UNVERIFIED`.
+
 ### KERİM — implemented service, incomplete vehicle bridge
 
 KERİM remains in `startech_cam/`, with its deployment support under `deployment/`.
@@ -77,25 +93,17 @@ Software-only repairs can proceed. New physical claims must wait for access to t
 
 ## Known vehicle defects to repair
 
-`Markdown/HATA_DEFTERI_PAYLASIM.pdf` is the primary post-mortem. The following items are
-the repair queue, not a claim that they are already fixed.
+`Markdown/HATA_DEFTERI_PAYLASIM.pdf` is the primary post-mortem. The list below contains
+the remaining repair queue; completed software repairs are recorded in Current truth.
 
 ### Software-visible defects
 
 - The perspective quadrilateral was tuned for 640×480 while runtime frames were
   configured as 800×680.
-- The lost-lane path injects a synthetic error that produces a derivative spike and can
-  flip steering direction.
-- Speed scaling later in the pipeline can undo the controller's dead-zone behavior.
-- One derivative threshold is interpreted with inconsistent units.
 - Motor balance tooling writes names that do not match the values read by the runtime.
 - Trim is duplicated or applied to the wrong wheel in parts of the old path.
 - Configuration values and brightness handling are duplicated across files.
 - The sign classifier exists but is not connected to the runtime decision path.
-- Runtime errors do not always request zero motor output immediately.
-- Logging duration was shorter than the race duration and must cover the complete run.
-- A physical start-button path was removed and needs an explicit product decision before
-  restoration; do not replace it with a gimmick phrase prompt.
 
 Each fix should preserve the simple pipeline and state exactly what changed. Avoid a
 general configuration framework when one constant or function boundary is enough.
@@ -149,13 +157,12 @@ protocol is compatibility material, not proof that the car currently connects.
 
 ## First repair order
 
-1. Freeze and characterize the retained LEGACY baseline without reorganizing it.
-2. Fix the dimension/perspective mismatch and MAC circular-save bug.
-3. Fix lost-lane derivative behavior and ensure errors request zero output.
-4. Repair motor-balance names, duplicate trim, and log duration.
-5. Add focused recorded-frame and pure-control regressions where they prove the fixes.
-6. At SCHOOL, perform bounded camera, motor-direction, trim, stop, and lane checks.
-7. Only after those results, decide whether a small TAWNT motor-boundary integration or
+1. Fix the dimension/perspective mismatch using a real calibration capture.
+2. Repair motor-balance output names and connect the existing sign classifier.
+3. Add focused recorded-frame regressions when real camera footage is available.
+4. Fix KERİM's MAC circular-save bug after the vehicle repair queue is stable.
+5. At SCHOOL, perform bounded camera, motor-direction, trim, stop, and lane checks.
+6. Only after those results, decide whether a small TAWNT motor-boundary integration or
    KERİM vehicle adapter is useful.
 
 ## Repository state after the reset

@@ -66,6 +66,7 @@ from motor import MotorDriver
 class _Camera:
     def __init__(self):
         self._latest:  np.ndarray | None = None
+        self._error: Exception | None = None
         self._lock    = threading.Lock()
         self._running = True
 
@@ -103,19 +104,23 @@ class _Camera:
                     frame = cv2.rotate(frame, cv2.ROTATE_180)
                 with self._lock:
                     self._latest = frame
-            except Exception:
-                pass
+            except Exception as exc:
+                with self._lock:
+                    self._error = exc
+                self._running = False
 
     def capture(self) -> np.ndarray:
         if _USE_PICAMERA:
             with self._lock:
+                if self._error is not None:
+                    raise RuntimeError("Pi camera capture failed") from self._error
                 if self._latest is not None:
                     return self._latest
-            return np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
+            raise RuntimeError("Pi camera has not produced a frame")
         else:
             ret, frame = self._cv.read()
             if not ret:
-                return np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
+                raise RuntimeError("USB camera capture failed")
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             if CAMERA_ROTATE_180:
                 frame = cv2.rotate(frame, cv2.ROTATE_180)
@@ -518,6 +523,8 @@ def drive_loop() -> None:
         _err_count += 1
         import traceback
         print(f"[main] KARE HATASI ({_err_count}): {_e}")
+        # Bir onceki PWM komutunu hata boyunca tasimak yerine hemen dur.
+        motor.brake()
         if _err_count == 1:
             traceback.print_exc()
         if _err_count > 30:
@@ -532,18 +539,19 @@ def _shutdown(sig=None, frame=None) -> None:
     global _running
     print("\n[main] Kapatılıyor...")
     _running = False
-    try:
-        motor.stop()
-        camera.stop()
-        logger.close()
-        if _button_handle is not None:
-            try:
-                _button_handle.close()
-            except Exception:
-                pass
-        cv2.destroyAllWindows()
-    except Exception as e:
-        print(f"[main] Kapatma hatası: {e}")
+    for name, cleanup in (
+        ("motor", motor.stop),
+        ("camera", camera.stop),
+        ("logger", logger.finish),
+        ("button", _button_handle.close if _button_handle is not None else None),
+        ("windows", cv2.destroyAllWindows),
+    ):
+        if cleanup is None:
+            continue
+        try:
+            cleanup()
+        except Exception as e:
+            print(f"[main] {name} kapatma hatasi: {e}")
     sys.exit(0)
 
 

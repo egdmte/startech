@@ -128,7 +128,10 @@ INTEGRAL_MAX = 50.0
 KP_LARGE_ERROR_MULT = 1.3  # oransal kazanç çarpanı
 KD_LARGE_ERROR_MULT = 1.2  # türevsel kazanç çarpanı
 
-# Derivative cap (salınım önleme)
+# Kareler arasi hata degisimi icin sinirlar (piksel/kare).
+# Bu denetleyicinin ilk surumu farki saniyeye bolup asagidaki kare-bazli
+# esiklerle karsilastiriyordu. 30 FPS'te yalnizca 1.67 px kamera gurultusu
+# araci MIN_SPEED'e dusuruyordu (HATA_DEFTERI #20).
 DERIV_CAP = 150
 
 # Crossing (viraj) için KD artırma (|derivative| > 50 iken etkin)
@@ -142,9 +145,9 @@ MIN_SPEED  = 25   # minimum hız (virajda durmama)
 MAX_SPEED  = 85   # maksimum hız
 K_SPEED    = 0.45 # hız = BASE - K_SPEED * |hata|
 
-# Hız-Viraj Koordinasyonu: Derivative bazlı yavaşlama
-DERIV_SLOWDOWN_THRESHOLD = 50   # |derivative| > 50 ise MIN_SPEED'e
-DERIV_MEDIUM_THRESHOLD   = 30   # |derivative| > 30 ise BASE - 10
+# Hız-Viraj Koordinasyonu: kare basina hata degisimiyle yavaslama
+DERIV_SLOWDOWN_THRESHOLD = 50   # |delta_error| > 50 px/kare ise MIN_SPEED
+DERIV_MEDIUM_THRESHOLD   = 30   # |delta_error| > 30 px/kare ise BASE - 10
 
 # Motor dengeleme katsayıları — mekanik dengesizliği giderir.
 # Düşük hızda (< 40%) ve yüksek hızda (> 70%) ayrı profiller
@@ -257,7 +260,7 @@ LANE_LOST_TURN_BIAS = 100   # şerit kayıpken kullanılan yapay hata büyüklü
 CROSSWALK_WAIT_SEC  = 5.0   # yaya geçidinde bekleme (kural: ≥5 s)
 HEMZEMIN_WAIT_SEC   = 5.0   # hemzemin geçitte bekleme (kural: ≥5 s)
 SPEED_BUMP_SLOW_SEC = 1.5   # tümsek üzerinde yavaş geçiş süresi
-SPEED_BUMP_SPEED    = 25    # tümsek geçişi sırasında hız (%)
+SPEED_BUMP_SPEED    = 30    # motor olu bolgesinin altina inemez
 
 # Yaklaşma hızı: yaya geçidi/hemzemin tespit edildi ama henüz yakın değil
 # durumunda kullanılır. Şerit takibi açık kalır, sadece hız düşer.

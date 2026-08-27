@@ -6,7 +6,7 @@ try:
     _HAS_GPIO = True
 except ImportError:
     _HAS_GPIO = False
-    print("[motor] gpiozero bulunamadı — simülasyon modunda çalışıyor (hareket yok)")
+    print("[motor] gpiozero bulunamadı — motor donanımı kullanılamıyor")
 
     class DigitalOutputDevice:  # type: ignore[no-redef]
         def __init__(self, pin): pass
@@ -23,6 +23,7 @@ from config import (
     LEFT_PWM_PIN, RIGHT_PWM_PIN,
     LEFT_TRIM_LOW, LEFT_TRIM_HIGH,
     RIGHT_TRIM_LOW, RIGHT_TRIM_HIGH,
+    DEAD_ZONE_MIN_PWM,
 )
 
 
@@ -67,6 +68,10 @@ class MotorDriver:
         
         left  = left * left_trim
         right = right * right_trim
+        # Motor olu bolgesi son uygulanacak kuraldir. Main'in yaklasma/tumsek
+        # hiz olceklemesi controller'daki telafiyi geri alamaz.
+        left = self._apply_dead_zone(left)
+        right = self._apply_dead_zone(right)
         left  = max(-100.0, min(100.0, left))
         right = max(-100.0, min(100.0, right))
         self._apply(self._left_in1,  self._left_in2,  self._left_pwm,  left)
@@ -86,6 +91,12 @@ class MotorDriver:
             # Lineer interpolasyon: 40% ile 70% arasında
             ratio = (abs_pwm - 40) / 30.0
             return trim_low + ratio * (trim_high - trim_low)
+
+    @staticmethod
+    def _apply_dead_zone(pwm: float) -> float:
+        if pwm == 0.0 or abs(pwm) >= DEAD_ZONE_MIN_PWM:
+            return pwm
+        return DEAD_ZONE_MIN_PWM if pwm > 0 else -DEAD_ZONE_MIN_PWM
 
     # ------------------------------------------------------------------
     def brake(self) -> None:

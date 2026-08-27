@@ -55,18 +55,21 @@ class PDController:
         - Ölü Bölge Telafisi: PWM sinyalini offset et
         """
         now = time.time()
-        dt  = max(now - self.prev_time, 1e-3)
+        dt = max(now - self.prev_time, 1e-3)
 
         if error is None:
             self.lost_frames += 1
             error = self.prev_error * 0.8   # giderek düzleşir
             error_for_integration = None    # integratörü dondur
+            derivative = 0.0                # uydurma girdinin turevi yoktur
         else:
             self.lost_frames = 0
             error_for_integration = error
+            # Esikler piksel/kare cinsindedir. FPS'e bolmek, kamera gurultusunu
+            # 30 kat buyutup normal serit takibini pivot komutuna ceviriyordu.
+            derivative = error - self.prev_error
 
-        # Derivative hesabı + Cap (salınım önleme)
-        derivative = (error - self.prev_error) / dt
+        # Kareler arasi hata degisimi + cap (salınım önleme)
         derivative = float(np.clip(derivative, -DERIV_CAP, DERIV_CAP))
 
         # İntegral + anti-windup (yalnızca güvenilir error'da biriktir)
@@ -105,8 +108,8 @@ class PDController:
             kp_eff *= KP_LARGE_ERROR_MULT
             kd_eff *= KD_LARGE_ERROR_MULT
 
-        # Crossing (viraj) için KD artırma
-        if abs(derivative) > 50:
+        # Crossing (viraj) için KD artırma. Ayni esigi tek kaynaktan kullan.
+        if abs(derivative) > DERIV_SLOWDOWN_THRESHOLD:
             kd_eff *= CROSSING_KD_MULT
 
         # Direksiyon düzeltme hesabı (PID)
@@ -114,16 +117,22 @@ class PDController:
 
         if self.lost_frames > _LOST_FRAMES_STOP:
             speed = 0.0
-            self.integral = 0.0   # tam durunca biriken bias'ı temizle
+            correction = 0.0
+            self.integral = 0.0   # tam durunca biriken bias'i temizle
+
+        # Serit takip denetleyicisi pivot yapmaz. |correction| > speed iki
+        # tekeri zit yone surup Mayis kosusundaki spirali uretiyordu. Bir teker
+        # sifira inebilir; geri vitese gecemez.
+        requested_correction = correction
+        correction = float(np.clip(correction, -speed, speed))
+        if correction != requested_correction:
+            self.tani["pivot"] += 1
 
         # Ham tekerlek hızları (clip + ölü bölge telafisi pair olarak yapılır)
         left_raw  = speed + correction
         right_raw = speed - correction
 
         # Ölü Bölge Telafisi: common-mode'u kaldır, diferansiyeli koru
-        if left_raw * right_raw < 0:
-            self.tani["pivot"] += 1
-
         left, right = self._apply_dead_zone_pair(left_raw, right_raw)
 
         # TRIM BURADAN KALDIRILDI — 5 Agustos 2026.
@@ -154,7 +163,7 @@ class PDController:
         # gormek isteyen olabilir.
 
         self.prev_error = error
-        self.prev_time  = now
+        self.prev_time = now
 
         return left, right
 
@@ -180,17 +189,17 @@ class PDController:
         print("  MIN_SPEED'e dustu: %s" % y("yavaslama"))
         print("  Orta yavaslama   : %s" % y("orta"))
         print("  Turev DOYDU      : %s" % y("deriv_doydu"))
-        print("  ZIT ISARET/pivot : %s" % y("pivot"))
+        print("  Engellenen pivot : %s" % y("pivot"))
         print("======================================")
         print("  Nasil okunur:")
         print("   - 'MIN_SPEED'e dustu' yuksekse (yuzde 20 ustu), arac neredeyse")
         print("     hep %d hizinda demektir; BASE_SPEED=%d hic kullanilmiyor." % (
               MIN_SPEED, BASE_SPEED))
-        print("   - 'ZIT ISARET' sifirdan buyukse, arac serit takip ederken")
-        print("     kendi etrafinda donmustur. Bolum 6 pivotu SADECE cikmaz")
-        print("     sokak icin ayirmistir; serit takibinde olmamalidir.")
-        print("   - Turev piksel/SANIYE cinsindendir. 30 FPS'te kare basina")
-        print("     1.67 px degisim MIN_SPEED'i tetikler (esik %d)." % (
+        print("   - 'Engellenen pivot' sifirdan buyukse eski denetleyici")
+        print("     tekerleri zit yone surmeye calisacakti. Komut tek teker")
+        print("     sifira inecek sekilde sinirlandi.")
+        print("   - Turev piksel/KARE cinsindendir. Bir karede %d px degisim")
+        print("     MIN_SPEED'i tetikler." % (
               DERIV_SLOWDOWN_THRESHOLD,))
         print("======================================")
         print("")
@@ -210,6 +219,16 @@ class PDController:
         # İkisi de tam sıfırsa dokunma
         if left == 0.0 and right == 0.0:
             return 0.0, 0.0
+        # Denetleyici pivotu sinirlarken bir tekeri bilerek sifira indirir.
+        # Olu bolge telafisi duran tekeri yeniden calistirmamali.
+        if left == 0.0:
+            right_out = (math.copysign(DEAD_ZONE_MIN_PWM, right)
+                         if abs(right) < DEAD_ZONE_MIN_PWM else right)
+            return 0.0, float(np.clip(right_out, -MAX_SPEED, MAX_SPEED))
+        if right == 0.0:
+            left_out = (math.copysign(DEAD_ZONE_MIN_PWM, left)
+                        if abs(left) < DEAD_ZONE_MIN_PWM else left)
+            return float(np.clip(left_out, -MAX_SPEED, MAX_SPEED)), 0.0
 
         same_sign = (left >= 0 and right >= 0) or (left <= 0 and right <= 0)
 
