@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import hashlib
 import hmac
 import json
@@ -20,6 +21,8 @@ import uuid
 
 from flask import current_app
 
+from arac.adam import AdamState
+from arac.kayit import BlackBoxRecord
 from startech.configuration.combined import combined_config_errors
 
 from .db import get_db
@@ -33,6 +36,7 @@ ALLOWED_OPERATIONS = frozenset(
         "INSTALL_INACTIVE_CONFIGURATION",
         "RUN_BOUNDED_WORKSHOP_COMMAND",
         "CAPTURE_CALIBRATION_FRAME",
+        "START_AUTONOMOUS_RUN",
     }
 )
 CAPABILITY_STATUSES = frozenset(
@@ -46,6 +50,8 @@ CAPABILITY_STATUSES = frozenset(
 )
 MAX_JSON_BYTES = 1_000_000
 MAX_CALIBRATION_JPEG_BYTES = 650_000
+MAX_RUN_EVENT_BATCH = 100
+RUN_STATES = frozenset(state.value for state in AdamState)
 
 
 class DeviceLinkError(ValueError):
@@ -456,6 +462,18 @@ def queue_device_job(
     ).fetchone()
     if existing is not None:
         return str(existing["job_id"])
+    if operation == "START_AUTONOMOUS_RUN":
+        active_run = connection.execute(
+            """
+            SELECT job_id FROM device_jobs
+            WHERE device_id = ? AND operation = 'START_AUTONOMOUS_RUN'
+              AND status IN ('PENDING', 'CLAIMED')
+            ORDER BY created_at DESC LIMIT 1
+            """,
+            (device_id,),
+        ).fetchone()
+        if active_run is not None:
+            raise DeviceLinkError("the vehicle already has an active run request")
     job_id = uuid.uuid4().hex
     current = now_epoch()
     link = connection.execute(
@@ -523,6 +541,263 @@ def claim_next_device_job(link_id: str, device_id: str) -> dict[str, Any] | None
     }
 
 
+def _validated_vehicle_run_receipt(receipt: Mapping[str, Any]) -> dict[str, Any]:
+    expected = {
+        "command_id",
+        "operator",
+        "state",
+        "exit_code",
+        "started_at_utc",
+        "finished_at_utc",
+        "log_file",
+        "stop_requested",
+        "physical_motion_observed",
+    }
+    if not isinstance(receipt, Mapping) or set(receipt) != expected:
+        raise DeviceLinkError("vehicle run receipt has unexpected fields")
+    command_id = receipt["command_id"]
+    if (
+        not isinstance(command_id, str)
+        or len(command_id) != 32
+        or any(character not in "0123456789abcdef" for character in command_id)
+    ):
+        raise DeviceLinkError("vehicle run receipt command id is invalid")
+    if receipt["state"] not in RUN_STATES:
+        raise DeviceLinkError("vehicle run receipt state is invalid")
+    if isinstance(receipt["exit_code"], bool) or not isinstance(receipt["exit_code"], int):
+        raise DeviceLinkError("vehicle run receipt exit code is invalid")
+    for field in ("operator", "started_at_utc", "finished_at_utc", "log_file"):
+        value = receipt[field]
+        if not isinstance(value, str) or not value.strip() or len(value) > 240:
+            raise DeviceLinkError(f"vehicle run receipt {field} is invalid")
+    if not isinstance(receipt["stop_requested"], bool):
+        raise DeviceLinkError("vehicle run receipt stop flag is invalid")
+    if receipt["physical_motion_observed"] is not False:
+        raise DeviceLinkError("vehicle run receipt cannot claim physical observation")
+    return dict(receipt)
+
+
+def store_vehicle_run_events(
+    link_id: str,
+    device_id: str,
+    job_id: str,
+    events: object,
+) -> bool:
+    """Persist an ordered KADER batch and return the current cancel request."""
+
+    if not isinstance(events, list) or len(events) > MAX_RUN_EVENT_BATCH:
+        raise DeviceLinkError(
+            f"vehicle run events must be a list of at most {MAX_RUN_EVENT_BATCH} records"
+        )
+    connection = get_db()
+    job = connection.execute(
+        """
+        SELECT operation, status, cancel_requested_at FROM device_jobs
+        WHERE job_id = ? AND link_id = ? AND device_id = ?
+        """,
+        (job_id, link_id, device_id),
+    ).fetchone()
+    if job is None or str(job["operation"]) != "START_AUTONOMOUS_RUN":
+        raise DeviceLinkError("vehicle run job is unavailable")
+    if str(job["status"]) != "CLAIMED":
+        raise DeviceLinkError("vehicle run job is not active")
+
+    last_row = connection.execute(
+        "SELECT MAX(sequence) AS last_sequence FROM vehicle_run_events WHERE job_id = ?",
+        (job_id,),
+    ).fetchone()
+    last_sequence = -1 if last_row["last_sequence"] is None else int(last_row["last_sequence"])
+    received_at = now_epoch()
+    for raw_event in events:
+        try:
+            record = BlackBoxRecord.from_dict(raw_event)
+        except (TypeError, ValueError) as exc:
+            raise DeviceLinkError(f"vehicle run event is invalid: {exc}") from exc
+        if record.run_id != job_id:
+            raise DeviceLinkError("vehicle run event belongs to another run")
+        event_json = _canonical_json(record.to_dict())
+        if record.sequence <= last_sequence:
+            existing = connection.execute(
+                """
+                SELECT event_json FROM vehicle_run_events
+                WHERE job_id = ? AND sequence = ?
+                """,
+                (job_id, record.sequence),
+            ).fetchone()
+            if existing is None or not hmac.compare_digest(
+                str(existing["event_json"]), event_json
+            ):
+                raise DeviceLinkError("vehicle run event sequence was reused with different data")
+            continue
+        if record.sequence != last_sequence + 1:
+            raise DeviceLinkError("vehicle run event sequence is not contiguous")
+        adam_state = None
+        if record.module == "ADAM" and record.kind.value == "STATE":
+            candidate = record.data.get("state")
+            if candidate in RUN_STATES:
+                adam_state = str(candidate)
+        connection.execute(
+            """
+            INSERT INTO vehicle_run_events(
+                job_id, sequence, recorded_at, received_at, adam_state, event_json
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                job_id,
+                record.sequence,
+                record.recorded_at,
+                received_at,
+                adam_state,
+                event_json,
+            ),
+        )
+        last_sequence = record.sequence
+    connection.commit()
+    return job["cancel_requested_at"] is not None
+
+
+def request_vehicle_run_cancel(job_id: str, actor: str) -> bool:
+    """Request cancellation for one run owned by the authenticated legal name."""
+
+    normalized_actor = actor.strip() if isinstance(actor, str) else ""
+    if not normalized_actor:
+        raise DeviceLinkError("vehicle run cancellation actor is invalid")
+    connection = get_db()
+    row = connection.execute(
+        """
+        SELECT operation, payload_json, status FROM device_jobs WHERE job_id = ?
+        """,
+        (job_id,),
+    ).fetchone()
+    if row is None or str(row["operation"]) != "START_AUTONOMOUS_RUN":
+        return False
+    payload = json.loads(str(row["payload_json"]))
+    if payload.get("operator") != normalized_actor:
+        return False
+    current = now_epoch()
+    status = str(row["status"])
+    if status == "PENDING":
+        receipt = _canonical_json(
+            {
+                "cancelled": True,
+                "state": AdamState.RUN_CANCELLED.value,
+                "reason": "operator cancelled before vehicle claim",
+            }
+        )
+        changed = connection.execute(
+            """
+            UPDATE device_jobs
+            SET status = 'REJECTED', completed_at = ?, receipt_json = ?,
+                cancel_requested_at = ?, cancel_requested_by = ?
+            WHERE job_id = ? AND status = 'PENDING'
+            """,
+            (current, receipt, current, normalized_actor, job_id),
+        ).rowcount
+    elif status == "CLAIMED":
+        changed = connection.execute(
+            """
+            UPDATE device_jobs
+            SET cancel_requested_at = COALESCE(cancel_requested_at, ?),
+                cancel_requested_by = COALESCE(cancel_requested_by, ?)
+            WHERE job_id = ? AND status = 'CLAIMED'
+            """,
+            (current, normalized_actor, job_id),
+        ).rowcount
+    else:
+        return False
+    connection.commit()
+    if changed:
+        audit(normalized_actor, "VEHICLE_RUN_CANCEL_REQUESTED", job_id, {})
+    return changed == 1
+
+
+def get_vehicle_run_for_actor(
+    job_id: str,
+    actor: str,
+    *,
+    after_sequence: int = -1,
+    event_limit: int = 200,
+) -> dict[str, Any] | None:
+    if (
+        isinstance(after_sequence, bool)
+        or not isinstance(after_sequence, int)
+        or after_sequence < -1
+    ):
+        raise DeviceLinkError("vehicle run event cursor is invalid")
+    if not 1 <= event_limit <= 500:
+        raise DeviceLinkError("vehicle run event limit is invalid")
+    row = get_db().execute(
+        """
+        SELECT device_id, payload_json, status, receipt_json, created_at,
+               claimed_at, completed_at, cancel_requested_at
+        FROM device_jobs
+        WHERE job_id = ? AND operation = 'START_AUTONOMOUS_RUN'
+        """,
+        (job_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    payload = json.loads(str(row["payload_json"]))
+    normalized_actor = actor.strip() if isinstance(actor, str) else ""
+    if payload.get("operator") != normalized_actor:
+        return None
+    event_rows = get_db().execute(
+        """
+        SELECT sequence, event_json FROM vehicle_run_events
+        WHERE job_id = ? AND sequence > ? ORDER BY sequence LIMIT ?
+        """,
+        (job_id, after_sequence, event_limit),
+    ).fetchall()
+    latest = get_db().execute(
+        """
+        SELECT adam_state FROM vehicle_run_events
+        WHERE job_id = ? AND adam_state IS NOT NULL
+        ORDER BY sequence DESC LIMIT 1
+        """,
+        (job_id,),
+    ).fetchone()
+    created_at = int(row["created_at"])
+    return {
+        "job_id": job_id,
+        "device_id": str(row["device_id"]),
+        "payload": payload,
+        "status": str(row["status"]),
+        "receipt": None
+        if row["receipt_json"] is None
+        else json.loads(str(row["receipt_json"])),
+        "created_at": created_at,
+        "created_at_utc": datetime.fromtimestamp(
+            created_at, tz=timezone.utc
+        ).isoformat(timespec="seconds"),
+        "claimed_at": row["claimed_at"],
+        "completed_at": row["completed_at"],
+        "cancel_requested": row["cancel_requested_at"] is not None,
+        "adam_state": None if latest is None else str(latest["adam_state"]),
+        "events": [json.loads(str(event["event_json"])) for event in event_rows],
+    }
+
+
+def list_vehicle_runs_for_actor(actor: str, *, limit: int = 10) -> list[dict[str, Any]]:
+    normalized_actor = actor.strip() if isinstance(actor, str) else ""
+    if not normalized_actor or not 1 <= limit <= 50:
+        return []
+    rows = get_db().execute(
+        """
+        SELECT job_id FROM device_jobs
+        WHERE operation = 'START_AUTONOMOUS_RUN'
+        ORDER BY created_at DESC LIMIT 100
+        """
+    ).fetchall()
+    runs: list[dict[str, Any]] = []
+    for row in rows:
+        run = get_vehicle_run_for_actor(str(row["job_id"]), normalized_actor, event_limit=1)
+        if run is not None:
+            runs.append(run)
+        if len(runs) >= limit:
+            break
+    return runs
+
+
 def complete_device_job(
     link_id: str,
     device_id: str,
@@ -540,8 +815,13 @@ def complete_device_job(
     ).fetchone()
     if job is None:
         return False
-    if str(job["operation"]) == "CAPTURE_CALIBRATION_FRAME":
+    operation = str(job["operation"])
+    if operation == "CAPTURE_CALIBRATION_FRAME":
         receipt = validate_calibration_frame_receipt(receipt)
+    elif operation == "START_AUTONOMOUS_RUN" and accepted:
+        receipt = _validated_vehicle_run_receipt(receipt)
+        if receipt["command_id"] != job_id:
+            raise DeviceLinkError("vehicle run receipt command id does not match its job")
     receipt_json = _canonical_json(receipt)
     connection = get_db()
     changed = connection.execute(
@@ -568,7 +848,8 @@ def complete_device_job(
 def get_device_job(job_id: str, link_id: str, device_id: str) -> dict[str, Any] | None:
     row = get_db().execute(
         """
-        SELECT operation, payload_json, status, receipt_json, created_at, completed_at
+        SELECT operation, payload_json, status, receipt_json, created_at, completed_at,
+               cancel_requested_at
         FROM device_jobs WHERE job_id = ? AND link_id = ? AND device_id = ?
         """,
         (job_id, link_id, device_id),
@@ -583,6 +864,7 @@ def get_device_job(job_id: str, link_id: str, device_id: str) -> dict[str, Any] 
         "receipt": None if row["receipt_json"] is None else json.loads(str(row["receipt_json"])),
         "created_at": int(row["created_at"]),
         "completed_at": row["completed_at"],
+        "cancel_requested": row["cancel_requested_at"] is not None,
     }
 
 
@@ -600,9 +882,13 @@ __all__ = [
     "get_capability_report",
     "get_device_job",
     "get_device_snapshot",
+    "get_vehicle_run_for_actor",
+    "list_vehicle_runs_for_actor",
     "queue_device_job",
+    "request_vehicle_run_cancel",
     "revoke_device_link",
     "store_capability_report",
     "store_device_snapshot",
+    "store_vehicle_run_events",
     "validate_calibration_frame_receipt",
 ]

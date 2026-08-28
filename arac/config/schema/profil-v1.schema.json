@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dyl-startech.local/schema/profil-v1.schema.json",
+  "title": "STARTECH profil.json v1",
+  "description": "Bir kalibrasyon.json ve ayarlar.json çiftini değişmez bir kurulu profil olarak eşleyen dış zarf.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sema_surumu",
+    "profil_kimligi",
+    "ad",
+    "olusturuldu_utc",
+    "kaynak",
+    "kalibrasyon",
+    "ayarlar",
+    "uyumluluk",
+    "uyarilar",
+    "uyari_ozeti"
+  ],
+  "properties": {
+    "sema_surumu": {
+      "const": 1
+    },
+    "profil_kimligi": {
+      "$ref": "#/$defs/kimlik"
+    },
+    "ad": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "olusturuldu_utc": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?\\+00:00$"
+    },
+    "kaynak": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tur",
+        "ebeveyn_profil_kimligi",
+        "kamera_oturumu_kimligi",
+        "not"
+      ],
+      "properties": {
+        "tur": {
+          "enum": [
+            "IMPORT",
+            "SETTINGS_VARIANT"
+          ]
+        },
+        "ebeveyn_profil_kimligi": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/kimlik"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kamera_oturumu_kimligi": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "not": {
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    },
+    "kalibrasyon": {
+      "$ref": "#/$defs/kalibrasyonKaydi"
+    },
+    "ayarlar": {
+      "$ref": "#/$defs/ayarlarKaydi"
+    },
+    "uyumluluk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kamera_genislik",
+        "kamera_yukseklik",
+        "bgr_cikis",
+        "dondur_180"
+      ],
+      "properties": {
+        "kamera_genislik": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "kamera_yukseklik": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "bgr_cikis": {
+          "type": "boolean"
+        },
+        "dondur_180": {
+          "type": "boolean"
+        }
+      }
+    },
+    "uyarilar": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
+    },
+    "uyari_ozeti": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "kimlik": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "kalibrasyonKaydi": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dosya",
+        "sha256",
+        "sema_surumu"
+      ],
+      "properties": {
+        "dosya": {
+          "const": "kalibrasyon.json"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sema_surumu": {
+          "const": 1
+        }
+      }
+    },
+    "ayarlarKaydi": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dosya",
+        "sha256",
+        "sema_surumu"
+      ],
+      "properties": {
+        "dosya": {
+          "const": "ayarlar.json"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sema_surumu": {
+          "const": 1
+        }
+      }
+    }
+  }
+}

@@ -41,7 +41,13 @@ def _static_asset_version(app: Flask) -> str:
 
     static_root = Path(app.static_folder or "")
     digest = hashlib.sha256()
-    for filename in ("cam.css", "sac.css", "cam.js", "assets/reicon.svg"):
+    for filename in (
+        "cam.css",
+        "sac.css",
+        "cam.js",
+        "assets/reicon.svg",
+        "assets/run-received.gif",
+    ):
         digest.update(filename.encode("utf-8"))
         digest.update((static_root / filename).read_bytes())
     return digest.hexdigest()[:12]

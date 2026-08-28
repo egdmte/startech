@@ -119,7 +119,8 @@ CREATE TABLE IF NOT EXISTS device_jobs (
         'REQUEST_CAPABILITY_REPORT',
         'INSTALL_INACTIVE_CONFIGURATION',
         'RUN_BOUNDED_WORKSHOP_COMMAND',
-        'CAPTURE_CALIBRATION_FRAME'
+        'CAPTURE_CALIBRATION_FRAME',
+        'START_AUTONOMOUS_RUN'
     )),
     payload_json TEXT NOT NULL,
     created_at INTEGER NOT NULL,
@@ -130,6 +131,8 @@ CREATE TABLE IF NOT EXISTS device_jobs (
         'PENDING', 'CLAIMED', 'ACCEPTED', 'REJECTED', 'EXPIRED'
     )),
     receipt_json TEXT,
+    cancel_requested_at INTEGER,
+    cancel_requested_by TEXT,
     FOREIGN KEY (link_id) REFERENCES device_links(link_id),
     FOREIGN KEY (device_id) REFERENCES registered_devices(device_id)
 );
@@ -196,6 +199,7 @@ def init_database() -> None:
     connection = get_db()
     connection.executescript(SCHEMA)
     _migrate_existing_database(connection)
+    _create_vehicle_run_events(connection)
     connection.commit()
 
 
@@ -228,6 +232,7 @@ def _migrate_existing_database(connection: sqlite3.Connection) -> None:
     if (
         "RUN_BOUNDED_WORKSHOP_COMMAND" not in jobs_sql
         or "CAPTURE_CALIBRATION_FRAME" not in jobs_sql
+        or "START_AUTONOMOUS_RUN" not in jobs_sql
     ):
         connection.execute("ALTER TABLE device_jobs RENAME TO device_jobs_legacy")
         connection.execute(
@@ -241,7 +246,8 @@ def _migrate_existing_database(connection: sqlite3.Connection) -> None:
                     'REQUEST_CAPABILITY_REPORT',
                     'INSTALL_INACTIVE_CONFIGURATION',
                     'RUN_BOUNDED_WORKSHOP_COMMAND',
-                    'CAPTURE_CALIBRATION_FRAME'
+                    'CAPTURE_CALIBRATION_FRAME',
+                    'START_AUTONOMOUS_RUN'
                 )),
                 payload_json TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
@@ -252,6 +258,8 @@ def _migrate_existing_database(connection: sqlite3.Connection) -> None:
                     'PENDING', 'CLAIMED', 'ACCEPTED', 'REJECTED', 'EXPIRED'
                 )),
                 receipt_json TEXT,
+                cancel_requested_at INTEGER,
+                cancel_requested_by TEXT,
                 FOREIGN KEY (link_id) REFERENCES device_links(link_id),
                 FOREIGN KEY (device_id) REFERENCES registered_devices(device_id)
             )
@@ -276,6 +284,35 @@ def _migrate_existing_database(connection: sqlite3.Connection) -> None:
             ON device_jobs(link_id, status, created_at)
             """
         )
+    else:
+        job_columns = _column_names(connection, "device_jobs")
+        if "cancel_requested_at" not in job_columns:
+            connection.execute(
+                "ALTER TABLE device_jobs ADD COLUMN cancel_requested_at INTEGER"
+            )
+        if "cancel_requested_by" not in job_columns:
+            connection.execute(
+                "ALTER TABLE device_jobs ADD COLUMN cancel_requested_by TEXT"
+            )
+
+
+def _create_vehicle_run_events(connection: sqlite3.Connection) -> None:
+    connection.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS vehicle_run_events (
+            job_id TEXT NOT NULL,
+            sequence INTEGER NOT NULL CHECK (sequence >= 0),
+            recorded_at REAL NOT NULL CHECK (recorded_at >= 0),
+            received_at INTEGER NOT NULL,
+            adam_state TEXT,
+            event_json TEXT NOT NULL,
+            PRIMARY KEY (job_id, sequence),
+            FOREIGN KEY (job_id) REFERENCES device_jobs(job_id)
+        );
+        CREATE INDEX IF NOT EXISTS vehicle_run_events_received
+            ON vehicle_run_events(job_id, sequence);
+        """
+    )
 
 
 def init_app(app: Flask) -> None:

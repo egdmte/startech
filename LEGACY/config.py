@@ -21,7 +21,7 @@ ROI_TOP_RATIO = 0.55
 # Sıra: sol-üst, sağ-üst, sol-alt, sağ-alt
 # Gerçek pistinize göre calibrate.py ile ayarlayın.
 # ⚠️  800×680 çözünürlük için yeniden kalibre edilmeli (calibrate.py çalıştırın).
-PERSP_SRC = [[160, 300], [480, 300], [0, 480], [640, 480]]  # sol-üst, sağ-üst, sol-alt, sağ-alt
+PERSP_SRC = [[225, 289], [403, 291], [200, 6], [403, 20]]# sol-üst, sağ-üst, sol-alt, sağ-alt
 
 
 def _perspektif_kontrol():

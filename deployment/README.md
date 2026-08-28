@@ -187,8 +187,9 @@ and decide database compatibility before switching the service.
 Authenticated KERİM users can download `startech-kerim-diagnostic.json` from the
 dashboard. It contains the running release, SQLite integrity/counts, recent
 calibration metadata, and current-link configuration/capability/job records. It
-excludes credentials, access codes, remote addresses, session data, and captured
-JPEG bytes. KADER vehicle logs are explicitly not uploaded by the current link.
+excludes credentials, access codes, remote addresses, session data, captured JPEG bytes,
+and raw vehicle-run KADER events. Those KADER events are uploaded only for explicitly
+requested KERİM vehicle runs and remain on their authenticated run-history pages.
 
 For service failures, inspect only what is needed:
 

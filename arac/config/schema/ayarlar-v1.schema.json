@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dyl-startech.local/schema/ayarlar-v1.schema.json",
+  "title": "Dyl-Startech ayarlar.json v1",
+  "description": "StarTechConfig aracının ürettiği, ölçülmeyip ekip tarafından seçilen sürüş davranışı ayarları.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sema_surumu",
+    "_aciklama",
+    "kontrol",
+    "hiz",
+    "olay"
+  ],
+  "properties": {
+    "sema_surumu": {
+      "const": 1,
+      "description": "Bu sözleşmenin sürümü. Başka bir sayı sessizce v1 gibi okunamaz."
+    },
+    "_aciklama": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kontrol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kp",
+        "kd",
+        "ki",
+        "integral_max",
+        "deriv_cap"
+      ],
+      "properties": {
+        "kp": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Oransal kontrol katsayısı; birimsiz ve sıfırdan büyük."
+        },
+        "kd": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Türev kontrol katsayısı; birimsiz ve sıfırdan büyük."
+        },
+        "ki": {
+          "type": "number",
+          "minimum": 0,
+          "description": "İntegral kontrol katsayısı. 0 teşhis sırasında geçerlidir; 0,2 üstü insan uyarısıdır."
+        },
+        "integral_max": {
+          "type": "number",
+          "minimum": 0,
+          "description": "İntegral birikiminin mutlak üst sınırı."
+        },
+        "deriv_cap": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Türev teriminin mutlak üst sınırı."
+        }
+      }
+    },
+    "hiz": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hedef",
+        "min",
+        "max",
+        "max_not",
+        "k_speed"
+      ],
+      "properties": {
+        "hedef": {
+          "$ref": "#/$defs/pwmYuzdesi"
+        },
+        "min": {
+          "$ref": "#/$defs/pwmYuzdesi"
+        },
+        "max": {
+          "$ref": "#/$defs/pwmYuzdesi"
+        },
+        "max_not": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Azami PWM kararının donanım gerekçesi; ölçümün kendisi değildir."
+        },
+        "k_speed": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5,
+          "description": "Şerit hatasına göre hızı azaltan çarpan; yüzde değildir."
+        }
+      }
+    },
+    "olay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "yakin_roi_orani",
+        "yakin_roi_orani_not"
+      ],
+      "properties": {
+        "yakin_roi_orani": {
+          "$ref": "#/$defs/oran"
+        },
+        "yakin_roi_orani_not": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Oranın fiziksel yorumunu açıklar; gerçek mesafe ölçümünün yerine geçmez."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "pwmYuzdesi": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Yüzde cinsinden PWM komutu."
+    },
+    "oran": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "0 ile 1 arasında boyutsuz oran."
+    }
+  }
+}

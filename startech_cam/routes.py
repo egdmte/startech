@@ -34,7 +34,10 @@ from .device_link import (
     get_capability_report,
     get_device_job,
     get_device_snapshot,
+    get_vehicle_run_for_actor,
+    list_vehicle_runs_for_actor,
     queue_device_job,
+    request_vehicle_run_cancel,
     validate_calibration_frame_receipt,
 )
 from .fields import Field, MAC_SECTIONS, SAC_STEPS
@@ -137,7 +140,91 @@ def dashboard() -> str:
         calibrations=list_calibrations()[:5],
         new_calibration_count=new_calibration_count,
         car_linked=_session_device_link() is not None,
+        recent_vehicle_runs=list_vehicle_runs_for_actor(actor, limit=3),
     )
+
+
+@cam_blueprint.route("/vehicle-run", methods=["GET", "POST"])
+@login_required
+def vehicle_run() -> Any:
+    """Queue one closed autonomous-run request or show retained run history."""
+
+    actor = current_actor()
+    selected = _session_device_link()
+    if request.method == "POST":
+        if selected is None:
+            flash("Connect the current YAREN device before requesting a vehicle run.", "error")
+            return redirect(url_for("cam.vehicle_run"))
+        if request.form.get("confirm_physical_run") != "yes":
+            flash("Confirm that this request is for the physical vehicle.", "error")
+            return redirect(url_for("cam.vehicle_run"))
+        issued_at = now_epoch()
+        try:
+            job_id = queue_device_job(
+                *selected,
+                "START_AUTONOMOUS_RUN",
+                {
+                    "operator": actor,
+                    "issued_at": issued_at,
+                    "expires_at": issued_at + 90,
+                    "countdown_seconds": 30,
+                    "mode": "LANE_FOLLOW",
+                    "mute_buzzer": request.form.get("mute_buzzer") == "yes",
+                },
+                actor=actor,
+                lifetime_seconds=90,
+            )
+        except DeviceLinkError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("cam.vehicle_run"))
+        return redirect(url_for("cam.vehicle_run_detail", job_id=job_id))
+    return render_template(
+        "vehicle_run.html",
+        run=None,
+        car_linked=selected is not None,
+        recent_runs=list_vehicle_runs_for_actor(actor),
+    )
+
+
+@cam_blueprint.get("/vehicle-runs/<job_id>")
+@login_required
+def vehicle_run_detail(job_id: str) -> str:
+    run = get_vehicle_run_for_actor(job_id, current_actor())
+    if run is None:
+        abort(404)
+    return render_template(
+        "vehicle_run.html",
+        run=run,
+        car_linked=_session_device_link() is not None,
+        recent_runs=list_vehicle_runs_for_actor(current_actor()),
+    )
+
+
+@cam_blueprint.get("/vehicle-runs/<job_id>/status")
+@login_required
+def vehicle_run_status(job_id: str) -> Any:
+    try:
+        after = int(request.args.get("after", "-1"))
+        run = get_vehicle_run_for_actor(
+            job_id,
+            current_actor(),
+            after_sequence=after,
+        )
+    except (ValueError, DeviceLinkError):
+        return jsonify({"error": "invalid event cursor"}), 400
+    if run is None:
+        abort(404)
+    return jsonify(run)
+
+
+@cam_blueprint.post("/vehicle-runs/<job_id>/cancel")
+@login_required
+def cancel_vehicle_run(job_id: str) -> Any:
+    if request_vehicle_run_cancel(job_id, current_actor()):
+        flash("Vehicle run cancellation requested.", "success")
+    else:
+        flash("The vehicle run is already finished or unavailable.", "error")
+    return redirect(url_for("cam.vehicle_run_detail", job_id=job_id))
 
 
 @cam_blueprint.get("/open-source")

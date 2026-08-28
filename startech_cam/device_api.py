@@ -22,6 +22,7 @@ from .device_link import (
     revoke_device_link,
     store_capability_report,
     store_device_snapshot,
+    store_vehicle_run_events,
 )
 from .security import issue_access_code
 
@@ -218,6 +219,34 @@ def link_receipt():
         record_device_attempt(remote, "link-receipt", succeeded=False)
         return _error("receipt_rejected", str(exc), 400)
     return jsonify({"accepted": True})
+
+
+@device_api_blueprint.post("/link/run-events")
+def link_run_events():
+    """Store ordered KADER records and return the operator cancel signal."""
+
+    remote = _remote()
+    payload = _object_with_exact_fields(
+        {"device_id", "link_id", "job_id", "events"}
+    )
+    try:
+        device_id, link_id, _state = _authenticate_link_payload(
+            payload, require_active=True
+        )
+        if not isinstance(payload["job_id"], str):
+            raise DeviceLinkError("vehicle run job id must be text")
+        cancel_requested = store_vehicle_run_events(
+            link_id,
+            device_id,
+            payload["job_id"],
+            payload["events"],
+        )
+    except DeviceLinkError as exc:
+        record_device_attempt(remote, "link-run-events", succeeded=False)
+        return _error("run_events_rejected", str(exc), 400)
+    return jsonify(
+        {"accepted": True, "cancel_requested": cancel_requested}
+    )
 
 
 @device_api_blueprint.post("/link/close")
