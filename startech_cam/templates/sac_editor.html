@@ -1,51 +1,85 @@
 {% extends "base.html" %}
 {% block title %}SAC · {{ t(title) }}{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='sac.css', v=cam_asset_version) }}">{% endblock %}
+{% block scripts %}<script defer src="{{ url_for('static', filename='sac_assist.js', v=cam_asset_version) }}"></script>{% endblock %}
+
+{% macro scalar_field(field) -%}
+  <div class="field-block field-block--{{ field.kind }}">
+    {% if field.kind == 'checkbox' %}
+      <label class="choice"><input type="checkbox" name="{{ field.path }}" {% if values[field.path] %}checked{% endif %}> {{ t(field.label) }}</label>
+    {% elif field.kind == 'select' %}
+      <label><span>{{ t(field.label) }}</span><select name="{{ field.path }}">{% for value, label in field.choices %}<option value="{{ value }}" {% if values[field.path]|string == value %}selected{% endif %}>{{ t(label) }}</option>{% endfor %}</select></label>
+    {% elif field.kind == 'nullable_date' %}
+      <label><span>{{ t(field.label) }}</span><input type="date" name="{{ field.path }}" value="{{ values[field.path] }}"></label>
+    {% elif field.kind == 'range' %}
+      <label class="range-control"><span><b>{{ t(field.label) }}</b><output data-range-output>{{ values[field.path] }}</output></span><input type="range" name="{{ field.path }}" value="{{ values[field.path] }}" min="{{ field.minimum }}" max="{{ field.maximum }}" step="{{ field.step }}" data-range></label>
+    {% else %}
+      <label><span>{{ t(field.label) }}</span><input type="{{ 'number' if field.kind in ['integer', 'number'] else 'text' }}" name="{{ field.path }}" value="{{ values[field.path] }}" {% if field.minimum is not none %}min="{{ field.minimum }}"{% endif %} {% if field.maximum is not none %}max="{{ field.maximum }}"{% endif %} {% if field.step is not none %}step="{{ field.step }}"{% endif %}></label>
+    {% endif %}
+    {% if field.help_text %}<small>{{ t(field.help_text) }}</small>{% endif %}
+  </div>
+{%- endmacro %}
+
 {% block content %}
 <a class="sac-back-link" href="{{ url_for('cam.sac_components', draft_id=draft_id) }}">{{ reicon('arrow-left2') }}<span>{{ t('Return to the car') }}</span></a>
-<section class="sac-editor-panel sac-editor-panel--{{ section }}" aria-labelledby="section-title">
+<section class="sac-editor-panel sac-editor-panel--{{ section }}" aria-labelledby="section-title" data-sac-assist="{{ section }}">
   <header class="sac-editor-heading" data-motion data-motion-delay="1">
     <h1 id="section-title">{{ t('Edit {component} settings', component=t(title)) }}</h1>
     <p>{{ t(description) }}</p>
   </header>
-
   <form class="sac-section-form" method="post" data-motion data-motion-delay="2">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="sac-authority-strip sac-authority-strip--runtime">
-      <strong>{{ t('WRITTEN TO LEGACY/config.py') }}</strong>
-    </div>
+    <div class="sac-authority-strip sac-authority-strip--runtime"><strong>{{ t('WRITTEN TO LEGACY/config.py') }}</strong><span>{{ t('This page changes the values used by the canon car code.') }}</span></div>
 
-    <div class="sac-real-fields">
-      {% for field in fields %}
-        <div class="field-block field-block--{{ field.kind }}">
-          {% if field.kind == 'checkbox' %}
-            <label class="choice"><input type="checkbox" name="{{ field.path }}" {% if values[field.path] %}checked{% endif %}> {{ t(field.label) }}</label>
-          {% elif field.kind == 'select' %}
-            <label><span>{{ t(field.label) }}</span><select name="{{ field.path }}">
-              {% for value, label in field.choices %}<option value="{{ value }}" {% if values[field.path]|string == value %}selected{% endif %}>{{ t(label) }}</option>{% endfor %}
-            </select></label>
-          {% elif field.kind == 'nullable_date' %}
-            <label><span>{{ t(field.label) }}</span><input type="date" name="{{ field.path }}" value="{{ values[field.path] }}"></label>
-          {% elif field.kind == 'json' %}
-            <label><span>{{ t(field.label) }}</span><textarea class="code-input" name="{{ field.path }}" rows="10">{{ values[field.path] }}</textarea></label>
-          {% elif field.kind == 'range' %}
-            <label class="range-control"><span><b>{{ t(field.label) }}</b><output data-range-output>{{ values[field.path] }}</output></span>
-              <input type="range" name="{{ field.path }}" value="{{ values[field.path] }}" min="{{ field.minimum }}" max="{{ field.maximum }}" step="{{ field.step }}" data-range>
-            </label>
-          {% else %}
-            <label><span>{{ t(field.label) }}</span><input type="{{ 'number' if field.kind in ['integer', 'number'] else 'text' }}" name="{{ field.path }}" value="{{ values[field.path] }}" {% if field.minimum is not none %}min="{{ field.minimum }}"{% endif %} {% if field.maximum is not none %}max="{{ field.maximum }}"{% endif %} {% if field.step is not none %}step="{{ field.step }}"{% endif %}></label>
-          {% endif %}
-          {% if field.help_text %}<small>{{ t(field.help_text) }}</small>{% endif %}
+    {% if section == 'camera' %}
+      <div class="sac-camera-assistant">
+        <div class="sac-frame-preview" data-frame-preview><span data-frame-size></span><b>1</b></div>
+        <div class="sac-camera-controls">
+          <fieldset class="sac-preset-list"><legend>{{ t('Frame preset') }}</legend><button type="button" data-frame-preset="640,480">640×480 · {{ t('Canon baseline') }}</button><button type="button" data-frame-preset="840,630">840×630 · 4:3</button><button type="button" data-frame-preset="1280,720">1280×720 · {{ t('Wide') }}</button></fieldset>
+          <div class="sac-real-fields">{% for field in fields %}{{ scalar_field(field) }}{% endfor %}</div>
         </div>
-      {% endfor %}
-    </div>
+      </div>
+      <p class="sac-editor-note">{{ t('Changing the frame also resizes the current perspective points proportionally. Check Perspective afterwards.') }}</p>
+
+    {% elif section == 'perspective' %}
+      <input type="hidden" name="kalibrasyon.perspektif.kaynak_noktalar" value="{{ values['kalibrasyon.perspektif.kaynak_noktalar'] }}" data-sac-perspective-value>
+      <div class="sac-visual-workspace" data-sac-perspective data-width="{{ sac_document.kalibrasyon.kamera.genislik }}" data-height="{{ sac_document.kalibrasyon.kamera.yukseklik }}">
+        <div><canvas class="sac-image-canvas" width="{{ sac_document.kalibrasyon.kamera.genislik }}" height="{{ sac_document.kalibrasyon.kamera.yukseklik }}" data-sac-perspective-canvas></canvas><label class="sac-upload-action">{{ reicon('image') }}<span>{{ t('Choose a real track photo') }}</span><input type="file" accept="image/*" data-sac-image></label></div>
+        <div class="sac-assist-copy"><h2>{{ t('Drag the four corners') }}</h2><p>{{ t('Order: top-left, top-right, bottom-left, bottom-right. The canvas uses the camera resolution one-to-one.') }}</p>{% for field in fields if field.kind != 'json' %}{{ scalar_field(field) }}{% endfor %}</div>
+      </div>
+
+    {% elif section == 'recognition' %}
+      <input type="hidden" name="kalibrasyon.serit.beyaz_profiller" value="{{ values['kalibrasyon.serit.beyaz_profiller'] }}" data-sac-hsv-document>
+      <div class="sac-threshold-workspace" data-sac-hsv-editor data-hsv-kind="profiles">
+        <div class="sac-preview-pair"><div><h2>{{ t('Track photo') }}</h2><canvas class="sac-image-canvas" width="640" height="480" data-sac-source-canvas></canvas></div><div><h2>{{ t('Detected pixels') }}</h2><canvas class="sac-image-canvas" width="640" height="480" data-sac-mask-canvas></canvas></div><label class="sac-upload-action">{{ reicon('image') }}<span>{{ t('Choose a real track photo') }}</span><input type="file" accept="image/*" data-sac-image></label></div>
+        <div class="sac-hsv-controls"><label><span>{{ t('Lighting profile') }}</span><select data-sac-hsv-target><option value="varsayilan">{{ t('Default') }}</option><option value="karanlik">{{ t('Dark') }}</option><option value="normal">{{ t('Normal') }}</option><option value="parlak">{{ t('Bright') }}</option></select></label>
+          {% for key, label, maximum in [('lower_h','H min',180),('lower_s','S min',255),('lower_v','V min',255),('upper_h','H max',180),('upper_s','S max',255),('upper_v','V max',255)] %}<label class="range-control"><span><b>{{ label }}</b><output data-sac-hsv-output>0</output></span><input type="range" min="0" max="{{ maximum }}" step="1" data-sac-hsv="{{ key }}"></label>{% endfor %}
+        </div>
+      </div>
+      <p class="sac-editor-note">{{ t('The mask is calculated from the uploaded photo in this browser. It does not claim that the car has been physically tested.') }}</p>
+      <div class="sac-real-fields">{% for field in fields if field.kind != 'json' %}{{ scalar_field(field) }}{% endfor %}</div>
+
+    {% elif section == 'colors' %}
+      <input type="hidden" name="kalibrasyon.renkler" value="{{ values['kalibrasyon.renkler'] }}" data-sac-hsv-document>
+      <div class="sac-threshold-workspace" data-sac-hsv-editor data-hsv-kind="colors">
+        <div class="sac-preview-pair"><div><h2>{{ t('Track photo') }}</h2><canvas class="sac-image-canvas" width="640" height="480" data-sac-source-canvas></canvas></div><div><h2>{{ t('Detected pixels') }}</h2><canvas class="sac-image-canvas" width="640" height="480" data-sac-mask-canvas></canvas></div><label class="sac-upload-action">{{ reicon('image') }}<span>{{ t('Choose a real track photo') }}</span><input type="file" accept="image/*" data-sac-image></label></div>
+        <div class="sac-hsv-controls"><label><span>{{ t('Recognition target') }}</span><select data-sac-hsv-target><option value="turuncu_arac">{{ t('Orange car') }}</option><option value="sari_arac">{{ t('Yellow car') }}</option><option value="kirmizi_isik">{{ t('Red light') }}</option><option value="yesil_isik">{{ t('Green light') }}</option><option value="mavi_levha">{{ t('Blue sign') }}</option><option value="kirmizi_park">{{ t('Red parking area') }}</option></select></label><label data-sac-range-picker><span>{{ t('HSV range') }}</span><select data-sac-hsv-range-index></select></label>
+          {% for key, label, maximum in [('lower_h','H min',180),('lower_s','S min',255),('lower_v','V min',255),('upper_h','H max',180),('upper_s','S max',255),('upper_v','V max',255)] %}<label class="range-control"><span><b>{{ label }}</b><output data-sac-hsv-output>0</output></span><input type="range" min="0" max="{{ maximum }}" step="1" data-sac-hsv="{{ key }}"></label>{% endfor %}
+          <label><span>{{ t('Minimum area (px²)') }}</span><input type="number" min="0" step="1" data-sac-min-area></label><label data-sac-trigger-area><span>{{ t('Trigger area (px²)') }}</span><input type="number" min="0" step="1" data-sac-trigger-area-input></label>
+        </div>
+      </div>
+      <p class="sac-editor-note">{{ t('The mask is calculated from the uploaded photo in this browser. It does not claim that the car has been physically tested.') }}</p>
+
+    {% elif section == 'motors' %}
+      <div class="sac-motor-assistant"><div class="sac-axle" aria-hidden="true"><span data-wheel="left"></span><i></i><span data-wheel="right"></span></div><div class="sac-real-fields">{% for field in fields %}{{ scalar_field(field) }}{% endfor %}</div></div>
+      <p class="sac-editor-note">{{ t('These values are written to the motor commands. KERİM does not run the motors from this page.') }}</p>
+
+    {% elif section == 'control' %}
+      <div class="sac-control-assistant"><div class="sac-real-fields">{% for field in fields %}{{ scalar_field(field) }}{% endfor %}</div><aside class="sac-command-calculator" data-command-calculator><h2>{{ t('Speed command calculator') }}</h2><label class="range-control"><span><b>{{ t('Example lane error') }}</b><output data-error-output>0</output></span><input type="range" min="-100" max="100" value="0" step="1" data-example-error></label><p><code data-speed-formula></code></p><strong data-speed-result></strong><small>{{ t('This displays the configured speed equation. It does not run the car.') }}</small></aside></div>
+    {% endif %}
 
     <button class="cam-action cam-action--primary sac-save-action" type="submit">{{ reicon('save') }}<span>{{ t('Save changes and return') }}</span></button>
   </form>
 </section>
 {% endblock %}
-{% block session_footer %}
-<footer class="cam-workflow-footer">
-  <div class="cam-progress" role="progressbar" aria-label="{{ t('SAC progress') }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ 28 + (touched|length * 12) }}"><span class="cam-progress__value" style="--cam-progress: {{ 28 + (touched|length * 12) }}%"></span></div>
-</footer>
-{% endblock %}
+{% block session_footer %}<footer class="cam-workflow-footer"><div class="cam-progress" role="progressbar" aria-label="{{ t('SAC progress') }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ 28 + (touched|length * 12) }}"><span class="cam-progress__value" style="--cam-progress: {{ 28 + (touched|length * 12) }}%"></span></div></footer>{% endblock %}

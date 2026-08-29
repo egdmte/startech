@@ -2,12 +2,21 @@ from __future__ import annotations
 
 import ast
 import copy
+import json
 from pathlib import Path
+import tempfile
 import unittest
 
+from startech_cam import create_app
 from startech_cam.legacy_config import LegacyConfigError, generate_legacy_config
 from startech_cam.fields import SAC_STEPS
-from startech_cam.repository import parse_document_text, refresh_calibration_stamp
+from startech_cam.repository import (
+    create_draft,
+    get_draft,
+    nested_get,
+    parse_document_text,
+    refresh_calibration_stamp,
+)
 from startech_cam.routes import _sync_perspective_for_camera
 
 
@@ -106,6 +115,62 @@ class KerimLegacyConfigTests(unittest.TestCase):
             all(path.startswith(("kalibrasyon.", "ayarlar.")) for path in paths)
         )
         self.assertFalse(any(path.startswith("sac_niyeti.") for path in paths))
+
+    def test_assisted_sac_pages_render_and_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            app = create_app(
+                {
+                    "TESTING": True,
+                    "DATABASE": str(Path(temporary_directory) / "kerim.sqlite3"),
+                    "SECRET_KEY": "test-secret-key-that-is-long-enough",
+                    "CAM_PASSWORD": "test",
+                    "SESSION_COOKIE_SECURE": False,
+                }
+            )
+            with app.app_context():
+                draft_id = create_draft(
+                    owner="SAC tester", workflow="SAC", name="Assisted SAC"
+                )
+            client = app.test_client()
+            with client.session_transaction() as session:
+                session["authenticated"] = True
+                session["legal_name"] = "SAC tester"
+                session["language"] = "en"
+                session["csrf_token"] = "sac-test-csrf-token-that-is-long-enough"
+
+            for section, (_title, _description, fields) in SAC_STEPS.items():
+                response = client.get(f"/sac/{draft_id}/{section}")
+                self.assertEqual(response.status_code, 200, section)
+                self.assertIn(b'data-sac-assist=', response.data, section)
+                with app.app_context():
+                    document, _touched, _workflow = get_draft(
+                        draft_id, "SAC tester"
+                    )
+                form: dict[str, str] = {
+                    "csrf_token": "sac-test-csrf-token-that-is-long-enough"
+                }
+                for field in fields:
+                    value = nested_get(document, field.path)
+                    if field.kind == "checkbox":
+                        if value:
+                            form[field.path] = "on"
+                    elif field.kind == "json":
+                        form[field.path] = json.dumps(value, ensure_ascii=False)
+                    elif field.kind == "nullable_date":
+                        form[field.path] = value or ""
+                    else:
+                        form[field.path] = str(value)
+                response = client.post(f"/sac/{draft_id}/{section}", data=form)
+                self.assertEqual(
+                    response.status_code,
+                    302,
+                    f"{section}: {response.data.decode('utf-8', errors='replace')[:500]}",
+                )
+
+            with app.app_context():
+                document, touched, _workflow = get_draft(draft_id, "SAC tester")
+            self.assertEqual(set(touched), set(SAC_STEPS))
+            generate_legacy_config(self.template, document)
 
 
 if __name__ == "__main__":

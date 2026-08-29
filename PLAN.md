@@ -53,7 +53,12 @@ unchanged from the selected canon revision.
 SAC now contains six canon-backed sections: camera, perspective, lane recognition,
 colours, motors, and steering/speed control. The former service-module approvals,
 YAREN policy, output-mode declarations, and future wheel intentions are no longer
-presented as useful calibration steps. MAC remains the lower-level editor.
+presented as useful calibration steps. SAC provides frame presets and an aspect
+preview, one-to-one draggable perspective points, browser-local HSV previews from a
+real uploaded track photo, a motor trim diagram, and a speed-command calculator.
+The photo is not uploaded or recorded by KERIM. These previews calculate what the
+configured software would select; they are not presented as physical car tests. MAC
+remains the lower-level editor and JSON escape hatch.
 
 The new internet-operated dashboard belongs inside KERIM. It will be a small wrapper
 around real programs on the car, not a replacement vehicle runtime.

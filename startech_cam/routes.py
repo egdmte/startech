@@ -1301,6 +1301,7 @@ def edit_section(workflow: str, draft_id: str, section: str) -> Any:
                 fields=fields,
                 values=values,
                 touched=touched,
+                sac_document=document,
             ), 400
         if perspective_resized:
             flash(
@@ -1327,6 +1328,7 @@ def edit_section(workflow: str, draft_id: str, section: str) -> Any:
         fields=fields,
         values=_field_values(document, fields),
         touched=touched,
+        sac_document=document,
     )
 
 

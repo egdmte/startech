@@ -258,6 +258,90 @@
 .sac-editor-note { margin: 0; color: var(--cam-muted); text-align: center; }
 .sac-save-action { width: min(544px, 100%); justify-self: center; }
 
+/* Assisted canon editors. Uploaded photos never leave the browser. */
+.sac-camera-assistant,
+.sac-visual-workspace,
+.sac-threshold-workspace,
+.sac-control-assistant {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 52px);
+}
+.sac-frame-preview {
+  position: relative;
+  display: grid;
+  width: min(100%, 620px);
+  place-items: center;
+  border: 2px solid #3f3f3f;
+  background: linear-gradient(135deg, #f7f7f7, #e5e5e5);
+  transition: aspect-ratio 180ms ease;
+}
+.sac-frame-preview::before,
+.sac-frame-preview::after { position: absolute; color: #555; font-variant-numeric: tabular-nums; }
+.sac-frame-preview::before { top: 10px; content: attr(data-width); }
+.sac-frame-preview > span { position: absolute; top: 12px; font-size: 14px; }
+.sac-frame-preview > b { font-size: clamp(34px, 7vw, 72px); }
+.sac-camera-controls { display: grid; gap: 24px; }
+.sac-preset-list { display: grid; gap: 8px; }
+.sac-preset-list legend { margin-bottom: 7px; font-weight: 700; }
+.sac-preset-list button {
+  min-height: 43px;
+  border: 1px solid #b5b5b5;
+  border-radius: 7px;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sac-preset-list button:hover,
+.sac-preset-list button:focus-visible { border-color: #075dff; color: #075dff; }
+.sac-image-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid #777;
+  background: #f4f4f4;
+  touch-action: none;
+}
+.sac-upload-action {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  border: 1px solid #b7b7b7;
+  border-radius: 7px;
+  background: #fff;
+  cursor: pointer;
+}
+.sac-upload-action:hover { color: #075dff; border-color: #075dff; }
+.sac-upload-action input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.sac-assist-copy { display: grid; align-content: center; gap: 15px; }
+.sac-assist-copy h2,
+.sac-assist-copy p,
+.sac-preview-pair h2,
+.sac-command-calculator h2 { margin: 0; }
+.sac-assist-copy p { color: var(--cam-muted); line-height: 1.55; }
+.sac-threshold-workspace { align-items: start; }
+.sac-preview-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.sac-preview-pair h2 { margin-bottom: 7px; font-size: 14px; }
+.sac-preview-pair .sac-upload-action { grid-column: 1 / -1; }
+.sac-hsv-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 15px 22px; }
+.sac-hsv-controls > label { display: grid; gap: 7px; }
+.sac-hsv-controls select,
+.sac-hsv-controls input[type="number"] { width: 100%; min-height: 39px; }
+.sac-motor-assistant { display: grid; gap: 28px; }
+.sac-axle { display: grid; grid-template-columns: 72px 1fr 72px; align-items: center; width: min(650px, 85%); margin: auto; }
+.sac-axle i { height: 13px; background: linear-gradient(90deg, #075dff, #aaa 50%, #075dff); }
+.sac-axle span { display: block; height: 120px; border: 6px solid #202020; border-radius: 22px; background: repeating-linear-gradient(0deg, #262626 0 9px, #555 9px 13px); }
+.sac-control-assistant { align-items: start; }
+.sac-command-calculator { position: sticky; top: 28px; display: grid; gap: 22px; padding: 25px; border: 1px solid #bcbcbc; border-radius: 9px; background: #fff; }
+.sac-command-calculator code { display: block; padding: 12px; border-radius: 5px; background: #f2f2f2; font-size: 17px; text-align: center; }
+.sac-command-calculator > strong { color: #075dff; font-size: 32px; text-align: center; }
+.sac-command-calculator > small { color: var(--cam-muted); text-align: center; }
+
 /* Prototype finish and created screens. */
 .finish-shell { display: grid; min-height: 100vh; grid-template-columns: minmax(270px, 21.6667%) minmax(0, 1fr); background: #f7f7f7; }
 .finish-identity, .finish-stage { position: relative; min-width: 0; }
@@ -310,6 +394,12 @@
   .finish-welcome { top: 36px; right: 24px; left: 24px; }
   .finish-session-footer { right: 24px; bottom: 23px; left: 24px; }
   .summary-section-links { grid-template-columns: 1fr 1fr; }
+  .sac-camera-assistant,
+  .sac-visual-workspace,
+  .sac-threshold-workspace,
+  .sac-control-assistant { grid-template-columns: 1fr; }
+  .sac-frame-preview { justify-self: center; }
+  .sac-command-calculator { position: static; }
 }
 @media (max-width: 700px) {
   .sac-editor-panel { width: calc(100% - 32px); padding-top: 75px; }
@@ -320,6 +410,8 @@
   .car-map { min-width: 0; }
   .workshop-values { grid-template-columns: 1fr; }
   .live-check-card, .workshop-heading { align-items: stretch; flex-direction: column; }
+  .sac-preview-pair, .sac-hsv-controls { grid-template-columns: 1fr; }
+  .sac-preview-pair .sac-upload-action { grid-column: auto; }
 }
 @media (max-width: 560px) {
   .sac-abort { top: 20px; left: 20px; }

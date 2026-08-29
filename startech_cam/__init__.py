@@ -44,6 +44,7 @@ def _static_asset_version(app: Flask) -> str:
     for filename in (
         "cam.css",
         "sac.css",
+        "sac_assist.js",
         "cam.js",
         "assets/reicon.svg",
         "assets/run-received.gif",
