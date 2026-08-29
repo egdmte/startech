@@ -25,7 +25,7 @@ from flask import (
     url_for,
 )
 
-from startech.configuration.combined import combined_config_errors
+from arac.startech.configuration.combined import combined_config_errors
 
 from .auth import current_actor, has_car_access, login_required
 from .db import get_db
@@ -41,6 +41,7 @@ from .device_link import (
     validate_calibration_frame_receipt,
 )
 from .fields import Field, MAC_SECTIONS, SAC_STEPS
+from .legacy_config import LegacyConfigError, generate_legacy_config
 from .repository import (
     CalibrationNotFound,
     DraftNotFound,
@@ -1174,6 +1175,14 @@ def _coerce_field(field: Field) -> Any:
         if raw in {"true", "false"}:
             return raw == "true"
         raise ValueError(f"{field.label}: choose measured, unmeasured, or unknown")
+    if field.kind == "nullable_date":
+        if not raw:
+            return None
+        try:
+            datetime.strptime(raw, "%Y-%m-%d")
+        except ValueError as exc:
+            raise ValueError(f"{field.label}: enter a real date") from exc
+        return raw
     if field.kind in {"integer", "range"}:
         try:
             value: Any = int(raw)
@@ -1214,8 +1223,40 @@ def _field_values(document: dict[str, Any], fields: tuple[Field, ...]) -> dict[s
             value = json.dumps(value, ensure_ascii=False, indent=2)
         elif field.kind == "nullable_boolean":
             value = "null" if value is None else str(value).lower()
+        elif field.kind == "nullable_date":
+            value = "" if value is None else value
         values[field.path] = value
     return values
+
+
+def _sync_perspective_for_camera(
+    updated: dict[str, Any], previous: dict[str, Any]
+) -> bool:
+    """Resize perspective coordinates when MAC changes the camera dimensions.
+
+    The proportional points are an editable starting point, not a new physical
+    measurement.  Updating all related fields together prevents the old circular
+    save failure where neither the camera nor perspective page could be accepted.
+    """
+
+    camera = updated["kalibrasyon"]["kamera"]
+    perspective = updated["kalibrasyon"]["perspektif"]
+    old_perspective = previous["kalibrasyon"]["perspektif"]
+    old_width, old_height = old_perspective["olculen_cozunurluk"]
+    new_width, new_height = camera["genislik"], camera["yukseklik"]
+    if [old_width, old_height] == [new_width, new_height]:
+        return False
+    if old_width <= 0 or old_height <= 0:
+        raise InvalidDocument("previous perspective resolution is invalid")
+    perspective["olculen_cozunurluk"] = [new_width, new_height]
+    perspective["kaynak_noktalar"] = [
+        [
+            min(new_width, max(0, round(point[0] * new_width / old_width))),
+            min(new_height, max(0, round(point[1] * new_height / old_height))),
+        ]
+        for point in old_perspective["kaynak_noktalar"]
+    ]
+    return True
 
 
 @cam_blueprint.route("/<workflow>/<draft_id>/<section>", methods=["GET", "POST"])
@@ -1231,12 +1272,17 @@ def edit_section(workflow: str, draft_id: str, section: str) -> Any:
     title, description, fields = definitions[section]
     if request.method == "POST":
         updated = copy.deepcopy(document)
+        perspective_resized = False
         try:
             for field in fields:
                 nested_set(updated, field.path, _coerce_field(field))
             if workflow_upper == "SAC":
                 project_sac_speed(updated)
             elif any(field.path.startswith("kalibrasyon.") for field in fields):
+                if section == "camera":
+                    perspective_resized = _sync_perspective_for_camera(
+                        updated, document
+                    )
                 refresh_calibration_stamp(updated)
             save_draft(draft_id, current_actor(), updated, section=section)
         except (ValueError, InvalidDocument) as exc:
@@ -1259,6 +1305,12 @@ def edit_section(workflow: str, draft_id: str, section: str) -> Any:
                 values=values,
                 touched=touched,
             ), 400
+        if perspective_resized:
+            flash(
+                "Perspective coordinates were resized with the camera frame. "
+                "Check them on the Perspective page.",
+                "success",
+            )
         if workflow_upper == "SAC":
             return redirect(url_for("cam.sac_components", draft_id=draft_id))
         keys = list(definitions)
@@ -1408,6 +1460,29 @@ def download(tag: str) -> Response:
     document = get_calibration(tag)
     response = Response(serialize_document(document), mimetype="application/json")
     response.headers["Content-Disposition"] = f'attachment; filename="startech-{tag}.json"'
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@cam_blueprint.get("/calibrations/<tag>/download-config.py")
+@login_required
+def download_legacy_config(tag: str) -> Response:
+    """Download the selected calibration as the file the canon car reads."""
+
+    document = get_calibration(tag)
+    template_path = (
+        Path(str(current_app.config["KERIM_RELEASE_ROOT"])) / "LEGACY" / "config.py"
+    )
+    try:
+        template = template_path.read_text(encoding="utf-8")
+        generated = generate_legacy_config(template, document, profile_tag=tag)
+    except (OSError, LegacyConfigError) as exc:
+        abort(503, f"LEGACY/config.py could not be generated: {exc}")
+    response = Response(generated, mimetype="text/x-python")
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="startech-{tag}-config.py"'
+    )
+    response.headers["X-STARTECH-Profile"] = tag
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
 

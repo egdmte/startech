@@ -21,9 +21,9 @@ import uuid
 
 from flask import current_app
 
-from arac.adam import AdamState
-from arac.kayit import BlackBoxRecord
-from startech.configuration.combined import combined_config_errors
+from arac.startech.configuration.combined import combined_config_errors
+
+from .run_events import RUN_CANCELLED, RUN_STATES, RunEvent
 
 from .db import get_db
 from .security import audit, now_epoch
@@ -51,9 +51,6 @@ CAPABILITY_STATUSES = frozenset(
 MAX_JSON_BYTES = 1_000_000
 MAX_CALIBRATION_JPEG_BYTES = 650_000
 MAX_RUN_EVENT_BATCH = 100
-RUN_STATES = frozenset(state.value for state in AdamState)
-
-
 class DeviceLinkError(ValueError):
     """Raised when a device link request cannot be accepted safely."""
 
@@ -610,7 +607,7 @@ def store_vehicle_run_events(
     received_at = now_epoch()
     for raw_event in events:
         try:
-            record = BlackBoxRecord.from_dict(raw_event)
+            record = RunEvent.from_dict(raw_event)
         except (TypeError, ValueError) as exc:
             raise DeviceLinkError(f"vehicle run event is invalid: {exc}") from exc
         if record.run_id != job_id:
@@ -680,7 +677,7 @@ def request_vehicle_run_cancel(job_id: str, actor: str) -> bool:
         receipt = _canonical_json(
             {
                 "cancelled": True,
-                "state": AdamState.RUN_CANCELLED.value,
+                "state": RUN_CANCELLED,
                 "reason": "operator cancelled before vehicle claim",
             }
         )

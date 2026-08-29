@@ -19,24 +19,16 @@ import subprocess
 from typing import Any, Iterable
 import zipfile
 
-from startech.configuration.combined import split_v2
+from arac.startech.configuration.combined import split_v2
+
+from .legacy_config import LegacyConfigError, generate_legacy_config
 
 
 ROOT = Path(__file__).resolve().parent.parent
 HEX_COMMIT = re.compile(r"^[0-9a-f]{40}$")
 GIT_NAME = re.compile(r"^[A-Za-z0-9._/-]+$")
 PUBLISHED_REFERENCE_FORMAT = "startech-published-revision-v1"
-ARCHIVE_PATHS = (
-    "LEGACY",
-    "startech",
-    "tawnt.py",
-    "config",
-    "requirements.txt",
-    "requirements-camera-usb.txt",
-    "AGENTS_READ_ME.txt",
-    "PROJECT_MAP.md",
-    "TAWNT.md",
-)
+ARCHIVE_PATHS = ("LEGACY",)
 
 
 class VehicleReleaseError(RuntimeError):
@@ -295,7 +287,7 @@ def _json_bytes(value: Any) -> bytes:
 def _archive(root: Path, commit: str, timeout: float) -> bytes:
     if not HEX_COMMIT.fullmatch(commit):
         raise VehicleReleaseError("bundle commit must be one full Git SHA")
-    for required in ("LEGACY", "startech", "tawnt.py", "config"):
+    for required in ARCHIVE_PATHS:
         _git(root, ["cat-file", "-e", f"{commit}:{required}"], timeout=timeout)
     return bytes(
         _git(
@@ -337,12 +329,25 @@ def build_vehicle_bundle(
     archive = _archive(root.expanduser().resolve(), revision.commit, timeout)
     generated = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     with zipfile.ZipFile(BytesIO(archive)) as source_archive:
-        dependencies = {
-            filename: hashlib.sha256(
-                source_archive.read(f"startech-vehicle/{filename}")
-            ).hexdigest()
-            for filename in ("requirements.txt", "requirements-camera-usb.txt")
-        }
+        try:
+            template = source_archive.read(
+                "startech-vehicle/LEGACY/config.py"
+            ).decode("utf-8")
+            generated_config = generate_legacy_config(
+                template, document, profile_tag=profile_tag
+            ).encode("utf-8")
+        except (KeyError, UnicodeDecodeError, LegacyConfigError) as exc:
+            raise VehicleReleaseError(
+                f"selected revision cannot receive this KERİM profile: {exc}"
+            ) from exc
+
+        rebuilt = BytesIO()
+        with zipfile.ZipFile(rebuilt, "w", compression=zipfile.ZIP_DEFLATED) as target:
+            for item in source_archive.infolist():
+                if item.filename == "startech-vehicle/LEGACY/config.py":
+                    target.writestr(item, generated_config)
+                else:
+                    target.writestr(item, source_archive.read(item.filename))
 
     profile = document["profil"]
     manifest = {
@@ -361,13 +366,10 @@ def build_vehicle_bundle(
             "calibration_sha256": hashlib.sha256(calibration_bytes).hexdigest(),
             "settings_sha256": hashlib.sha256(settings_bytes).hexdigest(),
         },
-        "dependency_file_sha256": dependencies,
         "physical_status": "PHYSICALLY UNVERIFIED",
         "limitations": [
-            "This archive does not install the selected KERİM profile into LEGACY/config.py.",
-            "This archive does not arm TAWNT or request motor output.",
-            "A successful build is not evidence that the car can drive.",
-            "Raspberry Pi and operating-system dependencies still require a real cold-boot check.",
+            "The generated LEGACY/config.py has not been tested on the unavailable car.",
+            "Creating this archive does not start the car.",
         ],
     }
     instructions = f"""STARTECH vehicle release
@@ -376,25 +378,16 @@ Source commit: {revision.commit}
 KERİM profile: {profile_tag} ({profile['ad']})
 Physical status: PHYSICALLY UNVERIFIED
 
-This bundle does not install, activate, arm, or run the car.
+The selected KERİM values are already written into LEGACY/config.py in this bundle.
+GPIO pins, timing values and canon logic not represented by KERİM are preserved from
+the selected Git revision. The JSON copies are included so the source values remain
+readable.
 
-From the startech-vehicle directory, install the declared Python dependencies. On a
-Raspberry Pi, Picamera2 and gpiozero remain operating-system packages as documented in
-requirements-camera-usb.txt.
-
-  python -m pip install -r requirements.txt
-  python -m pip install -r requirements-camera-usb.txt
-
-The retained race code currently reads LEGACY/config.py. Automatic installation of the
-included KERİM profile into that file is not implemented. Review the generated JSON and
-transfer only understood values through the standalone calibration workflow when it is
-available. Do not replace config.py or its constants by inference.
-
-The target Raspberry Pi still needs a real dependency, offline-boot, camera, GPIO,
-shutdown, and recovery check before this can be called a release candidate.
+The car is currently unavailable, so the generated configuration remains physically
+unverified. Creating or extracting this bundle does not start the car.
 """
 
-    output = BytesIO(archive)
+    output = rebuilt
     with zipfile.ZipFile(output, "a", compression=zipfile.ZIP_DEFLATED) as bundle:
         bundle.writestr("KERIM_RELEASE/manifest.json", _json_bytes(manifest))
         bundle.writestr("KERIM_RELEASE/yapilandirma-v2.json", combined_bytes)

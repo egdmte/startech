@@ -22,6 +22,7 @@
     <p role="status">{{ t('Sharing status: {status}. The profile is not active.', status=device_job.status) }}</p>
     {% endif %}
     <a class="secondary-button" href="{{ url_for('cam.download', tag=tag) }}">{{ reicon('download') }}<span>{{ t('Download the JSON') }}</span></a>
+    <a class="secondary-button" href="{{ url_for('cam.download_legacy_config', tag=tag) }}">{{ reicon('download') }}<span>{{ t('Download LEGACY/config.py') }}</span></a>
     <a class="secondary-button" href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>{{ t('Main menu') }}</span></a>
   </div>
 </section>

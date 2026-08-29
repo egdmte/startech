@@ -119,7 +119,7 @@ MAC_SECTIONS: dict[str, tuple[str, str, tuple[Field, ...]]] = {
         "Motors",
         "Motor calibration values. Use PHYSICALLY UNVERIFIED until they are measured on the car.",
         (
-            Field("kalibrasyon.motor.olculdu", "Measured", "nullable_boolean"),
+            Field("kalibrasyon.motor.olculdu", "Measured on", "nullable_date"),
             Field("kalibrasyon.motor.sol_trim_dusuk", "Left low trim", "number", 0.1, 2, 0.01),
             Field("kalibrasyon.motor.sol_trim_yuksek", "Left high trim", "number", 0.1, 2, 0.01),
             Field("kalibrasyon.motor.sag_trim_dusuk", "Right low trim", "number", 0.1, 2, 0.01),

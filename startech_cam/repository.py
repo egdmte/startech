@@ -11,11 +11,11 @@ import sqlite3
 from typing import Any
 import uuid
 
-from startech.configuration.combined import (
+from arac.startech.configuration.combined import (
     combined_config_errors,
     combined_schema_errors,
 )
-from startech.configuration.validation import kisa_ozet_hesapla
+from arac.startech.configuration.validation import kisa_ozet_hesapla
 
 from .db import get_db
 from .fields import SAC_STEPS
@@ -23,7 +23,9 @@ from .security import audit, now_epoch
 
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_DOCUMENT = ROOT / "config" / "examples" / "yapilandirma-v2.ornek.json"
+DEFAULT_DOCUMENT = (
+    ROOT / "arac" / "config" / "examples" / "yapilandirma-v2.ornek.json"
+)
 MAX_JSON_BYTES = 1_000_000
 SAC_PHYSICAL_INSPECTION = ("wheels-secured", "motors-mounted", "path-clear")
 

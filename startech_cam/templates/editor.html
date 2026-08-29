@@ -50,6 +50,8 @@
               <option value="false" {% if values[field.path] == 'false' %}selected{% endif %}>{{ t('Not measured') }}</option>
               <option value="true" {% if values[field.path] == 'true' %}selected{% endif %}>{{ t('Measured — evidence exists') }}</option>
             </select></label>
+          {% elif field.kind == 'nullable_date' %}
+            <label><span>{{ t(field.label) }}</span><input type="date" name="{{ field.path }}" value="{{ values[field.path] }}"></label>
           {% elif field.kind == 'json' %}
             <label><span>{{ t(field.label) }}</span><textarea class="code-input" name="{{ field.path }}" rows="10">{{ values[field.path] }}</textarea></label>
           {% elif field.kind == 'range' %}

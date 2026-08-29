@@ -1,6 +1,6 @@
 # STARTECH current state and plan
 
-Updated: 28 August 2026
+Updated: 29 August 2026
 
 This is the current project plan. It describes what exists now, what is trusted,
 and what should happen next. It is not a reconstruction guide for abandoned
@@ -45,6 +45,10 @@ environment, service, and URL names containing `CAM` remain compatibility names.
 
 KERIM is useful, but it is not the authority that grants the car permission to use
 its own configuration. It must not become a boot dependency for a local race run.
+KERIM can now turn an immutable profile into a readable `LEGACY/config.py` download.
+The same generated file is placed into KERIM's vehicle release ZIP. Constants that
+KERIM does not represent, including GPIO pins and race behaviour timings, are copied
+unchanged from the selected canon revision.
 
 The new internet-operated dashboard belongs inside KERIM. It will be a small wrapper
 around real programs on the car, not a replacement vehicle runtime.
@@ -118,11 +122,11 @@ is a real alternate camera input, not a pretend Raspberry Pi motor environment.
 `LEGACY/config.py` is currently the authoritative configuration consumed by the
 vehicle runtime.
 
-KERIM may store, display, and edit calibration data, but a stored JSON profile does
-not automatically become a vehicle configuration. A small explicit converter may be
-added that reads a supported JSON schema and produces a Python configuration class or
-other input that LEGACY deliberately imports. Conversion must be visible,
-deterministic, and reversible; it must not silently rewrite working code.
+KERIM stores and edits its structured calibration profile, then deterministically
+generates the `LEGACY/config.py` already consumed by the vehicle. The original canon
+file is used as a template: only directly mapped calibration and controller constants
+are replaced. The generated file is offered as a download or inside a release bundle;
+KERIM does not silently rewrite the working checkout.
 
 The existing LEGACY calibration and tuning utilities will remain until their actual
 capabilities have been inventoried. After that inventory, overlapping tools may be
@@ -130,10 +134,11 @@ consolidated into one understandable standalone calibration program. Consolidati
 must preserve concrete controls and useful diagnostics rather than merely hiding
 them behind a new interface.
 
-The known KERIM MAC problem remains valid: frame dimensions and perspective can form
-a circular validation deadlock, and editing the stored file externally changes its
-hash. The eventual fix should allow related fields to be edited and validated as one
-atomic draft. It should not remove integrity checking from unrelated records.
+The former MAC dimension/perspective deadlock is repaired. When frame dimensions
+change, MAC updates the measured resolution and proportionally resizes the four
+perspective points in the same draft operation. The resized points are only an
+editable starting point and must still be checked against a real frame. Users no
+longer need to edit a hash-protected profile in AppData merely to reach the next page.
 
 ## 6. KERIM remote dashboard
 
@@ -286,8 +291,8 @@ STARTECH source.
 
 - inventory every calibration and tuning script;
 - identify which values are genuinely consumed by the active runtime;
-- design the explicit JSON-to-Python configuration conversion;
-- repair KERIM's atomic dimension/perspective editing problem;
+- keep the implemented JSON-to-`LEGACY/config.py` mapping aligned with canon values;
+- remove or relabel KERIM fields that do not affect the active runtime;
 - consolidate overlapping calibration tools only after their useful behaviour is
   accounted for.
 

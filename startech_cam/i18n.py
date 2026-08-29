@@ -229,6 +229,7 @@ TURKISH: dict[str, str] = {
     "Edit {tag} with MAC": "{tag} etiketini MAC ile düzenle",
     "Send this inactive profile to the Pi": "Bu inaktif profili Pi'ye gönder",
     "Download the JSON": "JSON'u indir",
+    "Download LEGACY/config.py": "LEGACY/config.py'yi indir",
     "Sharing status: {status}. The profile is not active.": "Paylaşım durumu: {status}. Profil aktif değil.",
     "Created - STARTECH": "Oluşturuldu - STARTECH",
     # MAC start and shared editor.
@@ -281,6 +282,8 @@ TURKISH: dict[str, str] = {
     "Motors": "Motorlar",
     "Motor calibration values. Use PHYSICALLY UNVERIFIED until they are measured on the car.": "Motor kalibrasyon değerleri. Araçta ölçülene kadar FİZİKSEL OLARAK DOĞRULANMADI seçeneğini kullanın.",
     "Measured": "Ölçüldü",
+    "Measured on": "Ölçüm tarihi",
+    "Perspective coordinates were resized with the camera frame. Check them on the Perspective page.": "Perspektif koordinatları kamera karesiyle birlikte ölçeklendirildi. Perspektif sayfasından kontrol edin.",
     "Left low trim": "Sol düşük düzeltme",
     "Left high trim": "Sol yüksek düzeltme",
     "Right low trim": "Sağ düşük düzeltme",
