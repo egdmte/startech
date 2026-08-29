@@ -406,21 +406,6 @@ def nested_set(document: dict[str, Any], path: str, value: Any) -> None:
     current[parts[-1]] = value
 
 
-def project_sac_speed(document: dict[str, Any]) -> None:
-    """Project the stable SAC power intent into the existing v1 speed fields."""
-
-    intent = document.get("sac_niyeti")
-    if not isinstance(intent, dict):
-        raise InvalidDocument("SAC intent is missing")
-    power = intent["guc"]
-    speed = document["ayarlar"]["hiz"]
-    minimum = power["minimum_hiz_yuzde"]
-    maximum = power["maksimum_hiz_yuzde"]
-    speed["min"] = minimum
-    speed["max"] = maximum
-    speed["hedef"] = min(max(speed["hedef"], minimum), maximum)
-
-
 def refresh_calibration_stamp(document: dict[str, Any]) -> None:
     """Regenerate the existing v1 digest after a deliberate MAC edit."""
 
@@ -447,7 +432,6 @@ __all__ = [
     "parse_document_text",
     "parse_json_value",
     "publish_draft",
-    "project_sac_speed",
     "record_sac_workshop_observation",
     "refresh_calibration_stamp",
     "replace_draft_json",

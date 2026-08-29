@@ -11,152 +11,41 @@
 
   <form class="sac-section-form" method="post" data-motion data-motion-delay="2">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-    <div class="sac-authority-strip sac-authority-strip--{{ 'runtime' if section == 'power' else 'recorded' }}">
-      <strong>{{ t('RUNTIME-BACKED') if section == 'power' else (t('PUBLISHING POLICY ONLY') if section == 'drive' else t('RECORDED INTENT ONLY')) }}</strong>
+    <div class="sac-authority-strip sac-authority-strip--runtime">
+      <strong>{{ t('WRITTEN TO LEGACY/config.py') }}</strong>
     </div>
 
-    {% if section == 'power' %}
-      <div class="sac-warning-strip">{{ t('These limits do not change the battery voltage. The driver uses a fixed 100 Hz PWM frequency; these controls change the minimum and maximum PWM command percentages that determine the duty cycle.') }}</div>
-      <div class="dual-controls">
-        <label class="range-control">
-          <span><b>{{ t('Minimum speed') }}</b><output data-range-output>{{ values['sac_niyeti.guc.minimum_hiz_yuzde'] }}%</output></span>
-          <input type="range" name="sac_niyeti.guc.minimum_hiz_yuzde" min="0" max="100" step="1" value="{{ values['sac_niyeti.guc.minimum_hiz_yuzde'] }}" data-range data-range-suffix="%">
-          <small><span>0%</span><span>100%</span></small>
-        </label>
-        <label class="range-control">
-          <span><b>{{ t('Maximum speed') }}</b><output data-range-output>{{ values['sac_niyeti.guc.maksimum_hiz_yuzde'] }}%</output></span>
-          <input type="range" name="sac_niyeti.guc.maksimum_hiz_yuzde" min="0" max="100" step="1" value="{{ values['sac_niyeti.guc.maksimum_hiz_yuzde'] }}" data-range data-range-suffix="%">
-          <small><span>0%</span><span>100%</span></small>
-        </label>
-      </div>
-
-    {% elif section == 'camera' %}
-      <div class="camera-layout">
-        <fieldset class="orientation-control">
-          <legend>{{ t('Frame orientation') }}</legend>
-          <div class="orientation-preview"><span data-orientation-preview>{{ values['sac_niyeti.kamera.yon_derecesi'] }}°</span></div>
-          <div class="inline-choices">
-            {% for value, label in fields[0].choices %}
-            <label><input type="radio" name="sac_niyeti.kamera.yon_derecesi" value="{{ value }}" {% if values['sac_niyeti.kamera.yon_derecesi']|string == value %}checked{% endif %}> {{ label }}</label>
-            {% endfor %}
-          </div>
-        </fieldset>
-        <div class="camera-choices">
-          <fieldset>
-            <legend>{{ t('Capture profile') }}</legend>
-            {% for value, label in fields[1].choices %}
-            <label class="choice"><input type="radio" name="sac_niyeti.kamera.yakalama_profili" value="{{ value }}" {% if values['sac_niyeti.kamera.yakalama_profili'] == value %}checked{% endif %}> {{ t(label) }}</label>
-            {% endfor %}
-          </fieldset>
-          <fieldset>
-            <legend>{{ t('Recognition sensitivity') }}</legend>
-            {% for value, label in fields[2].choices %}
-            <label class="choice"><input type="radio" name="sac_niyeti.kamera.tanima_hassasiyeti" value="{{ value }}" {% if values['sac_niyeti.kamera.tanima_hassasiyeti'] == value %}checked{% endif %}> {{ t(label) }}</label>
-            {% endfor %}
-          </fieldset>
+    <div class="sac-real-fields">
+      {% for field in fields %}
+        <div class="field-block field-block--{{ field.kind }}">
+          {% if field.kind == 'checkbox' %}
+            <label class="choice"><input type="checkbox" name="{{ field.path }}" {% if values[field.path] %}checked{% endif %}> {{ t(field.label) }}</label>
+          {% elif field.kind == 'select' %}
+            <label><span>{{ t(field.label) }}</span><select name="{{ field.path }}">
+              {% for value, label in field.choices %}<option value="{{ value }}" {% if values[field.path]|string == value %}selected{% endif %}>{{ t(label) }}</option>{% endfor %}
+            </select></label>
+          {% elif field.kind == 'nullable_date' %}
+            <label><span>{{ t(field.label) }}</span><input type="date" name="{{ field.path }}" value="{{ values[field.path] }}"></label>
+          {% elif field.kind == 'json' %}
+            <label><span>{{ t(field.label) }}</span><textarea class="code-input" name="{{ field.path }}" rows="10">{{ values[field.path] }}</textarea></label>
+          {% elif field.kind == 'range' %}
+            <label class="range-control"><span><b>{{ t(field.label) }}</b><output data-range-output>{{ values[field.path] }}</output></span>
+              <input type="range" name="{{ field.path }}" value="{{ values[field.path] }}" min="{{ field.minimum }}" max="{{ field.maximum }}" step="{{ field.step }}" data-range>
+            </label>
+          {% else %}
+            <label><span>{{ t(field.label) }}</span><input type="{{ 'number' if field.kind in ['integer', 'number'] else 'text' }}" name="{{ field.path }}" value="{{ values[field.path] }}" {% if field.minimum is not none %}min="{{ field.minimum }}"{% endif %} {% if field.maximum is not none %}max="{{ field.maximum }}"{% endif %} {% if field.step is not none %}step="{{ field.step }}"{% endif %}></label>
+          {% endif %}
+          {% if field.help_text %}<small>{{ t(field.help_text) }}</small>{% endif %}
         </div>
-      </div>
-      <label class="choice centered-choice"><input type="checkbox" name="sac_niyeti.kamera.raspberry_pi_oncelikli" {% if values['sac_niyeti.kamera.raspberry_pi_oncelikli'] %}checked{% endif %}> {{ t('Prioritize Raspberry Pi Camera before USB') }}</label>
+      {% endfor %}
+    </div>
 
-    {% elif section == 'compute' %}
-      <p class="availability-line availability-line--neutral">{{ t("KERİM will only manage how the systems should operate; it will not change the car's own safety measures.") }}</p>
-      <div class="compute-grid">
-        <fieldset>
-          <legend>{{ t(fields[0].label) }}</legend>
-          {% for value, label in fields[0].choices %}
-          <label class="choice"><input type="radio" name="sac_niyeti.hesaplama.baslangic_onlemi" value="{{ value }}" {% if values['sac_niyeti.hesaplama.baslangic_onlemi'] == value %}checked{% endif %}> {{ t(label) }}</label>
-          {% endfor %}
-        </fieldset>
-        <fieldset>
-          <legend>{{ t(fields[1].label) }}</legend>
-          {% for value, label in fields[1].choices %}
-          <label class="choice"><input type="radio" name="sac_niyeti.hesaplama.servis_durumu" value="{{ value }}" {% if values['sac_niyeti.hesaplama.servis_durumu'] == value %}checked{% endif %}> {{ t(label) }}</label>
-          {% endfor %}
-        </fieldset>
-        <fieldset>
-          <legend>{{ t(fields[2].label) }}</legend>
-          {% for value, label in fields[2].choices %}
-          <label class="choice"><input type="radio" name="sac_niyeti.hesaplama.m3th_sikiligi" value="{{ value }}" {% if values['sac_niyeti.hesaplama.m3th_sikiligi'] == value %}checked{% endif %}> {{ t(label) }}</label>
-          {% endfor %}
-        </fieldset>
-        <fieldset>
-          <legend>{{ t(fields[3].label) }}</legend>
-          <div class="module-grid">
-            {% for value, label in fields[3].choices %}
-            <label class="choice"><input type="checkbox" name="sac_niyeti.hesaplama.etkin_moduller" value="{{ value }}" {% if value in values['sac_niyeti.hesaplama.etkin_moduller'] %}checked{% endif %}> {{ label }}</label>
-            {% endfor %}
-          </div>
-        </fieldset>
-      </div>
-
-    {% elif section == 'drive' %}
-      <div class="drive-grid">
-        <fieldset>
-          <legend>{{ t(fields[0].label) }}</legend>
-          {% for value, label in fields[0].choices %}
-          <label class="choice"><input type="radio" name="sac_niyeti.surus.komut_kaybi_eylemi" value="{{ value }}" {% if values['sac_niyeti.surus.komut_kaybi_eylemi'] == value %}checked{% endif %}> {{ t(label) }}</label>
-          {% endfor %}
-        </fieldset>
-        <fieldset data-output-mode>
-          <legend>{{ t(fields[1].label) }}</legend>
-          {% for value, label in fields[1].choices %}
-          <label class="choice"><input type="radio" name="sac_niyeti.surus.surucu_cikis_modu" value="{{ value }}" {% if values['sac_niyeti.surus.surucu_cikis_modu'] == value %}checked{% endif %}> {{ t(label) }}</label>
-          {% endfor %}
-        </fieldset>
-      </div>
-      <div class="dual-controls">
-        <label class="range-control">
-          <span><b>{{ t('Driving center point') }}</b><output data-range-output>{{ values['sac_niyeti.surus.direksiyon_merkez_yuzde'] }}%</output></span>
-          <input type="range" name="sac_niyeti.surus.direksiyon_merkez_yuzde" min="-30" max="30" step="1" value="{{ values['sac_niyeti.surus.direksiyon_merkez_yuzde'] }}" data-range data-range-suffix="%">
-        </label>
-        <label class="range-control">
-          <span><b>{{ t('Maximum wheel turning angle') }}</b><output data-range-output>{{ values['sac_niyeti.surus.direksiyon_azami_hareket_yuzde'] }}%</output></span>
-          <input type="range" name="sac_niyeti.surus.direksiyon_azami_hareket_yuzde" min="10" max="100" step="1" value="{{ values['sac_niyeti.surus.direksiyon_azami_hareket_yuzde'] }}" data-range data-range-suffix="%">
-        </label>
-      </div>
-      <div class="full-output-gate" data-full-output-gate>
-        <strong>{{ t('Full driving requires approval.') }}</strong>
-        <label class="choice"><input type="checkbox" name="oturum_kaniti.tam_cikis_onaylandi" {% if values['oturum_kaniti.tam_cikis_onaylandi'] %}checked{% endif %}> {{ t('I approve this profile.') }}</label>
-      </div>
-
-    {% elif section == 'wheel' %}
-      <div class="wheel-visual" aria-hidden="true">
-        <span>{{ t('LEFT') }}</span><div class="wheel-axis"></div><span>{{ t('RIGHT') }}</span>
-      </div>
-      <div class="dual-controls">
-        <label class="range-control">
-          <span><b>{{ t('Left correction') }}</b><output data-range-output>{{ values['sac_niyeti.tekerlek.sol_duzeltme_yuzde'] }}%</output></span>
-          <input type="range" name="sac_niyeti.tekerlek.sol_duzeltme_yuzde" min="-20" max="20" step="1" value="{{ values['sac_niyeti.tekerlek.sol_duzeltme_yuzde'] }}" data-range data-range-suffix="%">
-        </label>
-        <label class="range-control">
-          <span><b>{{ t('Right correction') }}</b><output data-range-output>{{ values['sac_niyeti.tekerlek.sag_duzeltme_yuzde'] }}%</output></span>
-          <input type="range" name="sac_niyeti.tekerlek.sag_duzeltme_yuzde" min="-20" max="20" step="1" value="{{ values['sac_niyeti.tekerlek.sag_duzeltme_yuzde'] }}" data-range data-range-suffix="%">
-        </label>
-      </div>
-      <div class="drive-grid">
-        <fieldset>
-          <legend>{{ t('Left wheel direction') }}</legend>
-          {% for value, label in fields[2].choices %}
-          <label class="choice"><input type="radio" name="sac_niyeti.tekerlek.sol_yon" value="{{ value }}" {% if values['sac_niyeti.tekerlek.sol_yon'] == value %}checked{% endif %}> {{ t(label) }}</label>
-          {% endfor %}
-        </fieldset>
-        <fieldset>
-          <legend>{{ t('Right wheel direction') }}</legend>
-          {% for value, label in fields[3].choices %}
-          <label class="choice"><input type="radio" name="sac_niyeti.tekerlek.sag_yon" value="{{ value }}" {% if values['sac_niyeti.tekerlek.sag_yon'] == value %}checked{% endif %}> {{ t(label) }}</label>
-          {% endfor %}
-        </fieldset>
-      </div>
-    {% endif %}
-
-    <p class="sac-editor-note">{{ t('KERİM will save these settings in SAC v1 so they are not affected by later calibration versions.') }}</p>
     <button class="cam-action cam-action--primary sac-save-action" type="submit">{{ reicon('save') }}<span>{{ t('Save changes and return') }}</span></button>
   </form>
 </section>
 {% endblock %}
 {% block session_footer %}
 <footer class="cam-workflow-footer">
-  <div class="cam-progress" role="progressbar" aria-label="{{ t('SAC progress') }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ 36 + (touched|length * 12) }}"><span class="cam-progress__value" style="--cam-progress: {{ 36 + (touched|length * 12) }}%"></span></div>
+  <div class="cam-progress" role="progressbar" aria-label="{{ t('SAC progress') }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ 28 + (touched|length * 12) }}"><span class="cam-progress__value" style="--cam-progress: {{ 28 + (touched|length * 12) }}%"></span></div>
 </footer>
 {% endblock %}

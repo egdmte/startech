@@ -6,6 +6,7 @@ from pathlib import Path
 import unittest
 
 from startech_cam.legacy_config import LegacyConfigError, generate_legacy_config
+from startech_cam.fields import SAC_STEPS
 from startech_cam.repository import parse_document_text, refresh_calibration_stamp
 from startech_cam.routes import _sync_perspective_for_camera
 
@@ -89,6 +90,22 @@ class KerimLegacyConfigTests(unittest.TestCase):
         self.assertEqual(perspective["kaynak_noktalar"][3], [640, 480])
         refresh_calibration_stamp(updated)
         generate_legacy_config(self.template, updated)
+
+    def test_sac_only_edits_canon_backed_documents(self) -> None:
+        self.assertEqual(
+            tuple(SAC_STEPS),
+            ("camera", "perspective", "recognition", "colors", "motors", "control"),
+        )
+        paths = [
+            field.path
+            for _title, _description, fields in SAC_STEPS.values()
+            for field in fields
+        ]
+        self.assertTrue(paths)
+        self.assertTrue(
+            all(path.startswith(("kalibrasyon.", "ayarlar.")) for path in paths)
+        )
+        self.assertFalse(any(path.startswith("sac_niyeti.") for path in paths))
 
 
 if __name__ == "__main__":

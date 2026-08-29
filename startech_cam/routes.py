@@ -54,7 +54,6 @@ from .repository import (
     nested_set,
     parse_document_text,
     parse_json_value,
-    project_sac_speed,
     record_sac_workshop_observation,
     refresh_calibration_stamp,
     publish_draft,
@@ -1276,9 +1275,7 @@ def edit_section(workflow: str, draft_id: str, section: str) -> Any:
         try:
             for field in fields:
                 nested_set(updated, field.path, _coerce_field(field))
-            if workflow_upper == "SAC":
-                project_sac_speed(updated)
-            elif any(field.path.startswith("kalibrasyon.") for field in fields):
+            if any(field.path.startswith("kalibrasyon.") for field in fields):
                 if section == "camera":
                     perspective_resized = _sync_perspective_for_camera(
                         updated, document

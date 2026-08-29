@@ -50,6 +50,11 @@ The same generated file is placed into KERIM's vehicle release ZIP. Constants th
 KERIM does not represent, including GPIO pins and race behaviour timings, are copied
 unchanged from the selected canon revision.
 
+SAC now contains six canon-backed sections: camera, perspective, lane recognition,
+colours, motors, and steering/speed control. The former service-module approvals,
+YAREN policy, output-mode declarations, and future wheel intentions are no longer
+presented as useful calibration steps. MAC remains the lower-level editor.
+
 The new internet-operated dashboard belongs inside KERIM. It will be a small wrapper
 around real programs on the car, not a replacement vehicle runtime.
 
@@ -292,7 +297,7 @@ STARTECH source.
 - inventory every calibration and tuning script;
 - identify which values are genuinely consumed by the active runtime;
 - keep the implemented JSON-to-`LEGACY/config.py` mapping aligned with canon values;
-- remove or relabel KERIM fields that do not affect the active runtime;
+- keep SAC limited to its six implemented canon-backed categories;
 - consolidate overlapping calibration tools only after their useful behaviour is
   accounted for.
 

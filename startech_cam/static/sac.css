@@ -171,11 +171,12 @@
   font-size: 12px;
   font-weight: 700;
 }
-.car-hotspot--power { top: 39%; left: 8%; width: 47%; height: 27%; }
-.car-hotspot--compute { top: 17%; left: 47%; width: 31%; height: 30%; }
 .car-hotspot--camera { top: 16%; left: 76%; width: 14%; height: 22%; }
-.car-hotspot--drive { top: 48%; left: 49%; width: 28%; height: 20%; }
-.car-hotspot--wheel { top: 65%; left: 34%; width: 20%; height: 24%; }
+.car-hotspot--perspective { top: 17%; left: 47%; width: 28%; height: 25%; }
+.car-hotspot--recognition { top: 45%; left: 52%; width: 25%; height: 20%; }
+.car-hotspot--colors { top: 37%; left: 8%; width: 32%; height: 24%; }
+.car-hotspot--motors { top: 65%; left: 31%; width: 24%; height: 24%; }
+.car-hotspot--control { top: 44%; left: 40%; width: 12%; height: 18%; }
 .component-detail h2 { margin-bottom: 7px; font-size: 17px; font-weight: 700; }
 .component-detail > p { color: var(--cam-muted); }
 .component-status-list { display: grid; gap: 6px; margin: 18px 0 24px; padding: 0; list-style: none; }
@@ -183,7 +184,7 @@
 .component-status-list li.is-saved { color: var(--cam-success); }
 .component-summary-action { max-width: 420px; }
 
-/* The five designed SAC section editors. */
+/* Canon-backed SAC section editors. */
 .sac-editor-panel {
   width: min(1120px, calc(100% - 70px));
   min-height: calc(100vh - 95px);
@@ -194,6 +195,13 @@
 .sac-editor-heading h1 { margin-bottom: 5px; font-weight: 700; }
 .sac-editor-heading p { margin: 0 auto; max-width: 850px; color: #444; }
 .sac-section-form { display: grid; gap: 26px; }
+.sac-real-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 28px; }
+.sac-real-fields .field-block { display: grid; gap: 8px; }
+.sac-real-fields .field-block > label { display: grid; gap: 8px; }
+.sac-real-fields .field-block--json { grid-column: 1 / -1; }
+.sac-real-fields input:not([type="checkbox"]):not([type="range"]),
+.sac-real-fields select,
+.sac-real-fields textarea { width: 100%; }
 .sac-authority-strip { display: grid; gap: 4px; padding: 13px 16px; border-left: 5px solid #777; background: #fff; }
 .sac-authority-strip strong { font-size: 12px; letter-spacing: .08em; }
 .sac-authority-strip--runtime { border-left-color: var(--cam-success); }
@@ -283,7 +291,7 @@
 .finish-icon--success > .reicon { width: 25px; height: 25px; }
 .summary-review { margin: 0 0 25px; padding: 18px; border: 1px solid #c9c9c9; border-radius: 7px; background: rgb(255 255 255 / 40%); text-align: left; }
 .summary-review dl div { grid-template-columns: 100px 1fr; }
-.summary-section-links { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin-top: 15px; }
+.summary-section-links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 15px; }
 .summary-section-links a { display: flex; justify-content: space-between; padding: 7px 8px; border: 1px solid #ccc; border-radius: 4px; text-decoration: none; }
 .finish-warning { margin-bottom: 20px; padding: 14px; border-left: 5px solid var(--cam-danger); background: #fff; text-align: left; }
 .finish-warning ul, .finish-warning p { margin-bottom: 0; }
@@ -305,6 +313,7 @@
 }
 @media (max-width: 700px) {
   .sac-editor-panel { width: calc(100% - 32px); padding-top: 75px; }
+  .sac-real-fields { grid-template-columns: 1fr; }
   .dual-controls, .drive-grid, .compute-grid, .camera-layout { grid-template-columns: 1fr; }
   .components-page { padding-right: 20px; padding-left: 20px; }
   .components-workspace { grid-template-columns: 1fr; }

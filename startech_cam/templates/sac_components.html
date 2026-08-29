@@ -10,16 +10,17 @@
   <div class="components-workspace" data-motion data-motion-delay="2">
     <div class="car-map" aria-label="{{ t('Selectable car sections') }}">
       <img src="{{ url_for('static', filename='assets/car.png') }}" alt="{{ t('STARTECH prototype car') }}">
-      <a class="car-hotspot car-hotspot--power {{ 'is-saved' if 'power' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='power') }}" data-component-name="{{ t('Battery and power') }}" data-component-copy="{{ t('Set maximum and minimum speed values.') }}" aria-label="{{ t('Battery and power') }}"></a>
-      <a class="car-hotspot car-hotspot--compute {{ 'is-saved' if 'compute' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='compute') }}" data-component-name="{{ t('SBC and services') }}" data-component-copy="{{ t('Manage startup approvals and enabled STARTECH modules.') }}" aria-label="{{ t('SBC and services') }}"></a>
       <a class="car-hotspot car-hotspot--camera {{ 'is-saved' if 'camera' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='camera') }}" data-component-name="{{ t('Camera') }}" data-component-copy="{{ t('Change capture, scaling, and recognition targets.') }}" aria-label="{{ t('Camera') }}"></a>
-      <a class="car-hotspot car-hotspot--drive {{ 'is-saved' if 'drive' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='drive') }}" data-component-name="{{ t('Drive and steering') }}" data-component-copy="{{ t('Set command-loss behavior and turning limits.') }}" aria-label="{{ t('Drive and steering') }}"></a>
-      <a class="car-hotspot car-hotspot--wheel {{ 'is-saved' if 'wheel' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='wheel') }}" data-component-name="{{ t('Wheels') }}" data-component-copy="{{ t('Set wheel direction and correction ratios.') }}" aria-label="{{ t('Wheels') }}"></a>
+      <a class="car-hotspot car-hotspot--perspective {{ 'is-saved' if 'perspective' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='perspective') }}" data-component-name="{{ t('Perspective') }}" data-component-copy="{{ t('Set the lane region and perspective points.') }}" aria-label="{{ t('Perspective') }}"></a>
+      <a class="car-hotspot car-hotspot--recognition {{ 'is-saved' if 'recognition' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='recognition') }}" data-component-name="{{ t('Recognition') }}" data-component-copy="{{ t('Set the lane detection values.') }}" aria-label="{{ t('Recognition') }}"></a>
+      <a class="car-hotspot car-hotspot--colors {{ 'is-saved' if 'colors' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='colors') }}" data-component-name="{{ t('Colors') }}" data-component-copy="{{ t('Set object and signal HSV values.') }}" aria-label="{{ t('Colors') }}"></a>
+      <a class="car-hotspot car-hotspot--motors {{ 'is-saved' if 'motors' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='motors') }}" data-component-name="{{ t('Motors') }}" data-component-copy="{{ t('Set motor trims and dead zone.') }}" aria-label="{{ t('Motors') }}"></a>
+      <a class="car-hotspot car-hotspot--control {{ 'is-saved' if 'control' in touched else '' }}" href="{{ url_for('cam.edit_section', workflow='sac', draft_id=draft_id, section='control') }}" data-component-name="{{ t('Steering and speed') }}" data-component-copy="{{ t('Set controller and speed values.') }}" aria-label="{{ t('Steering and speed') }}"></a>
     </div>
     <aside class="component-detail" aria-live="polite">
       <h2 data-component-title>{{ t('ALL PARTS REVIEWED') if complete else t('NO PARTS SELECTED') }}</h2>
       <p data-component-description>{{ t('You can review and create this calibration.') if complete else t('Select a blue area for information.') }}</p>
-      {% set component_names = {'power': 'Battery and power', 'compute': 'SBC and services', 'camera': 'Camera', 'drive': 'Drive and steering', 'wheel': 'Wheels'} %}
+      {% set component_names = {'camera': 'Camera', 'perspective': 'Perspective', 'recognition': 'Recognition', 'colors': 'Colors', 'motors': 'Motors', 'control': 'Steering and speed'} %}
       <ul class="component-status-list">
         {% for key, definition in definitions.items() %}
         <li class="{{ 'is-saved' if key in touched else '' }}"><span>{{ '✓' if key in touched else '○' }}</span>{{ t(component_names[key]) }}</li>
@@ -36,6 +37,6 @@
 {% endblock %}
 {% block session_footer %}
 <footer class="cam-workflow-footer">
-  <div class="cam-progress" role="progressbar" aria-label="{{ t('SAC progress') }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ 24 + (touched|length * 12) }}"><span class="cam-progress__value" style="--cam-progress: {{ 24 + (touched|length * 12) }}%"></span></div>
+  <div class="cam-progress" role="progressbar" aria-label="{{ t('SAC progress') }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ 28 + (touched|length * 12) }}"><span class="cam-progress__value" style="--cam-progress: {{ 28 + (touched|length * 12) }}%"></span></div>
 </footer>
 {% endblock %}
