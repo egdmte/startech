@@ -48,6 +48,10 @@ def _static_asset_version(app: Flask) -> str:
         "cam.js",
         "assets/reicon.svg",
         "assets/run-received.gif",
+        "assets/uzaktan-spotter.png",
+        "assets/uzaktan-no-camera.png",
+        "uzaktan.css",
+        "uzaktan.js",
     ):
         digest.update(filename.encode("utf-8"))
         digest.update((static_root / filename).read_bytes())

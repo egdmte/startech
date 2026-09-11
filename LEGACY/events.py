@@ -15,6 +15,23 @@
 # Tüm tespitler debounce'ludur: bir olay N ardışık karede görünmeden
 # True olarak raporlanmaz.
 # =============================================================================
+
+# This module belongs to the code lineage used during the competition.
+# Working does not mean perfect, but it successfully detected certain events.
+#
+# See HATA_DEFTERI_PAYLASIM.pdf for historically observed issues.
+# Check the current implementation before reporting them; some may already be fixed.
+#
+# A closely related May 7 version is available on the master branch of
+# ototot-yedek. It may not be identical to the final on-site version.
+#
+# Improve this module through focused fixes. Do not replace working behavior
+# without a concrete reason.
+#
+
+
+
+
 import cv2
 import numpy as np
 
@@ -168,7 +185,6 @@ class EventDetector:
             yellow_car     : bool  — sollama YASAĞI bölgesi sarı engel araç
             parking_zone   : bool  — kırmızı park slotu görünür (kural 3.4.7)
             sign_blue      : bool  — mavi levha (Park P tabelası)
-            sign_type      : None  — sınıflandırıcı henüz çalışma yoluna bağlı değil
         """
         hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
 
@@ -253,9 +269,6 @@ class EventDetector:
             'yellow_car':      c_yellow,
             'parking_zone':    c_parking_zone,
             'sign_blue':       c_sign_blue,
-            # sign_test.py ve sign_model.json gerçek araçlardan ayrı bir araçtır.
-            # Bir levhayı sınıflandırmadığımız halde tür uydurmayız.
-            'sign_type':       None,
         }
 
     # ------------------------------------------------------------------

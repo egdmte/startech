@@ -20,6 +20,7 @@
   {% block scripts %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
+  {% block account_nav %}
   {% if session.get('authenticated') %}
     <nav class="cam-account-bar" aria-label="{{ t('KERİM account and YAREN navigation') }}">
       <a href="{{ url_for('cam.dashboard') }}">{{ reicon('home') }}<span>KERİM</span></a>
@@ -40,6 +41,7 @@
       </form>
     </nav>
   {% endif %}
+  {% endblock %}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div class="flash-stack" role="status" aria-live="polite">

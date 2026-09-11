@@ -75,7 +75,7 @@ class MotorDriver:
         """Motor kullanan bir programı gerçek GPIO yoksa açıkça durdurur."""
         if not self._has_gpio or self._closed:
             raise MotorHardwareUnavailable(
-                "Motor GPIO donanımı kullanılamıyor; hareket komutu gönderilmedi"
+                "GPIO kütüphanesi yok - Windows üzerinden çalışıyor olabilir misiniz?"
             )
 
     # ------------------------------------------------------------------

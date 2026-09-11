@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>UZAKTAN interface design</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;display=swap" rel="stylesheet">
+  <style>
+    :root { color-scheme: dark; font-family: Inter, sans-serif; background:#080908; color:#f4f4f4; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#080908; }
+    button { font:inherit; }
+    .shell { display:grid; min-height:100vh; grid-template-columns:72px minmax(0,1fr); }
+    .rail { display:flex; flex-direction:column; align-items:center; gap:7px; padding:28px 10px; background:#0d0e0d; }
+    .rail button { display:grid; width:46px; height:46px; place-items:center; border:0; border-radius:9px; color:#696a69; background:transparent; cursor:pointer; }
+    .rail button:hover,.rail button:focus-visible { color:#fff; }
+    .rail button[aria-pressed="true"] { color:#fff; background:#252625; }
+    .icon { display:grid; width:23px; height:23px; place-items:center; }
+    .icon svg { width:100%; height:100%; }
+    .stage { display:grid; min-width:0; padding:clamp(28px,5vw,76px); }
+    .view { display:grid; width:min(1320px,100%); margin:auto; align-content:center; gap:24px; }
+    .view[hidden] { display:none; }
+    .ready { justify-items:center; text-align:center; }
+    .hero-icon { width:42px; height:42px; margin-bottom:8px; }
+    h1,h2,p { margin-top:0; }
+    h1 { margin-bottom:6px; font-size:clamp(22px,2.6vw,34px); }
+    h2 { font-size:18px; }
+    .ready p { max-width:780px; margin-bottom:30px; color:#bcbdbc; font-size:clamp(15px,1.6vw,19px); line-height:1.5; }
+    .primary,.secondary { min-height:50px; border:0; border-radius:999px; cursor:pointer; }
+    .primary { width:min(290px,100%); color:#fff; background:#ff151b; font-weight:600; }
+    .secondary { color:#171717; background:#f2f2f2; font-weight:600; }
+    .workspace { grid-template-rows:auto minmax(420px,1fr) auto; }
+    .two-pane { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(300px,.8fr); gap:16px; }
+    .pane { min-width:0; padding:25px; border-radius:11px; background:#121312; }
+    .pane h2 { display:flex; align-items:center; gap:10px; }
+    .camera { display:grid; min-height:340px; place-items:center; color:#696a69; background:#f2f2f2; text-align:center; }
+    .camera .icon { width:44px; height:44px; margin:auto auto 10px; }
+    .logs { display:grid; gap:13px; margin:0; padding:0; color:#9a9b9a; font:14px ui-monospace,monospace; list-style:none; }
+    .actions { display:grid; grid-template-columns:minmax(180px,.55fr) minmax(280px,1fr); gap:13px; }
+    .warning { display:grid; grid-template-columns:minmax(190px,.65fr) minmax(300px,1fr); align-items:center; gap:60px; min-height:500px; padding:clamp(32px,6vw,76px); border-radius:13px; background:#121312; }
+    .warning-art { display:grid; place-items:center; color:#d8d8d8; }
+    .warning-art .icon { width:170px; height:170px; }
+    .warning-copy { display:grid; gap:20px; }
+    .warning-copy p { color:#c1c1c1; font-size:18px; line-height:1.55; }
+    .countdown { justify-items:center; text-align:center; }
+    .countdown strong { font-size:clamp(90px,15vw,180px); font-weight:400; }
+    .countdown p { color:#bdbdbd; }
+    .countdown .secondary { width:300px; }
+    .controls { display:grid; width:210px; margin:34px auto 0; grid-template-columns:repeat(3,62px); grid-template-rows:repeat(2,62px); justify-content:center; gap:9px; }
+    .controls button { display:grid; place-items:center; border:0; border-radius:9px; color:#fff; background:#292a29; }
+    .controls button:nth-child(1) { grid-column:2; }
+    .controls button:nth-child(2) { grid-column:1; grid-row:2; }
+    .controls button:nth-child(3) { grid-column:2; grid-row:2; }
+    .controls button:nth-child(4) { grid-column:3; grid-row:2; }
+    .details { margin:0; }
+    .details div { display:grid; grid-template-columns:180px 1fr; gap:20px; padding:15px 0; border-bottom:1px solid #2b2c2b; }
+    .details dt { color:#727372; }
+    .details dd { margin:0; font-weight:600; }
+    .empty { display:grid; min-height:330px; place-items:center; color:#727372; text-align:center; }
+    @media(max-width:700px){
+      .shell{grid-template-columns:58px minmax(0,1fr)} .rail{padding-inline:6px}.rail button{width:44px;height:44px}.stage{padding:28px 18px}
+      .two-pane,.actions,.warning{grid-template-columns:1fr}.warning{gap:20px;min-height:0}.warning-art{display:none}.workspace{grid-template-rows:auto auto auto}.details div{grid-template-columns:1fr;gap:5px}
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <nav class="rail" aria-label="UZAKTAN araçları">
+      <button aria-label="Motorsuz test" aria-pressed="true" data-nav="ready"><span class="icon" data-reicon="clock3">◷</span></button>
+      <button aria-label="Motor testi" aria-pressed="false" data-nav="motor"><span class="icon" data-reicon="clock2">◴</span></button>
+      <button aria-label="Yol takip testi" aria-pressed="false" data-nav="lane"><span class="icon" data-reicon="crosshairs">⌖</span></button>
+      <button aria-label="Uzaktan sürüş" aria-pressed="false" data-nav="remote"><span class="icon" data-reicon="gamepad">▣</span></button>
+      <button aria-label="Kayıtlar" aria-pressed="false" data-nav="logs"><span class="icon" data-reicon="printer">▤</span></button>
+      <button aria-label="Dosya bilgisi" aria-pressed="false" data-nav="files"><span class="icon" data-reicon="folder">▰</span></button>
+    </nav>
+    <main class="stage">
+      <section class="view ready" data-view="ready"><span class="icon hero-icon" data-reicon="power">◯</span><h1>Araba tespit edildi ve çalışmaya hazır.</h1><p>Arabayı motorsuz olarak çalıştırabilir veya kapsamlı bir test için yan menüden farklı bir seçenek seçebilirsiniz.</p><button class="primary" data-start-motorless>BAŞLAT</button></section>
+      <section class="view workspace" data-view="motorless" hidden><h1>Motorsuz test çalışıyor.</h1><div class="two-pane"><article class="pane"><h2><span class="icon" data-reicon="camera">▣</span>Kamera ve şerit tespiti</h2><div class="camera"><div><span class="icon" data-reicon="camera">▣</span>Arabanın kamera görüntüsü bekleniyor.</div></div></article><article class="pane"><h2><span class="icon" data-reicon="document">▤</span>Bu çalışmanın kayıtları</h2><ul class="logs"><li>[...] İstek arabaya gönderildi</li><li>[...] Program çıktısı bekleniyor</li></ul></article></div><div class="actions"><button class="secondary" data-nav-direct="ready">HAZIR EKRANA DÖN</button><button class="primary" data-nav-direct="ready">TESTİ DURDUR</button></div></section>
+      <section class="view" data-view="motor" hidden><div class="warning" data-motor-warning><div class="warning-art"><span class="icon" data-reicon="shield-cross">!</span></div><div class="warning-copy"><h1>Arabayı birlikte kontrol edelim.</h1><p>Motor testi sırasında arabayı gözlemleyecek ve gerektiğinde fiziksel güç anahtarına ulaşacak ikinci bir kişi bulundurun.</p><div class="actions"><button class="secondary" data-nav-direct="ready">GERİ DÖN</button><button class="primary" data-confirm-motor>ONAYLA</button></div></div></div><div class="countdown" data-countdown hidden><strong data-count>5</strong><h1>Motor testi başlamak üzere.</h1><p>Geri sayım boyunca işlemi iptal edebilirsiniz.</p><button class="secondary" data-cancel-countdown>İPTAL ET</button></div></section>
+      <section class="view workspace" data-view="lane" hidden><h1>Yol takip testi</h1><div class="two-pane"><article class="pane"><h2><span class="icon" data-reicon="camera">▣</span>Kamera ve tespit görüntüsü</h2><div class="camera">Kamera görüntüsü bekleniyor.</div></article><article class="pane"><h2>Bu sürüşün kayıtları</h2><ul class="logs"><li>[...] Araba bağlantısı bekleniyor</li><li>[...] lane.py çıktısı burada görünecek</li></ul></article></div><div class="actions"><button class="secondary">MANUEL BAŞLAT</button><button class="primary">OTOMATİK BAŞLANGIÇ</button></div></section>
+      <section class="view workspace" data-view="remote" hidden><h1>Uzaktan sürüş</h1><div class="two-pane"><article class="pane"><h2>Canlı kamera</h2><div class="camera">Araba bağlantısı bekleniyor.</div></article><article class="pane"><h2>Sürüş kontrolü</h2><p style="color:#999;text-align:center">Bağlantı kurulduğunda klavye veya bu düğmeler kullanılabilir.</p><div class="controls"><button aria-label="İleri">↑</button><button aria-label="Sol">←</button><button aria-label="Dur">■</button><button aria-label="Sağ">→</button></div></article></div></section>
+      <section class="view" data-view="logs" hidden><h1>Kayıtlar</h1><article class="pane"><h2>Sürüş ve test çıktıları</h2><div class="empty">Araba bir çalışma kaydı gönderdiğinde burada listelenecek.</div></article></section>
+      <section class="view" data-view="files" hidden><h1>Dosya bilgisi</h1><article class="pane"><h2>Arabada çalışan sürüm</h2><dl class="details"><div><dt>Git sürümü</dt><dd>Bağlantı bekleniyor</dd></div><div><dt>Başlangıç dosyası</dt><dd>Bağlantı bekleniyor</dd></div><div><dt>Yapılandırma</dt><dd>Bağlantı bekleniyor</dd></div><div><dt>Son değişiklik</dt><dd>Bağlantı bekleniyor</dd></div></dl></article></section>
+    </main>
+  </div>
+  <script>
+    const views=[...document.querySelectorAll('[data-view]')];
+    const nav=[...document.querySelectorAll('[data-nav]')];
+    let timer=null;
+    function show(name){if(timer)clearInterval(timer);timer=null;views.forEach(v=>v.hidden=v.dataset.view!==name);nav.forEach(b=>b.setAttribute('aria-pressed',String((name==='motorless'?'ready':name)===b.dataset.nav)));const warning=document.querySelector('[data-motor-warning]');const countdown=document.querySelector('[data-countdown]');warning.hidden=false;countdown.hidden=true;}
+    nav.forEach(button=>button.addEventListener('click',()=>show(button.dataset.nav)));
+    document.querySelectorAll('[data-nav-direct]').forEach(button=>button.addEventListener('click',()=>show(button.dataset.navDirect)));
+    document.querySelector('[data-start-motorless]').addEventListener('click',()=>show('motorless'));
+    document.querySelector('[data-confirm-motor]').addEventListener('click',()=>{const warning=document.querySelector('[data-motor-warning]');const countdown=document.querySelector('[data-countdown]');const output=document.querySelector('[data-count]');let left=5;warning.hidden=true;countdown.hidden=false;output.textContent=left;timer=setInterval(()=>{left-=1;output.textContent=left>0?left:'HAZIR';if(left<=0){clearInterval(timer);timer=null;}},1000);});
+    document.querySelector('[data-cancel-countdown]').addEventListener('click',()=>show('motor'));
+    async function loadReicon(){try{const response=await fetch('../../Secondary/reicon-1.2.0/reicon-1.2.0/data/icon-data.json');const data=await response.json();const find=(node,name)=>{if(!node||typeof node!=='object')return null;if(node[name]?.code)return node[name].code;for(const value of Object.values(node)){const result=find(value,name);if(result)return result;}return null;};document.querySelectorAll('[data-reicon]').forEach(target=>{const code=find(data,target.dataset.reicon);if(code)target.innerHTML=`<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">${code}</svg>`;});}catch(_error){/* Text fallbacks remain visible when opened directly from disk. */}}
+    loadReicon();
+  </script>
+</body>
+</html>

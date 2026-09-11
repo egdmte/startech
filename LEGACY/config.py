@@ -1,3 +1,4 @@
+# KERİM profile 7d9049: generated values; GPIO and other canon logic preserved.
 # =============================================================================
 # config.py  —  Tüm ayarlanabilir parametreler tek yerden
 #
@@ -8,8 +9,8 @@
 # ---------------------------------------------------------------------------
 # Kamera çözünürlüğü
 # ---------------------------------------------------------------------------
-WIDTH  = 800
-HEIGHT = 680
+WIDTH  = 840
+HEIGHT = 630
 
 # ---------------------------------------------------------------------------
 # Perspektif / ROI
@@ -21,7 +22,7 @@ ROI_TOP_RATIO = 0.55
 # Sıra: sol-üst, sağ-üst, sol-alt, sağ-alt
 # Gerçek pistinize göre calibrate.py ile ayarlayın.
 # ⚠️  800×680 çözünürlük için yeniden kalibre edilmeli (calibrate.py çalıştırın).
-PERSP_SRC = [[225, 289], [403, 291], [200, 6], [403, 20]]# sol-üst, sağ-üst, sol-alt, sağ-alt
+PERSP_SRC = [[400, 53], [840, 53], [0, 630], [840, 630]]# sol-üst, sağ-üst, sol-alt, sağ-alt
 
 
 def _perspektif_kontrol():
@@ -89,20 +90,20 @@ ASSUMED_LANE_WIDTH = 300
 # Beyaz şerit için HSV aralığı.
 # camera.py'de tesis ışığı altında doğrulayın.
 # ADAPTIF HSV: Parlaklık ortalamasına göre dinamik ayarlama
-WHITE_HSV_LOW  = (0,   0,  140)
-WHITE_HSV_HIGH = (180, 80, 255)
+WHITE_HSV_LOW  = (19, 11, 90)
+WHITE_HSV_HIGH = (180, 110, 255)
 
 # Adaptif HSV profilleri (V_mean'e göre otomatik seçim)
 # Karanlık: V_mean < 100
-WHITE_HSV_LOW_DARK   = (0,   0,  80)
+WHITE_HSV_LOW_DARK   = (0, 0, 80)
 WHITE_HSV_HIGH_DARK  = (180, 100, 255)
 
 # Normal: 100 <= V_mean <= 200
-WHITE_HSV_LOW_NORMAL  = (0,   0,  90)
+WHITE_HSV_LOW_NORMAL  = (0, 0, 90)
 WHITE_HSV_HIGH_NORMAL = (180, 110, 255)
 
 # Parlak: V_mean > 200
-WHITE_HSV_LOW_BRIGHT  = (0,   0,  160)
+WHITE_HSV_LOW_BRIGHT  = (0, 0, 160)
 WHITE_HSV_HIGH_BRIGHT = (180, 60, 255)
 
 # Şerit sinyali MIN_LANE_SIGNAL'ın altına düştükten sonra kaç kare güvenilir.
@@ -114,14 +115,14 @@ LANE_SEARCH_WINDOW = 120
 # ---------------------------------------------------------------------------
 # PD denetleyici — OPTIMIZE EDİLMİŞ
 # ---------------------------------------------------------------------------
-KP = 0.30   # oransal kazanç
-KD = 0.45   # türevsel kazanç
+KP = 0.58   # oransal kazanç
+KD = 0.6   # türevsel kazanç
 
 # İntegral kazancı + anti-windup
 # Sürekli virajda PD'nin sıfırlayamadığı kalıcı hatayı kapatır.
 # INTEGRAL_MAX küçük tutulur ki dış-yörüngeye sürüklenmeyi düzeltsin ama
 # uzun düz hatlarda biriken bias'la salınıma yol açmasın.
-KI           = 0.04
+KI           = 0.2
 INTEGRAL_MAX = 50.0
 
 # Büyük hatalar için dinamik kazanç artışı (|error| > 30 iken etkin)
@@ -132,7 +133,7 @@ KD_LARGE_ERROR_MULT = 1.2  # türevsel kazanç çarpanı
 # Bu denetleyicinin ilk surumu farki saniyeye bolup asagidaki kare-bazli
 # esiklerle karsilastiriyordu. 30 FPS'te yalnizca 1.67 px kamera gurultusu
 # araci MIN_SPEED'e dusuruyordu (HATA_DEFTERI #20).
-DERIV_CAP = 150
+DERIV_CAP = 150.0
 
 # Crossing (viraj) için KD artırma (|derivative| > 50 iken etkin)
 CROSSING_KD_MULT = 1.2  # türevsel kazanç çarpanı
@@ -140,9 +141,9 @@ CROSSING_KD_MULT = 1.2  # türevsel kazanç çarpanı
 # ---------------------------------------------------------------------------
 # Motor hızları (0–100 %) — OPTIMIZE EDİLMİŞ
 # ---------------------------------------------------------------------------
-BASE_SPEED = 62   # hata = 0 iken seyir hızı
+BASE_SPEED = 56   # hata = 0 iken seyir hızı
 MIN_SPEED  = 25   # minimum hız (virajda durmama)
-MAX_SPEED  = 85   # maksimum hız
+MAX_SPEED  = 57   # maksimum hız
 K_SPEED    = 0.45 # hız = BASE - K_SPEED * |hata|
 
 # Hız-Viraj Koordinasyonu: kare basina hata degisimiyle yavaslama
@@ -152,7 +153,7 @@ DERIV_MEDIUM_THRESHOLD   = 30   # |delta_error| > 30 px/kare ise BASE - 10
 # Motor dengeleme katsayıları — mekanik dengesizliği giderir.
 # Düşük hızda (< 40%) ve yüksek hızda (> 70%) ayrı profiller
 LEFT_TRIM_LOW   = 1.0   # < 40% hızda sol trim
-LEFT_TRIM_HIGH  = 1.0   # > 70% hızda sol trim
+LEFT_TRIM_HIGH  = 1.47   # > 70% hızda sol trim
 RIGHT_TRIM_LOW  = 1.0   # < 40% hızda sağ trim
 RIGHT_TRIM_HIGH = 1.0   # > 70% hızda sağ trim
 
@@ -181,7 +182,7 @@ START_BUTTON_PIN = 16
 # "RGB888" formatı talep edilmesine rağmen kare BGRA veya BGR sıralı gelebilir.
 # Kameradan gelen görüntünün RENK KANALLARI TERS görünüyorsa (beyaz mavi gibi,
 # turuncu mavi gibi) bu bayrağı True yapın.
-CAMERA_BGR_OUTPUT  = False  # True → kamera BGR dönüyor, RGB'ye çevir
+CAMERA_BGR_OUTPUT  = True  # True → kamera BGR dönüyor, RGB'ye çevir
 CAMERA_ROTATE_180  = True   # True → kamera 180° döndürülür (ters montaj)
 
 # Sürüş sırasında önizleme penceresi (main.py). False = performans modu.
@@ -212,14 +213,14 @@ ROAD_ROI_BOTTOM = 680
 # Trafik ışığı renkleri — HSV
 # ---------------------------------------------------------------------------
 # KIRMIZI: ton çift aralıklıdır (0-10 ve 160-180)
-RED_HSV_LOW1  = (0,   120, 80)
-RED_HSV_HIGH1 = (10,  255, 255)
+RED_HSV_LOW1  = (0, 120, 80)
+RED_HSV_HIGH1 = (10, 255, 255)
 RED_HSV_LOW2  = (160, 120, 80)
 RED_HSV_HIGH2 = (180, 255, 255)
 
 # YEŞİL
-GREEN_HSV_LOW  = (40,  80, 60)
-GREEN_HSV_HIGH = (90, 255, 255)
+GREEN_HSV_LOW  = (45, 90, 80)
+GREEN_HSV_HIGH = (85, 255, 255)
 
 # Geçerli sinyal blobu için minimum kontur alanı (px²)
 SIGNAL_MIN_AREA = 300
@@ -270,7 +271,7 @@ APPROACH_TIMEOUT_SEC = 4.0   # yaklaşma fazı bu süreyi aşarsa fallback fren
 # ---------------------------------------------------------------------------
 # Turuncu engel araç (sollama — 20×30×25 cm)
 # ---------------------------------------------------------------------------
-ORANGE_HSV_LOW  = (5,  140, 80)
+ORANGE_HSV_LOW  = (5, 120, 100)
 ORANGE_HSV_HIGH = (20, 255, 255)  # H üst sınırı 20 → sarı ton (H≥22) ile çakışmaz
 ORANGE_MIN_AREA = 1500   # px² — tetiklemek için minimum blob alanı
 
@@ -286,8 +287,8 @@ OVERTAKING_SPEED      = 40   # sollama sırasında hız (%)
 # ---------------------------------------------------------------------------
 # Park etme (kırmızı slot — her zaman kırmızı, PDF'te onaylı)
 # ---------------------------------------------------------------------------
-PARKING_HSV_LOW1  = (0,   120, 80)
-PARKING_HSV_HIGH1 = (10,  255, 255)
+PARKING_HSV_LOW1  = (0, 120, 90)
+PARKING_HSV_HIGH1 = (10, 255, 255)
 PARKING_HSV_LOW2  = (160, 120, 80)
 PARKING_HSV_HIGH2 = (180, 255, 255)
 PARKING_MIN_AREA     = 3000   # park manevrası sırasında min kırmızı blob alanı
@@ -305,8 +306,8 @@ PARKING_CENTER_TOL   = 40     # kare merkezine px cinsinden tolerans
 # ---------------------------------------------------------------------------
 # Kural: sarı araçlar (20×45×25 cm) sollama yasağı bölgesine yerleştirilir.
 # Turuncu ile çakışmaması için H≥22'den başlıyoruz.
-YELLOW_HSV_LOW  = (22, 100, 80)
-YELLOW_HSV_HIGH = (38, 255, 255)
+YELLOW_HSV_LOW  = (22, 120, 100)
+YELLOW_HSV_HIGH = (35, 255, 255)
 YELLOW_MIN_AREA = 1500   # Sarı blob için minimum alan (px²)
 
 # ---------------------------------------------------------------------------
@@ -314,7 +315,7 @@ YELLOW_MIN_AREA = 1500   # Sarı blob için minimum alan (px²)
 # ---------------------------------------------------------------------------
 # Mavi arka planlı levhalar: Park (P) ve Çıkmaz Yol (T) işaretleri
 # Kılavuza göre levha boyutu: 13 cm genişlik, toplam 20 cm yükseklik (sap dahil)
-SIGN_BLUE_HSV_LOW  = (100, 120, 80)   # Mavi levha alt HSV eşiği
+SIGN_BLUE_HSV_LOW  = (95, 100, 70)   # Mavi levha alt HSV eşiği
 SIGN_BLUE_HSV_HIGH = (130, 255, 255)  # Mavi levha üst HSV eşiği
 SIGN_MIN_AREA      = 200              # Küçük levhalar için düşük alan eşiği (px²)
 

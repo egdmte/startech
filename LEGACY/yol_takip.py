@@ -374,7 +374,7 @@ def _shutdown(sig=None, frame=None):
             raise SystemExit(128 + int(sig))
         return
     _cleanup_done = True
-    print("\n[yol_takip] Kapatılıyor...")
+    print("\n[yol_takip] Hizmet tamamlandı")
     _running = False
     if motor is not None:
         try:
@@ -423,14 +423,14 @@ def main(argv=None) -> int:
         signal.signal(signal.SIGINT, _shutdown)
         signal.signal(signal.SIGTERM, _shutdown)
         print()
-        print("╔══════════════════════════════════════════════════════════╗")
-        print("║   🚗 YOL TAKİP — BASİT SİSTEMİ 🚗                        ║")
-        print("║                                                          ║")
-        print("║   Sadece şerit takibi (olay tespiti yok)                ║")
-        print("╚══════════════════════════════════════════════════════════╝")
+        print("")
+        print("║   Yol takibi sistemi                         ")
+        print("║                                                          ")
+        print("║   Sadece şerit takip eden bir test modülüdür.                       ")
+        print("")
         print()
 
-        print("[yol_takip] Bileşenler başlatılıyor...")
+        print("[yol_takip] Kodun çalışması için gerekli tüm bileşenler başlatılıyor... [kalite kontrol]")
 
         motor = MotorDriver()
         motor.require_hardware()
@@ -439,7 +439,7 @@ def main(argv=None) -> int:
         controller = PDController()
         logger = ErrorLogger()
 
-        print("[yol_takip] ✅ Tüm bileşenler hazır")
+        print("[yol_takip] Tüm bileşenler başarıyla başlatıldı.")
         print()
 
         if args.auto:

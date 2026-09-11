@@ -1,0 +1,989 @@
+{
+  "metadata": {
+    "repository": "https://github.com/egdmte/startech",
+    "observed_branch": "master",
+    "checked_at": "2026-09-11T17:28:46.968028+00:00",
+    "scope": "Uploaded handbook plus current LEGACY only",
+    "subagents_used": false,
+    "repository_modified": false,
+    "hardware_access": false,
+    "verification": "Fresh GitHub listing confirms all 27 retained source files match current Git blob hashes. Re-read relevant source and ran new isolated CPU-only probes.",
+    "handbook": "HATA_DEFTERI_PAYLASIM (1).pdf",
+    "handbook_snapshot_date": "2026-08-19",
+    "handbook_pages": 21,
+    "numbered_defects_checked": 20,
+    "guards_checked": 7,
+    "previous_audit_modified": false
+  },
+  "defects": [
+    {
+      "handbook_id": 1,
+      "title": "Perspective calibration mismatch",
+      "pdf_pages": [
+        7,
+        8
+      ],
+      "status": "Changed; unresolved",
+      "verdict": "The quoted 640×480 quad is gone, but the underlying calibration problem remains. Current PERSP_SRC is [[225,289],[403,291],[200,6],[403,20]] for an 800×680 frame. The purported bottom corners are above the top corners and all source points are above y=292.",
+      "evidence": [
+        "config.py:11-24",
+        "config.py:27-74",
+        "lane.py:29-42",
+        "lane.py:104-116"
+      ],
+      "remaining_risk_or_limit": "The current check warns rather than blocks. A new synthetic lower-road image returns no lane. The PDF's old −100 px estimate and old omitted-strip dimensions must not be reused for this different quad. An inset ROI need not cover the full image to be valid.",
+      "recommended_action": "Recalibrate in the exact normalized/rotated driving frame and reject invalid corner order, degeneracy and coordinate conventions before enabling motion; do not simply scale by coordinate maxima.",
+      "prior_audit_ids": [
+        "LEGACY-002",
+        "LEGACY-003",
+        "LEGACY-010",
+        "LEGACY-011"
+      ],
+      "source_links": [
+        {
+          "file": "config.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/config.py"
+        },
+        {
+          "file": "lane.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/lane.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 2,
+      "title": "All motor trims remain 1.0",
+      "pdf_pages": [
+        8
+      ],
+      "status": "Values persist; history unverified",
+      "verdict": "All four live trims are still exactly 1.0. Code cannot establish that they were never measured, that measurements were lost, or that a measured unity trim would be wrong.",
+      "evidence": [
+        "config.py:154-157",
+        "motor.py:98-107"
+      ],
+      "remaining_risk_or_limit": "The PDF converts an observable default value into an unproven historical claim. It also proposes rejecting every 1.0 trim; a measured unity value can be valid.",
+      "recommended_action": "Measure and record per-wheel/per-speed calibration with provenance and acceptance checks. Validate calibration completion explicitly instead of rejecting a numeric value merely because it equals 1.0.",
+      "prior_audit_ids": [
+        "LEGACY-028",
+        "LEGACY-029",
+        "LEGACY-070"
+      ],
+      "source_links": [
+        {
+          "file": "config.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/config.py"
+        },
+        {
+          "file": "motor.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/motor.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 3,
+      "title": "Balance tool emits unused trim names",
+      "pdf_pages": [
+        9
+      ],
+      "status": "Original defect resolved",
+      "verdict": "The active output now prints LEFT_TRIM_LOW/RIGHT_TRIM_LOW or LEFT_TRIM_HIGH/RIGHT_TRIM_HIGH. Midrange tests warn that neither profile is isolated. The old unconsumed LEFT_TRIM/RIGHT_TRIM output is no longer the recommendation.",
+      "evidence": [
+        "motor_balance_test.py:98-117",
+        "config.py:154-157"
+      ],
+      "remaining_risk_or_limit": "This fixes the naming mismatch only. Baseline-reset advice, conditional wrong-wheel correction, low-speed clamping and invalid recommended trim values are separate remaining defects.",
+      "recommended_action": "Keep regression checks that emitted names exist in config; fix the calibration mathematics separately before trusting its recommendations.",
+      "prior_audit_ids": [
+        "LEGACY-028",
+        "LEGACY-029",
+        "LEGACY-070",
+        "LEGACY-071"
+      ],
+      "source_links": [
+        {
+          "file": "motor_balance_test.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/motor_balance_test.py"
+        },
+        {
+          "file": "config.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/config.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 4,
+      "title": "Trims applied twice",
+      "pdf_pages": [
+        18
+      ],
+      "status": "Original defect resolved",
+      "verdict": "PDController contains no trim variable references. MotorDriver applies the selected left and right trims once, after the controller output. An isolated test with inputs (60,60), left trim .8 and right trim .9 produces (48,54), not squared products.",
+      "evidence": [
+        "controller.py:12-18",
+        "controller.py:138-143",
+        "motor.py:98-118"
+      ],
+      "remaining_risk_or_limit": "Dead-zone compensation still occurs in both layers, but that is not double trim and must not be conflated with this historical defect.",
+      "recommended_action": "Retain non-unit-trim tests through the complete controller-to-driver path and enforce trim ownership at the driver.",
+      "prior_audit_ids": [
+        "LEGACY-067"
+      ],
+      "source_links": [
+        {
+          "file": "controller.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/controller.py"
+        },
+        {
+          "file": "motor.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/motor.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 5,
+      "title": "Trim selected by command sign instead of wheel",
+      "pdf_pages": [
+        18
+      ],
+      "status": "Original defect resolved",
+      "verdict": "MotorDriver selects LEFT profiles for the left argument and RIGHT profiles for the right argument. _get_trim uses absolute speed only to interpolate LOW/HIGH within that wheel's profile. There is no controller trim selection by sign.",
+      "evidence": [
+        "motor.py:98-107",
+        "motor.py:125-136",
+        "controller.py:12-18"
+      ],
+      "remaining_risk_or_limit": "The Turkish summary's reference to selecting trim by a traffic sign is not the detailed defect: the old issue concerned the mathematical sign of PWM. Real wheel identity/polarity is still unverified.",
+      "recommended_action": "Keep forward/reverse and unequal left/right trim tests; verify the physical channel labels safely before calibration.",
+      "prior_audit_ids": [
+        "LEGACY-014",
+        "LEGACY-029"
+      ],
+      "source_links": [
+        {
+          "file": "motor.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/motor.py"
+        },
+        {
+          "file": "controller.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/controller.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 6,
+      "title": "Autonomous output lacks a usable sign_type",
+      "pdf_pages": [
+        15
+      ],
+      "status": "Persists",
+      "verdict": "The exact missing-key description is outdated: events.py now explicitly returns sign_type, but its value is always None. main.py still reads it, so autonomous sign-specific branches remain unreachable through this detector.",
+      "evidence": [
+        "events.py:170-171",
+        "events.py:245-258",
+        "main.py:432-446"
+      ],
+      "remaining_risk_or_limit": "A declared placeholder is not implemented recognition. Also, the current dead-end state only brakes; the handbook's claim that its right-turn handling is already correct is not true of current code.",
+      "recommended_action": "Integrate a validated classifier into the runtime contract, expose capability readiness, and separately implement/verify the required right turn. Do not replace None with guessed labels.",
+      "prior_audit_ids": [
+        "LEGACY-020",
+        "LEGACY-063"
+      ],
+      "source_links": [
+        {
+          "file": "events.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/events.py"
+        },
+        {
+          "file": "main.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/main.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 7,
+      "title": "Trained sign model disconnected from the car",
+      "pdf_pages": [
+        15
+      ],
+      "status": "Persists",
+      "verdict": "The six-class model exists, but the autonomous EventDetector does not load or use it. The model remains a standalone train/test asset, with no path producing classified runtime signs.",
+      "evidence": [
+        "events.py:245-258",
+        "sign_test.py:7-34",
+        "sign_test.py:48-79",
+        "train_sign.py:128-133",
+        "sign_model.json"
+      ],
+      "remaining_risk_or_limit": "The standalone nearest-neighbor classifier also lacks unknown/background rejection. File existence and class-name agreement do not establish usable field recognition.",
+      "recommended_action": "Unify candidate extraction and preprocessing, add calibrated rejection/confidence and temporal validation, then connect the classifier before claiming sign-based missions work.",
+      "prior_audit_ids": [
+        "LEGACY-020",
+        "LEGACY-078",
+        "LEGACY-079",
+        "LEGACY-080"
+      ],
+      "source_links": [
+        {
+          "file": "events.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/events.py"
+        },
+        {
+          "file": "sign_test.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/sign_test.py"
+        },
+        {
+          "file": "train_sign.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/train_sign.py"
+        },
+        {
+          "file": "sign_model.json",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/sign_model.json"
+        }
+      ]
+    },
+    {
+      "handbook_id": 8,
+      "title": "PWM frequency not explicitly configured",
+      "pdf_pages": [
+        9
+      ],
+      "status": "Omission persists; causal claim unverified",
+      "verdict": "Both motor PWM constructors still omit frequency, and no Python file inside LEGACY explicitly sets frequency or PWM_FREQ. This is an explicit-configuration omission, not proof that PWM is absent or malfunctioning.",
+      "evidence": [
+        "motor.py:51-52",
+        "camtester.py:51-74",
+        "config.py"
+      ],
+      "remaining_risk_or_limit": "The PDF itself marks #8 “YALAN” in its summary but retains a causal discussion later. The deployed gpiozero version, selected backend, actual waveform and relationship to the dead zone were not measured. Its 100 Hz default claim is not a live hardware measurement; “probably causes the dead-zone hack” remains unsupported.",
+      "recommended_action": "Identify the deployed driver/backend and measure the waveform and motor response under controlled load. Explicitly document the selected frequency after validation; do not prescribe 1 kHz merely because an older build used it.",
+      "prior_audit_ids": [],
+      "source_links": [
+        {
+          "file": "motor.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/motor.py"
+        },
+        {
+          "file": "camtester.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/camtester.py"
+        },
+        {
+          "file": "config.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/config.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 9,
+      "title": "Caught frame errors keep motors running",
+      "pdf_pages": [
+        16
+      ],
+      "status": "Partly repaired",
+      "verdict": "The handler now calls motor.brake() on each caught frame error and raises after 30 consecutive errors. The old handler that only printed and continued is gone.",
+      "evidence": [
+        "main.py:612-621",
+        "main.py:629-648",
+        "motor.py:145-153"
+      ],
+      "remaining_risk_or_limit": "The first print still precedes brake. A blocked/failed diagnostic can defeat brake-first ordering. Frozen captures and blocking dependencies are not ordinary caught exceptions, and shutdown has additional failure/retry gaps.",
+      "recommended_action": "Latch stop and attempt motor de-energization before diagnostics; isolate logging, add bounded acquisition and an independent command watchdog, and expose/retry incomplete cleanup.",
+      "prior_audit_ids": [
+        "LEGACY-044",
+        "LEGACY-046",
+        "LEGACY-065",
+        "LEGACY-069"
+      ],
+      "source_links": [
+        {
+          "file": "main.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/main.py"
+        },
+        {
+          "file": "motor.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/motor.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 10,
+      "title": "Logging stops at 120 seconds",
+      "pdf_pages": [
+        17
+      ],
+      "status": "Original limit fixed; coverage gap remains",
+      "verdict": "LOG_DURATION_SEC is now 300, not 120. This exceeds the nominal 240-second race by 60 seconds.",
+      "evidence": [
+        "config.py:193-198",
+        "logger.py:25-52",
+        "main.py:423-430",
+        "main.py:576-577",
+        "main.py:719-725"
+      ],
+      "remaining_risk_or_limit": "The recording clock starts at logger construction, not actual race start. Waiting consumes the margin and can exhaust the entire log before driving. There is no demonstrated full-race coverage guard in scoped startup.",
+      "recommended_action": "Anchor driving coverage to actual race start or separate setup/driving sessions, assert the required recording interval, and make export failures observable/retryable.",
+      "prior_audit_ids": [
+        "LEGACY-040",
+        "LEGACY-041",
+        "LEGACY-046"
+      ],
+      "source_links": [
+        {
+          "file": "config.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/config.py"
+        },
+        {
+          "file": "logger.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/logger.py"
+        },
+        {
+          "file": "main.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/main.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 11,
+      "title": "Physical GPIO 16 start button removed",
+      "pdf_pages": [
+        15
+      ],
+      "status": "Restored; behavior caveat remains",
+      "verdict": "START_BUTTON_PIN=16 exists. main.py constructs gpiozero.Button, installs its when_pressed callback and calls setup during startup. The header still says the button was removed, but the implementation contradicts that stale comment.",
+      "evidence": [
+        "config.py:173-175",
+        "main.py:9",
+        "main.py:655-682",
+        "main.py:747-748"
+      ],
+      "remaining_risk_or_limit": "Physical installation is not established by source. The callback sets _manual_green and bypasses actual green rather than merely arming readiness; failure to initialize the button allows fallback start paths.",
+      "recommended_action": "Separate button arming from optical-green acceptance, verify real wiring, surface readiness faults, and correct the stale header. Do not infer competition points from a code printout.",
+      "prior_audit_ids": [
+        "LEGACY-049",
+        "LEGACY-057"
+      ],
+      "source_links": [
+        {
+          "file": "config.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/config.py"
+        },
+        {
+          "file": "main.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/main.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 12,
+      "title": "Lane and crossing brightness detectors disagree",
+      "pdf_pages": [
+        18
+      ],
+      "status": "Persists",
+      "verdict": "events._white_mask uses fixed WHITE_HSV_LOW/HIGH. LaneDetector applies perspective/CLAHE and selects DARK/NORMAL/BRIGHT thresholds from the processed image. They do not share an equivalent brightness decision or image stage.",
+      "evidence": [
+        "events.py:57-59",
+        "events.py:285",
+        "lane.py:69-95",
+        "config.py:92-106"
+      ],
+      "remaining_risk_or_limit": "The code difference is confirmed; the precise venue failure rate is unmeasured. Shared thresholds alone would not reconcile different preprocessing stages.",
+      "recommended_action": "Define shared photometric/normalization decisions with task-appropriate masks, and compare lane/crossing outputs on recorded lighting conditions. Calibrate the actual runtime pipeline.",
+      "prior_audit_ids": [
+        "LEGACY-030"
+      ],
+      "source_links": [
+        {
+          "file": "events.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/events.py"
+        },
+        {
+          "file": "lane.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/lane.py"
+        },
+        {
+          "file": "config.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/config.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 13,
+      "title": "Second corrupted config file",
+      "pdf_pages": [
+        18
+      ],
+      "status": "Not found within LEGACY",
+      "verdict": "The freshly fetched complete LEGACY listing contains config.py but no config_to_be_migrated.py. All 27 entries are files, with no nested directories in this scope.",
+      "evidence": [
+        "LEGACY current directory inventory"
+      ],
+      "remaining_risk_or_limit": "This establishes absence only inside LEGACY. It does not prove that the older file was deleted from the entire repository, is absent from other branches, or has no outside replacement.",
+      "recommended_action": "Within LEGACY keep one active configuration source. A repository-wide duplicate-config search requires separately expanded permission and was not performed.",
+      "prior_audit_ids": [],
+      "source_links": []
+    },
+    {
+      "handbook_id": 14,
+      "title": "Four inaccurate/generated reports",
+      "pdf_pages": [
+        17
+      ],
+      "status": "Persists as unsupported documentation",
+      "verdict": "All four named reports remain and contain concrete contradictions: KP .60 versus current .30; derivative cap ±600 versus 150; five named helper methods absent from scoped Python definitions; sharpness constants absent; and FINAL_DELIVERY.md absent from LEGACY. The sandbox path and FPS/score claims remain.",
+      "evidence": [
+        "BASLA_BURADAN.txt:38-61",
+        "BASLA_BURADAN.txt:118-126",
+        "BASLA_BURADAN.txt:171-195",
+        "DOSYALAR_GUNCELEME_DURUSU.txt:23-51",
+        "DEGISIKLIKLER_OZET.txt:22-74",
+        "IMPLEMENTATION_SUMMARY.txt:84-99",
+        "config.py:117-118",
+        "config.py:135",
+        "CLAUDE.md:20-21"
+      ],
+      "remaining_risk_or_limit": "Current scoped evidence proves these examples are inaccurate/unsubstantiated, not who fabricated them or every historical claim in the PDF. Some score figures are explicitly estimates. No physical measurement log was established. Current CLAUDE.md labels historical material non-authoritative, which reduces but does not correct the contradictions.",
+      "recommended_action": "Mark/rewrite the reports as historical unverified claims; mechanically validate named symbols and scoped files, and attach measurement provenance to performance statements. Avoid claiming that adding CLAHE can never improve FPS across any changed implementation.",
+      "prior_audit_ids": [],
+      "source_links": [
+        {
+          "file": "BASLA_BURADAN.txt",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/BASLA_BURADAN.txt"
+        },
+        {
+          "file": "DOSYALAR_GUNCELEME_DURUSU.txt",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/DOSYALAR_GUNCELEME_DURUSU.txt"
+        },
+        {
+          "file": "DEGISIKLIKLER_OZET.txt",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/DEGISIKLIKLER_OZET.txt"
+        },
+        {
+          "file": "IMPLEMENTATION_SUMMARY.txt",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/IMPLEMENTATION_SUMMARY.txt"
+        },
+        {
+          "file": "config.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/config.py"
+        },
+        {
+          "file": "CLAUDE.md",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/CLAUDE.md"
+        }
+      ]
+    },
+    {
+      "handbook_id": 15,
+      "title": "Motor overvoltage",
+      "pdf_pages": [
+        18
+      ],
+      "status": "Hardware unverified",
+      "verdict": "The current software still has BASE_SPEED=62 and MAX_SPEED=85, but source inspection cannot confirm a 3-cell battery, motor rating, actual terminal voltage or current wiring.",
+      "evidence": [
+        "config.py:143-145",
+        "motor.py:114-118"
+      ],
+      "remaining_risk_or_limit": "The handbook's 9–10.6 V and ~175% figures are not current measurements. PWM duty is not equivalent to a safely regulated DC motor supply; a universal 57% limit is not justified from source alone.",
+      "recommended_action": "Confirm motor/driver ratings, battery configuration, terminal waveforms, thermal behavior and load conditions with qualified controlled measurements before establishing electrical and duty limits.",
+      "prior_audit_ids": [],
+      "source_links": [
+        {
+          "file": "config.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/config.py"
+        },
+        {
+          "file": "motor.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/motor.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 16,
+      "title": "Two motors share an undersized driver channel",
+      "pdf_pages": [
+        18
+      ],
+      "status": "Hardware unverified",
+      "verdict": "The software exposes two motor output channels. It cannot establish whether each channel feeds one or two motors, the installed driver's limits or actual stall current.",
+      "evidence": [
+        "motor.py:26-31",
+        "motor.py:46-52"
+      ],
+      "remaining_risk_or_limit": "Paralleled-motor wiring, simultaneous stall, protection behavior and current margin are hardware facts not demonstrated by this repository. The quoted 2 A budget is not a verification of the installed unit.",
+      "recommended_action": "Inspect the actual circuit and component ratings and establish current/thermal margins under controlled load. Do not deliberately stall or energize the car as part of a source audit.",
+      "prior_audit_ids": [],
+      "source_links": [
+        {
+          "file": "motor.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/motor.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 17,
+      "title": "CLAUDE.md lists phantom/missing states",
+      "pdf_pages": [
+        18
+      ],
+      "status": "Original defect resolved",
+      "verdict": "The current LEGACY/CLAUDE.md is a short working note with no state enumeration. It neither lists KIRMIZI_ISIK nor makes the old incomplete state-list claim.",
+      "evidence": [
+        "CLAUDE.md:1-24"
+      ],
+      "remaining_risk_or_limit": "This removes the cited contradiction; it does not establish complete documentation of the state machine. Separate drift remains, such as main.py's removed-button header.",
+      "recommended_action": "Generate any future state inventory from code or verified tests; keep runtime descriptions synchronized.",
+      "prior_audit_ids": [],
+      "source_links": [
+        {
+          "file": "CLAUDE.md",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/CLAUDE.md"
+        }
+      ]
+    },
+    {
+      "handbook_id": 18,
+      "title": "Lane loss differentiates a fabricated faded error",
+      "pdf_pages": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "status": "Original mechanism fixed; related reversal remains",
+      "verdict": "The missing-lane branch now explicitly uses derivative=0.0. The old (faded_error−previous_error)/dt mechanism is gone, and the main lane controller clips correction to ±speed before mixing wheels.",
+      "evidence": [
+        "controller.py:59-78",
+        "controller.py:123-143",
+        "controller.py:145-146"
+      ],
+      "remaining_risk_or_limit": "A distinct reversal remains: proportional error fades while the integral stays frozen. With integral −50 and last error +10, the new isolated test changes wheel differential from +0.40 to −0.08 by the second missing sample. Also, (50,0) is still a turn about a stationary inside wheel; zero opposite-sign commands do not prove absence of every physical spiral.",
+      "recommended_action": "Preserve/decay a validated last steering command as a whole, or clear/decay integral during loss. Keep observation freshness, controlled recovery and time-bounded stop tests.",
+      "prior_audit_ids": [
+        "LEGACY-012",
+        "LEGACY-015",
+        "LEGACY-039"
+      ],
+      "source_links": [
+        {
+          "file": "controller.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/controller.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 19,
+      "title": "State speed scaling undoes dead-zone compensation",
+      "pdf_pages": [
+        12,
+        13
+      ],
+      "status": "Original floor breach fixed; steering defect remains",
+      "verdict": "SPEED_BUMP_SPEED is now 30 rather than 25. MotorDriver applies a final per-wheel minimum of 30 after trim/scaling. The old sub-floor command mechanism no longer describes current final PWM.",
+      "evidence": [
+        "config.py:161",
+        "config.py:263-267",
+        "main.py:517-533",
+        "main.py:547-555",
+        "motor.py:106-142"
+      ],
+      "remaining_risk_or_limit": "For input (70,50), bump scaling produces (30,21.43) and final flooring produces (30,30), eliminating steering. Approach scaling (35,25) becomes (35,30), weakening the differential. This is not a proof that actual motors can climb the bump; torque/current/friction remain unmeasured.",
+      "recommended_action": "Use one final wheel-pair allocator that reconciles speed limits, curvature, trim and actuator constraints. A maximum of 30 and minimum positive duty of 30 cannot support unequal positive wheel commands.",
+      "prior_audit_ids": [
+        "LEGACY-067"
+      ],
+      "source_links": [
+        {
+          "file": "config.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/config.py"
+        },
+        {
+          "file": "main.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/main.py"
+        },
+        {
+          "file": "motor.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/motor.py"
+        }
+      ]
+    },
+    {
+      "handbook_id": 20,
+      "title": "Per-second derivative compared with per-frame thresholds",
+      "pdf_pages": [
+        13,
+        14
+      ],
+      "status": "Original defect resolved",
+      "verdict": "The real-observation branch now uses error−prev_error without division by dt; comments state px/frame. The duplicated hardcoded derivative threshold is replaced by DERIV_SLOWDOWN_THRESHOLD. Correction is bounded to ±speed before wheel mixing.",
+      "evidence": [
+        "controller.py:73-78",
+        "controller.py:101-120",
+        "controller.py:130-143",
+        "config.py:148-150"
+      ],
+      "remaining_risk_or_limit": "New deterministic tests at 33 ms with seed 1 and noise std .5,1,2,3,5 yielded 0/100 derivative-slowdown events and 0/100 opposite-sign wheel pairs for every level. This does not validate physical control, variable-FPS behavior or all noise histories. The counter named pivot now counts correction clipping, not actual opposite-sign output; its report cannot be compared literally to the old pivot metric.",
+      "recommended_action": "Keep explicit units in names/config metadata and separate counters for saturation, inside-wheel stop and opposite-sign output. Retest first-sample derivative kick and state-specific parking commands independently.",
+      "prior_audit_ids": [
+        "LEGACY-013",
+        "LEGACY-054"
+      ],
+      "source_links": [
+        {
+          "file": "controller.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/controller.py"
+        },
+        {
+          "file": "config.py",
+          "url": "https://github.com/egdmte/startech/blob/master/LEGACY/config.py"
+        }
+      ]
+    }
+  ],
+  "guards": [
+    {
+      "id": 1,
+      "rule": "Resolution/hardware settings validated before operation",
+      "status": "Partial; not enforced adequately",
+      "evidence": "config.py:27-74 warns, uses coordinate maxima rather than valid geometry, and continues. MotorDriver checks finite inputs/positive trims, but this is not comprehensive calibration/hardware validation. No scoped kontrol.py exists.",
+      "action": "Validate explicit calibration provenance and geometry/config contracts before arming, without requiring every valid inset ROI to span the full frame."
+    },
+    {
+      "id": 2,
+      "rule": "Configuration tools and consumers agree on names",
+      "status": "Current trim names repaired; enforcement incomplete",
+      "evidence": "motor_balance_test.py:98-117 now emits the four correct names. General tools still use string/regex-based access; tune.py:67-84 can miss a key and report success.",
+      "action": "Validate complete assignments and consumer schema, require successful unique matches, and save atomically."
+    },
+    {
+      "id": 3,
+      "rule": "Declared shared event schema rejects missing capabilities",
+      "status": "Not implemented as the proposed guard",
+      "evidence": "events.py:245-258 returns a dictionary with sign_type=None; main.py:433 uses get. The key now exists but recognition is not connected. A shape check alone would not detect an unimplemented capability.",
+      "action": "Add an explicit typed/runtime-validated schema and capability-readiness checks with clear UNKNOWN/unavailable semantics."
+    },
+    {
+      "id": 4,
+      "rule": "Brake first, then log the error",
+      "status": "Partial; required ordering still wrong",
+      "evidence": "main.py:615 prints before main.py:617 brakes. Shutdown also prints before motor cleanup.",
+      "action": "Stop/latch actuation first in a protected path; make diagnostic failure unable to block that action."
+    },
+    {
+      "id": 5,
+      "rule": "Trim lives in one layer and is selected by wheel identity",
+      "status": "Implemented for the inspected main controller-to-driver path",
+      "evidence": "controller.py has no trim references; motor.py:98-107 selects per-wheel profiles and applies once. A non-unit test yields (48,54) from (60,60).",
+      "action": "Retain end-to-end regression tests; do not confuse the separate duplicated dead-zone allocation with trim ownership."
+    },
+    {
+      "id": 6,
+      "rule": "Full-race telemetry with a rejecting coverage check",
+      "status": "Partial",
+      "evidence": "config.py:193 is now 300, but logger.py:32 starts at construction and main logs while waiting. No scoped race-start coverage assertion was found.",
+      "action": "Separate setup/driving sessions and validate coverage from actual race start, plus persistence success."
+    },
+    {
+      "id": 7,
+      "rule": "Documentation claims are source-backed or measured",
+      "status": "Not satisfied by the retained historical reports",
+      "evidence": "Four text reports still name absent methods/settings and unsupported metrics. CLAUDE.md:20-21 now makes historical material non-authoritative; that warning is not mechanical verification.",
+      "action": "Validate symbol references and attach run provenance to measurements; label historical estimates explicitly."
+    }
+  ],
+  "new_probe_results": {
+    "18_old_fake_derivative_path": {
+      "output": [
+        50.0,
+        0.0
+      ],
+      "derivative_saturation_count": 0,
+      "slowdown_count": 0,
+      "opposite_sign": false
+    },
+    "18_related_integral_reversal": {
+      "wheel_pairs": [
+        [
+          30.4,
+          30.0
+        ],
+        [
+          30.0,
+          30.08
+        ],
+        [
+          30.0,
+          30.464
+        ],
+        [
+          30.0,
+          30.7712
+        ],
+        [
+          30.0,
+          31.01696
+        ]
+      ],
+      "differentials": [
+        0.3999999999999986,
+        -0.0799999999999983,
+        -0.46399999999999864,
+        -0.7712000000000003,
+        -1.016960000000001
+      ]
+    },
+    "20_current_noise_test": [
+      {
+        "noise_std": 0.5,
+        "samples": 100,
+        "interval_seconds": 0.033,
+        "slowdown_count": 0,
+        "actual_opposite_sign_pairs": 0,
+        "correction_clipping_count": 0
+      },
+      {
+        "noise_std": 1,
+        "samples": 100,
+        "interval_seconds": 0.033,
+        "slowdown_count": 0,
+        "actual_opposite_sign_pairs": 0,
+        "correction_clipping_count": 0
+      },
+      {
+        "noise_std": 2,
+        "samples": 100,
+        "interval_seconds": 0.033,
+        "slowdown_count": 0,
+        "actual_opposite_sign_pairs": 0,
+        "correction_clipping_count": 0
+      },
+      {
+        "noise_std": 3,
+        "samples": 100,
+        "interval_seconds": 0.033,
+        "slowdown_count": 0,
+        "actual_opposite_sign_pairs": 0,
+        "correction_clipping_count": 0
+      },
+      {
+        "noise_std": 5,
+        "samples": 100,
+        "interval_seconds": 0.033,
+        "slowdown_count": 0,
+        "actual_opposite_sign_pairs": 0,
+        "correction_clipping_count": 0
+      }
+    ],
+    "19_scaled_outputs": {
+      "bump": {
+        "target": 30,
+        "scaled": [
+          30.0,
+          21.428571428571427
+        ],
+        "final_unit_trim": [
+          30.0,
+          30
+        ]
+      },
+      "approach": {
+        "target": 35,
+        "scaled": [
+          35.0,
+          25.0
+        ],
+        "final_unit_trim": [
+          35.0,
+          30
+        ]
+      }
+    },
+    "4_5_one_trim_by_wheel": [
+      [
+        "L",
+        48.0
+      ],
+      [
+        "R",
+        54.0
+      ]
+    ],
+    "4_5_controller_trim_names": [],
+    "1_lower_road_test": {
+      "lane_error": null,
+      "perspective_source": [
+        [
+          225,
+          289
+        ],
+        [
+          403,
+          291
+        ],
+        [
+          200,
+          6
+        ],
+        [
+          403,
+          20
+        ]
+      ]
+    },
+    "14_documented_methods_absent": [
+      "_get_adaptive_hsv",
+      "_get_adaptive_kp",
+      "_get_adaptive_kd",
+      "_apply_response_mapping",
+      "_apply_dead_zone_compensation"
+    ],
+    "14_sharpness_names_absent": [
+      "SHARPNESS_THRESHOLD_HIGH",
+      "SHARPNESS_THRESHOLD_MED"
+    ],
+    "2_trim_values": {
+      "LEFT_TRIM_LOW": 1.0,
+      "LEFT_TRIM_HIGH": 1.0,
+      "RIGHT_TRIM_LOW": 1.0,
+      "RIGHT_TRIM_HIGH": 1.0
+    },
+    "10_log_duration": 300
+  },
+  "current_source_inventory": [
+    {
+      "path": "LEGACY/10_otonom_arac.pdf",
+      "sha": "9333f07464e9e4404717f668c9eb7b4b8c8eea2f",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/10_otonom_arac.pdf"
+    },
+    {
+      "path": "LEGACY/BASLA_BURADAN.txt",
+      "sha": "9691da762ca5be7de014d285ebcf7699d9216969",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/BASLA_BURADAN.txt"
+    },
+    {
+      "path": "LEGACY/CLAUDE.md",
+      "sha": "7ce146c15173d615b27623e034f8dd16aeb778b9",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/CLAUDE.md"
+    },
+    {
+      "path": "LEGACY/DEGISIKLIKLER_OZET.txt",
+      "sha": "cc3332253e862d985f2aed66af2c031c6a5aa561",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/DEGISIKLIKLER_OZET.txt"
+    },
+    {
+      "path": "LEGACY/DOSYALAR_GUNCELEME_DURUSU.txt",
+      "sha": "f0be2c4b3311db57405c309d2cb014be78aa0760",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/DOSYALAR_GUNCELEME_DURUSU.txt"
+    },
+    {
+      "path": "LEGACY/IMPLEMENTATION_SUMMARY.txt",
+      "sha": "bbb454522f6f4ce6b62cf84bff9f4303f0a25868",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/IMPLEMENTATION_SUMMARY.txt"
+    },
+    {
+      "path": "LEGACY/README.md",
+      "sha": "5f630bd9f36acfff82541ccdc299ae1f325cf156",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/README.md"
+    },
+    {
+      "path": "LEGACY/calibrate.py",
+      "sha": "f46c9ff2cf2a1414210ffa180bbce4fea48ca672",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/calibrate.py"
+    },
+    {
+      "path": "LEGACY/camera.py",
+      "sha": "eb5100616c020fc8abe59dff5675f073df393b0e",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/camera.py"
+    },
+    {
+      "path": "LEGACY/camtester.py",
+      "sha": "ae766cc47bc69bfe9b077f745263a97e61d9cebd",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/camtester.py"
+    },
+    {
+      "path": "LEGACY/config.py",
+      "sha": "df51afc5829920ed977d2b1d8f38da3cad4964c8",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/config.py"
+    },
+    {
+      "path": "LEGACY/controller.py",
+      "sha": "1809fab64c0bc039f1f3d592ae7d954bc3b0a05f",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/controller.py"
+    },
+    {
+      "path": "LEGACY/events.py",
+      "sha": "bde3ee91d68dc53755cb39a514186a6581c4fcbc",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/events.py"
+    },
+    {
+      "path": "LEGACY/hsv_tune.py",
+      "sha": "86d5d8fe564649f3d04d4ff30bb05487a7ab7141",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/hsv_tune.py"
+    },
+    {
+      "path": "LEGACY/import numpy as np.py",
+      "sha": "957b1b0c48b13774440899c7962c4f3cc9ebce07",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/import%20numpy%20as%20np.py"
+    },
+    {
+      "path": "LEGACY/kalibrasyon.py",
+      "sha": "5f61b82efe4f08bfe2aa6c6b4638fb0bd5a0e523",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/kalibrasyon.py"
+    },
+    {
+      "path": "LEGACY/lane.py",
+      "sha": "b89e9a24320760cc46b61e12b3433909a32a7a39",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/lane.py"
+    },
+    {
+      "path": "LEGACY/logger.py",
+      "sha": "f6705b0ae161988e971dec6c16f611703ac5d937",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/logger.py"
+    },
+    {
+      "path": "LEGACY/main.py",
+      "sha": "1fb0a6ef35df15fa09c2c131bd7e1d3ea318f165",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/main.py"
+    },
+    {
+      "path": "LEGACY/motor.py",
+      "sha": "334bd52ed66367cbf13edd59cee91f607365e937",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/motor.py"
+    },
+    {
+      "path": "LEGACY/motor_balance_test.py",
+      "sha": "721633f99bdd9df74b47cbf1cb76f030b3a7aa8c",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/motor_balance_test.py"
+    },
+    {
+      "path": "LEGACY/pd_tune.py",
+      "sha": "e58e269eca400c57bdac4424355e7d10de1f6fcc",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/pd_tune.py"
+    },
+    {
+      "path": "LEGACY/sign_model.json",
+      "sha": "2d4bdd8a29fbda969a57b4da836564bac404e5e1",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/sign_model.json"
+    },
+    {
+      "path": "LEGACY/sign_test.py",
+      "sha": "ea02b0bb02444f887d87fa3ff2f99be126f9571b",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/sign_test.py"
+    },
+    {
+      "path": "LEGACY/train_sign.py",
+      "sha": "267895812940723b926a71cbc77e3ea7dbad00b4",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/train_sign.py"
+    },
+    {
+      "path": "LEGACY/tune.py",
+      "sha": "ad434866789797f8f6842d9edb8fdf7f1fd47986",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/tune.py"
+    },
+    {
+      "path": "LEGACY/yol_takip.py",
+      "sha": "c228227691ea1da3524530a9ef8e129fde9c1afe",
+      "url": "https://github.com/egdmte/startech/blob/master/LEGACY/yol_takip.py"
+    }
+  ]
+}
