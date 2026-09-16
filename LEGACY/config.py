@@ -83,6 +83,19 @@ MIN_LANE_SIGNAL = 200
 # Şerit Kalitesi Kontrolü: Histogram tepe noktası sinyal güvenliği
 MIN_LANE_SIGNAL_QUALITY_RATIO = 1.0  # max(hist) < MIN_LANE_SIGNAL * ratio ise red et
 
+# --- Serit SEKLI dogrulamasi (LEGACY-035 / LEGACY-036) ---------------------
+# Ham kutle ve tepe degeri tek basina yetersizdi: duzgun gri/beyaz bir zemin
+# "iki serit" sayilabiliyor, minik bir parlama gecerli serit olabiliyordu.
+# Asagidaki uc kontrol tepenin GERCEKTEN serit benzeri olmasini sart kosar.
+LANE_PEAK_CONTRAST_MIN = 3.0   # tepe/ortalama orani bunun altindaysa duz zemin
+LANE_MAX_OCCUPANCY     = 0.60  # sutunlarin bu oranindan fazlasi doluysa yuzey
+LANE_MIN_PEAK_WIDTH    = 8     # tepe cevresindeki surekli kosu (sutun) alt siniri
+
+# --- Iki sinirin ayni yarida olmasi (LEGACY-038) ---------------------------
+# Keskin virajda her iki gercek sinir da kare merkezinin ayni tarafina
+# dusebilir. Sabit sol/sag yari bolumlemesi bunlari TEK sinir gibi ortalar.
+LANE_DUAL_PEAK_MIN_SEP = 60    # ayni yarida iki ayri tepe icin asgari ayrim (px)
+
 # Yalnızca bir şerit görünüyorken kullanılan varsayılan şerit genişliği (px).
 # Gerçek pistinizde camera.py ile ölçün.
 ASSUMED_LANE_WIDTH = 300
@@ -90,7 +103,14 @@ ASSUMED_LANE_WIDTH = 300
 # Beyaz şerit için HSV aralığı.
 # camera.py'de tesis ışığı altında doğrulayın.
 # ADAPTIF HSV: Parlaklık ortalamasına göre dinamik ayarlama
-WHITE_HSV_LOW  = (19, 11, 90)
+# ⚠️  DUZELTILDI — KERIM profilinin urettigi deger (19, 11, 90) idi.
+# Bu, bir pikselin beyaz sayilmasi icin H>=19 VE S>=11 sart kosuyordu.
+# Beyaz, TANIMI GEREGI dusuk doygunluktadir: saf beyaz (BGR 255,255,255)
+# HSV'de (0, 0, 255) olur ve H=0 < 19, S=0 < 11 oldugu icin maskeyi
+# GECEMIYORDU. Yani notr beyaz/gri yol cizgileri ve yaya gecidi seritleri
+# hic algilanmiyordu; yalnizca sicak tonlu (sariya calan) beyazlar geciyordu.
+# Anlamli kisit UST doygunluk sinirdir (S<=110); alt sinirlar 0 olmalidir.
+WHITE_HSV_LOW  = (0, 0, 90)
 WHITE_HSV_HIGH = (180, 110, 255)
 
 # Adaptif HSV profilleri (V_mean'e göre otomatik seçim)
@@ -219,6 +239,36 @@ RED_HSV_LOW2  = (160, 120, 80)
 RED_HSV_HIGH2 = (180, 255, 255)
 
 # YEŞİL
+# --- Trafik lambasi ADAY sekli (LEGACY-016) --------------------------------
+# Eski tek kontrol "dairesellik >= 0.55" idi; ideal bir KARENIN dairesellii
+# ~0.785 oldugundan yesil bir kare lamba sayiliyor ve araci baslatabiliyordu.
+TRAFFIC_LIGHT_CIRC_MIN   = 0.80  # gercek daire ~1.0; kare ~0.785 -> elenir
+TRAFFIC_LIGHT_ASPECT_MIN = 0.70  # en/boy alt siniri (lamba kareye yakin)
+TRAFFIC_LIGHT_ASPECT_MAX = 1.40  # en/boy ust siniri
+TRAFFIC_LIGHT_MAX_EXTENT = 0.88  # alan/bbox; daire ~0.785, kare ~1.0 -> elenir
+TRAFFIC_LIGHT_MAX_AREA   = 20000 # bundan buyuk yesil alan lamba degil, yuzey
+
+# --- Yaya gecidi serit olcumu (LEGACY-022 / LEGACY-023) --------------------
+CROSSWALK_ROW_FILL_RATIO  = 0.40  # bir satirin beyaz sayilmasi icin doluluk
+CROSSWALK_MIN_STRIPE_ROWS = 3     # gercek serit kalinligi alt siniri (satir)
+CROSSWALK_MAX_STRIPE_ROWS = 60    # ust sinir; daha kalin = yuzey, serit degil
+CROSSWALK_MIN_GAP_ROWS    = 3     # seritler arasi karanlik bosluk alt siniri
+
+# --- Tumsek ayrimi (LEGACY-024) -------------------------------------------
+SPEED_BUMP_MIN_SPAN_ROWS      = 12    # ust/alt kenar arasi asgari yukseklik
+SPEED_BUMP_MAX_SPAN_ROWS      = 160   # azami; daha genis = gecit/yuzey
+SPEED_BUMP_MIN_BODY_TEXTURE   = 0.02  # govde ici kenar yogunlugu (egim/golge)
+SPEED_BUMP_MAX_INNER_EDGE_ROWS = 3    # govdede bu kadar yatay kenar = gecit
+
+# --- Hemzemin X kumeleme (LEGACY-025) -------------------------------------
+# LEGACY-025 sonrasi ANLAM DEGISTI: artik ham Hough PARCALARI degil,
+# kumelenmis FIZIKSEL SERITLER sayiliyor. Gercek bir X deseninde her
+# yonde 1 fiziksel serit bulunur; yanlis pozitifleri eleyen asil kosul
+# artik GERCEK KESISIM sartidir (bkz. _detect_hemzemin).
+HEMZEMIN_MIN_STRIPES = 1    # yon basina asgari FIZIKSEL serit sayisi
+HEMZEMIN_SLOPE_TOL = 0.25   # ayni seride ait parcalar icin egim toleransi
+HEMZEMIN_ICEPT_TOL = 40.0   # ayni seride ait parcalar icin offset toleransi
+
 GREEN_HSV_LOW  = (45, 90, 80)
 GREEN_HSV_HIGH = (85, 255, 255)
 
@@ -271,6 +321,13 @@ APPROACH_TIMEOUT_SEC = 4.0   # yaklaşma fazı bu süreyi aşarsa fallback fren
 # ---------------------------------------------------------------------------
 # Turuncu engel araç (sollama — 20×30×25 cm)
 # ---------------------------------------------------------------------------
+# --- Engel/koridor iliskilendirme (LEGACY-018) -----------------------------
+# Renk tespiti tek basina "bu nesne yolumu kapatiyor mu" sorusunu cevaplamaz.
+# Adaylar surus koridoruyla ortusmelidir.
+OBSTACLE_CORRIDOR_LEFT_RATIO   = 0.20  # koridorun sol siniri (ROI genisligi orani)
+OBSTACLE_CORRIDOR_RIGHT_RATIO  = 0.80  # koridorun sag siniri
+OBSTACLE_MIN_CORRIDOR_OVERLAP  = 0.30  # konturun koridorla asgari ortusme orani
+
 ORANGE_HSV_LOW  = (5, 120, 100)
 ORANGE_HSV_HIGH = (20, 255, 255)  # H üst sınırı 20 → sarı ton (H≥22) ile çakışmaz
 ORANGE_MIN_AREA = 1500   # px² — tetiklemek için minimum blob alanı

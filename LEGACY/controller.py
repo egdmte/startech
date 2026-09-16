@@ -34,6 +34,11 @@ class PDController:
         self.lost_frames: int   = 0
         self.integral:    float = 0.0
         self._has_seen_lane: bool = False
+        # LEGACY-013: prev_error sifira TOHUMLANMIS sayilmaz. Gercek bir
+        # gozlem gelene kadar turev hesaplanamaz; aksi halde ilk kare
+        # (veya yeniden yakalama) uydurma bir "0 -> hata" sicramasi uretir
+        # ve tam baslangicta gereksiz keskin bir donus komutu verir.
+        self._prev_error_valid: bool = False
 
         # Tani sayaclari — eklendi 5 Agustos 2026. Davranisi DEGISTIRMEZ,
         # yalnizca sayar. Sebep: 20.7 deneyi "arac duzeldi mi" diye soruyor,
@@ -66,13 +71,25 @@ class PDController:
             error = self.prev_error * 0.8   # giderek düzleşir
             error_for_integration = None    # integratörü dondur
             derivative = 0.0                # uydurma girdinin turevi yoktur
+            # LEGACY-012: Integrali DONDURMAK yetmez. Donmus integral,
+            # solan orantisal terimi gecip tekerlek diferansiyelini YENI
+            # bir serit gozlemi olmadan TERS cevirebilir — "son yonu koru"
+            # amaciyla celisir. Korumali cozum: tahmini komutun tamamini
+            # birlikte soldur, yani integrali de ayni oranda azalt.
+            self.integral *= 0.8
+            if abs(self.integral) < 1e-6:
+                self.integral = 0.0
         else:
             self.lost_frames = 0
             self._has_seen_lane = True
             error_for_integration = error
             # Esikler piksel/kare cinsindedir. FPS'e bolmek, kamera gurultusunu
             # 30 kat buyutup normal serit takibini pivot komutuna ceviriyordu.
-            derivative = error - self.prev_error
+            # LEGACY-013: Iki GERCEK gozlem olmadan turev tanimsizdir.
+            if self._prev_error_valid:
+                derivative = error - self.prev_error
+            else:
+                derivative = 0.0
 
         # Kareler arasi hata degisimi + cap (salınım önleme)
         derivative = float(np.clip(derivative, -DERIV_CAP, DERIV_CAP))
@@ -144,6 +161,10 @@ class PDController:
 
         self.prev_error = error
         self.prev_time = now
+        # LEGACY-013: Yalnizca GERCEK bir gozlem turevi gecerli kilar.
+        # Kayip karede uretilen prev_error*0.8 tahmini, bir sonraki
+        # gozlemin turevi icin gecerli bir referans DEGILDIR.
+        self._prev_error_valid = (error_for_integration is not None)
 
         return left, right
 
@@ -199,6 +220,21 @@ class PDController:
         # İkisi de tam sıfırsa dokunma
         if left == 0.0 and right == 0.0:
             return 0.0, 0.0
+
+        # LEGACY-015: Tam sifir ile kucuk-pozitif komutlar farkli telafi
+        # yollarina giriyordu: (49.999, 0.001) -> (54.999, 30) ama
+        # (50, 0) -> (50, 0). Yani 0.001'lik bir degisim ic tekerlekte
+        # 30 birimlik siçrama yaratiyordu. Cozum: sifira YAKIN degerleri
+        # acik bir histerezis bandiyla kasitli sifira yuvarla; boylece
+        # gecis tek ve sureklidir, kasitli duran teker de korunur.
+        _ZERO_BAND = 1.0          # |komut| < 1.0 -> kasitli sifir sayilir
+        if 0.0 < abs(left) < _ZERO_BAND:
+            left = 0.0
+        if 0.0 < abs(right) < _ZERO_BAND:
+            right = 0.0
+        if left == 0.0 and right == 0.0:
+            return 0.0, 0.0
+
         # Denetleyici pivotu sinirlarken bir tekeri bilerek sifira indirir.
         # Olu bolge telafisi duran tekeri yeniden calistirmamali.
         if left == 0.0:
@@ -243,6 +279,7 @@ class PDController:
         self.lost_frames = 0
         self.integral    = 0.0
         self._has_seen_lane = False
+        self._prev_error_valid = False   # LEGACY-013
         # NOT: self.tani sayaclari BILEREK sifirlanmiyor. reset() bir kosu
         # icinde birkac kez cagrilabilir; tani sayilari ise TUM kosuyu
         # ozetlemeli, yoksa 20.7 raporu son parcayi anlatir.

@@ -369,23 +369,48 @@ def setup_flask():
 def _shutdown(sig=None, frame=None):
     """Ctrl+C ile temiz çıkış."""
     global _running, _cleanup_done
+
+    # LEGACY-065: Durdurma niyetini önce mandalla, motor enerjisini
+    # HER TÜRLÜ tanılama çıktısından ÖNCE kes, 'tamamlandı' bayrağını
+    # ancak temizlik gerçekten çalıştıktan sonra koy. Eski sıralamada
+    # bayrak print()'ten önce True yapılıyordu: çıktı hata verirse
+    # (kırık boru) hiçbir motor temizliği yapılmıyor, üstelik sonraki
+    # kapatma çağrıları da anında geri dönüyordu.
+    _running = False
+
     if _cleanup_done:
         if sig is not None:
             raise SystemExit(128 + int(sig))
         return
-    _cleanup_done = True
-    print("\n[yol_takip] Hizmet tamamlandı")
-    _running = False
+
+    cleanup_ok = True
     if motor is not None:
         try:
-            motor.stop()
+            cleanup_ok = motor.stop() is not False
         except Exception as exc:
-            print(f"[yol_takip] Motor kapatma hatası: {exc}")
+            cleanup_ok = False
+            try:
+                motor.brake()
+            except Exception:
+                pass
+            try:
+                print(f"[yol_takip] Motor kapatma hatası: {exc}")
+            except Exception:
+                pass
+
+    try:
+        print("\n[yol_takip] Hizmet tamamlandı")
+    except Exception:
+        pass
     if camera is not None:
         try:
             camera.close()
         except Exception as exc:
-            print(f"[yol_takip] Kamera kapatma hatası: {exc}")
+            cleanup_ok = False
+            try:
+                print(f"[yol_takip] Kamera kapatma hatası: {exc}")
+            except Exception:
+                pass
     # Eklendi 5 Agustos 2026: finish() hicbir yerde cagrilmiyordu, yani
     # stabilite raporu da CSV de asla uretilmiyordu. 20.7 adim 3 "raporu oku"
     # diyor; okunacak rapor yoktu.
@@ -393,12 +418,32 @@ def _shutdown(sig=None, frame=None):
         try:
             logger.finish()
         except Exception as exc:
-            print(f"[yol_takip] Logger kapatma hatası: {exc}")
+            cleanup_ok = False
+            try:
+                print(f"[yol_takip] Logger kapatma hatası: {exc}")
+            except Exception:
+                pass
     if controller is not None:
         try:
             controller.tani_raporu()
         except Exception as exc:
-            print(f"[yol_takip] Denetleyici raporu üretilemedi: {exc}")
+            # Tanılama raporu bir TEMİZLİK adımı değildir; başarısızlığı
+            # kapatmayı eksik saymaz.
+            try:
+                print(f"[yol_takip] Denetleyici raporu üretilemedi: {exc}")
+            except Exception:
+                pass
+
+    # LEGACY-065: Yalnızca temizlik gerçekten tamamlandıysa işaretle;
+    # aksi hâlde kapatma yeniden denenebilir kalır.
+    if cleanup_ok:
+        _cleanup_done = True
+    else:
+        try:
+            print("[yol_takip] UYARI: kapatma eksik kaldı — yeniden denenebilir.")
+        except Exception:
+            pass
+
     if sig is not None:
         raise SystemExit(128 + int(sig))
 

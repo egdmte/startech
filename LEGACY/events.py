@@ -51,6 +51,15 @@ from config import (
     PARKING_TRIGGER_AREA, PARKING_ROI_TOP,
     PARKING_NEAR_BOTTOM_RATIO,
     SIGN_BLUE_HSV_LOW, SIGN_BLUE_HSV_HIGH, SIGN_MIN_AREA,
+    OBSTACLE_CORRIDOR_LEFT_RATIO, OBSTACLE_CORRIDOR_RIGHT_RATIO,
+    OBSTACLE_MIN_CORRIDOR_OVERLAP,
+    CROSSWALK_ROW_FILL_RATIO, CROSSWALK_MIN_STRIPE_ROWS,
+    CROSSWALK_MAX_STRIPE_ROWS, CROSSWALK_MIN_GAP_ROWS,
+    SPEED_BUMP_MIN_SPAN_ROWS, SPEED_BUMP_MAX_SPAN_ROWS,
+    SPEED_BUMP_MIN_BODY_TEXTURE, SPEED_BUMP_MAX_INNER_EDGE_ROWS,
+    HEMZEMIN_SLOPE_TOL, HEMZEMIN_ICEPT_TOL, HEMZEMIN_MIN_STRIPES,
+    TRAFFIC_LIGHT_CIRC_MIN, TRAFFIC_LIGHT_ASPECT_MIN,
+    TRAFFIC_LIGHT_ASPECT_MAX, TRAFFIC_LIGHT_MAX_EXTENT, TRAFFIC_LIGHT_MAX_AREA,
 )
 
 
@@ -102,15 +111,45 @@ def _parking_mask(hsv: np.ndarray) -> np.ndarray:
 
 
 def _largest_circular_blob(mask: np.ndarray, min_area: float,
-                            circ_min: float = 0.55) -> float:
+                            circ_min: float = TRAFFIC_LIGHT_CIRC_MIN,
+                            max_area: float | None = None) -> float:
+    """LEGACY-016: Trafik lambasi ADAYI icin sekil/boyut/en-boy kontrolu.
+
+    Eski esik (circ_min=0.55) bir KAREYI kabul ediyordu: ideal bir karenin
+    dairesellii ~0.785, yani 0.55'in cok uzerinde. Lamba muhafazasi,
+    en-boy orani ve azami alan kontrolu de yoktu; bu yuzden ROI'daki kalici
+    yesil bir nesne (yaprak, afis, kutu) debounce sonrasi YESIL ISIK olarak
+    mandallanip bekleyen araci baslatabiliyordu.
+
+    Gercek bir lamba: yuksek dairesellik, kareye yakin en-boy orani ve
+    makul bir boyut araligi.
+    """
     cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     best = 0.0
     for c in cnts:
         area = cv2.contourArea(c)
         if area < min_area:
             continue
-        if _circularity(c) >= circ_min:
-            best = max(best, area)
+        if max_area is not None and area > max_area:
+            continue                      # cok buyuk: lamba degil, yuzey
+        if _circularity(c) < circ_min:
+            continue
+
+        x, y, w, h = cv2.boundingRect(c)
+        if w == 0 or h == 0:
+            continue
+        aspect = float(w) / float(h)
+        if not (TRAFFIC_LIGHT_ASPECT_MIN <= aspect <= TRAFFIC_LIGHT_ASPECT_MAX):
+            continue                      # uzun/yassi: lamba degil
+
+        # Doluluk: daire, kendi sinirlayici kutusunun ~pi/4'unu (%78.5)
+        # doldurur; kare ~%100 doldurur. Bu, kareyi daireden ayiran
+        # dairesellikten BAGIMSIZ ikinci bir kanittir.
+        extent = area / float(w * h)
+        if extent > TRAFFIC_LIGHT_MAX_EXTENT:
+            continue
+
+        best = max(best, area)
     return best
 
 
@@ -133,6 +172,32 @@ def _largest_blob_area_and_bottom(mask: np.ndarray, min_area: float) -> tuple:
     cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     best_area = 0.0
     best_bottom = 0
+    # LEGACY-017: Eski kod ONCE ROI'daki EN BUYUK kirmizi konturu seciyor,
+    # yakinlik testini YALNIZCA o kazanana uyguluyordu. Bu yuzden gecerli,
+    # yakin ama kucuk bir park slotu, uzaktaki daha buyuk bir kirmizi leke
+    # yuzunden tamamen kayboluyordu. Simdi HER kontur once alan + yakinlik
+    # icin suzuluyor, siralama ancak UYGUN adaylar arasinda yapiliyor.
+    roi_h = mask.shape[0]
+    near_y = roi_h * EVENT_NEAR_ROI_RATIO
+    eligible = []
+    for c in cnts:
+        a = cv2.contourArea(c)
+        if a < min_area:
+            continue
+        x, y, w, h = cv2.boundingRect(c)
+        bottom = y + h
+        if bottom >= near_y:            # yakinlik testini HER adaya uygula
+            eligible.append((a, bottom))
+
+    if eligible:
+        # Uygun adaylar arasinda en yakin olani (en alt kenar) tercih et;
+        # esitlikte daha buyuk alan kazanir.
+        eligible.sort(key=lambda t: (t[1], t[0]), reverse=True)
+        best_area, best_bottom = eligible[0]
+        return best_area, best_bottom
+
+    # Uygun yakin aday yoksa, geriye donuk uyumluluk icin en buyugu bildir
+    # (yakin degil, yani tuketici park kararini vermeyecek).
     for c in cnts:
         a = cv2.contourArea(c)
         if a >= min_area and a > best_area:
@@ -215,14 +280,40 @@ class EventDetector:
         raw_hemzemin,  raw_hemzemin_close  = self._detect_hemzemin(road_bgr)
         raw_speed_bump = self._detect_speed_bump(road_bgr)
 
+        # --- LEGACY-018 ------------------------------------------------
+        # Turuncu/sari kontrolleri TUM GENISLIKTEKI yol ROI'sini kullaniyor
+        # ve yalnizca asgari kontur alanina bakiyordu; nesnenin surulebilir
+        # seride ait olup olmadigiyla hic ilgilenmiyordu. Sonuc: kare
+        # kenarindaki, yolu HIC kapatmayan turuncu bir nesne sollama
+        # manevrasi baslatabiliyor; ilgisiz bir sari leke de sollamayi
+        # yasaklayabiliyordu. Adaylar artik surus koridoruyla iliskilendirilir.
+        corridor_lo = int(road_hsv.shape[1] * OBSTACLE_CORRIDOR_LEFT_RATIO)
+        corridor_hi = int(road_hsv.shape[1] * OBSTACLE_CORRIDOR_RIGHT_RATIO)
+
+        def _in_corridor(mask, min_area):
+            """Konturu yalnizca surus koridoruyla ORTUSUYORSA kabul et."""
+            cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
+                                       cv2.CHAIN_APPROX_SIMPLE)
+            best = 0.0
+            for c in cnts:
+                a = cv2.contourArea(c)
+                if a < min_area:
+                    continue
+                x, y, w, h = cv2.boundingRect(c)
+                # Koridorla yatay ortusme orani
+                ox = max(0, min(x + w, corridor_hi) - max(x, corridor_lo))
+                if w > 0 and (ox / float(w)) >= OBSTACLE_MIN_CORRIDOR_OVERLAP:
+                    best = max(best, a)
+            return best
+
         # Turuncu araç — sollama serbest bölgesindeki 20×30×25 cm turuncu engel
         orange_m = cv2.morphologyEx(_orange_mask(road_hsv), cv2.MORPH_OPEN, self._k5)
-        raw_orange_car = _largest_blob_area(orange_m, ORANGE_MIN_AREA) > 0
+        raw_orange_car = _in_corridor(orange_m, ORANGE_MIN_AREA) > 0
 
         # Sarı araç — sollama YASAĞI bölgesindeki 20×45×25 cm sarı karşı şerit engeli.
         # Turuncu ile karıştırılmaması için HSV alt sınırı H=22'den başlar.
         yellow_m = cv2.morphologyEx(_yellow_mask(road_hsv), cv2.MORPH_OPEN, self._k5)
-        raw_yellow_car = _largest_blob_area(yellow_m, YELLOW_MIN_AREA) > 0
+        raw_yellow_car = _in_corridor(yellow_m, YELLOW_MIN_AREA) > 0
 
         # Park bölgesi — kırmızı slot rengi (kılavuz Şekil 6).
         # İki ek koşul: (a) blob alt-kenarı ROI'nin yakın kısmında, (b) aynı karede
@@ -234,10 +325,44 @@ class EventDetector:
             park_m, PARKING_TRIGGER_AREA
         )
         park_roi_h = park_m.shape[0]
+        # --- LEGACY-019 ------------------------------------------------
+        # Eski kosul `and not raw_orange_car` idi: karede HERHANGI bir yerde
+        # turuncu bir nesne bulunmasi, onunla hicbir ilgisi olmayan gecerli
+        # bir kirmizi park slotunu TOPTAN iptal ediyordu. Turuncu (H=5..20)
+        # ile kirmizi (H=0..10) araliklari ortustugu icin ayni slot hem
+        # orange_car=True hem parking_zone=False uretebiliyor, tuketici de
+        # park yerine sollamayi secebiliyordu.
+        #
+        # Dogru cozum: belirsizlik ADAY BAZINDA cozulur. Turuncu engel
+        # yalnizca park adayiyla UZAYSAL olarak ortusuyorsa o adayi iptal
+        # eder; ilgisiz turuncu lekelerin veto yetkisi yoktur.
+        park_blocked = False
+        if park_area > 0:
+            o_cnts, _ = cv2.findContours(orange_m, cv2.RETR_EXTERNAL,
+                                         cv2.CHAIN_APPROX_SIMPLE)
+            p_cnts, _ = cv2.findContours(park_m, cv2.RETR_EXTERNAL,
+                                         cv2.CHAIN_APPROX_SIMPLE)
+            p_boxes = [cv2.boundingRect(c) for c in p_cnts
+                       if cv2.contourArea(c) >= PARKING_TRIGGER_AREA]
+            for oc in o_cnts:
+                if cv2.contourArea(oc) < ORANGE_MIN_AREA:
+                    continue
+                ox, oy, ow, oh = cv2.boundingRect(oc)
+                # Turuncu kontur ROI ofseti ile park ROI'sine tasinir
+                oy_p = oy + (road_hsv.shape[0] - park_roi_h)
+                for (px, py, pw, ph) in p_boxes:
+                    ix = max(0, min(ox + ow, px + pw) - max(ox, px))
+                    iy = max(0, min(oy_p + oh, py + ph) - max(oy_p, py))
+                    if ix > 0 and iy > 0:
+                        park_blocked = True
+                        break
+                if park_blocked:
+                    break
+
         raw_parking_zone = (
             park_area > 0
             and park_bottom > park_roi_h * PARKING_NEAR_BOTTOM_RATIO
-            and not raw_orange_car
+            and not park_blocked
         )
 
         # ----------------------------------------------------------------
@@ -298,40 +423,57 @@ class EventDetector:
         white     = _white_mask(road_hsv)
         roi_h     = white.shape[0]
         roi_w     = white.shape[1]
-        stripe_h  = max(1, roi_h // 12)
 
-        # Her bant için min beyaz piksel sayısı (genişliğin %40'ı)
-        min_white_in_band = roi_w * stripe_h * 0.40
+        # --- LEGACY-022 / LEGACY-023 ---------------------------------
+        # Eski yontem ROI'yi 12 kaba banda boluyordu. Bunun uc ayri
+        # kusuru vardi:
+        #   1) Ince seritler cok daha yuksek bantlarin icinde kayboluyordu
+        #      (%40 doluluk esigini gecemiyorlardi).
+        #   2) range(0, roi_h - stripe_h, stripe_h) son tam bandi hic
+        #      ornekleme kapsamina almiyordu; roi_h 12'ye tam bolundugunde
+        #      EN YAKIN serit dusuyordu.
+        #   3) white_band_count = sum(bands) AYNI seride ait komsu bantlari
+        #      ayri serit sayiyordu; uc genis serit dort serit gibi gecip
+        #      gereksiz bir durusa yol aciyordu.
+        #
+        # Dogru olcum: SATIR BAZLI doluluk sinyalinden gercek beyaz
+        # kosulari (run) cikar, her birinin kalinligini dogrula, sonra
+        # gercek serit konumlarina gore yakinlik karari ver.
+        row_fill = (white > 0).sum(axis=1).astype(np.float32) / float(roi_w)
+        occupied = row_fill > CROSSWALK_ROW_FILL_RATIO
 
-        # Bantları kategorize et: 1=beyaz dolu, 0=siyah/karışık
-        bands = []
-        for i in range(0, roi_h - stripe_h, stripe_h):
-            band_white = white[i:i + stripe_h, :].sum() / 255
-            bands.append(1 if band_white > min_white_in_band else 0)
+        runs = []
+        start = None
+        for i, flag in enumerate(occupied):
+            if flag and start is None:
+                start = i
+            elif not flag and start is not None:
+                runs.append((start, i - 1))
+                start = None
+        if start is not None:
+            # TUM satirlari kapsa — son serit ROI tabanina dayaniyorsa da
+            # sayilmali (eski kodun kaybettigi durum).
+            runs.append((start, len(occupied) - 1))
 
-        # 1) Toplam beyaz bant sayısı
-        white_band_count = sum(bands)
-        if white_band_count < CROSSWALK_MIN_STRIPES:
+        # Gercek serit kalinligindaki kosulari tut; gurultu satirlarini at.
+        stripes = [(a, b) for (a, b) in runs
+                   if CROSSWALK_MIN_STRIPE_ROWS <= (b - a + 1) <= CROSSWALK_MAX_STRIPE_ROWS]
+
+        # LEGACY-023: AYRI serit sayisi (kosular), dolu bant sayisi degil.
+        if len(stripes) < CROSSWALK_MIN_STRIPES:
             return False, False
 
-        # 2) Beyaz bantlar arasında BOŞLUK (siyah ara) olmalı
-        # Yani 1,1,1,1,1,1 (düz beyaz yol) → REDDET
-        # 1,0,1,0,1,0 (yaya geçidi) → KABUL
-        transitions = 0
-        for i in range(1, len(bands)):
-            if bands[i] != bands[i - 1]:
-                transitions += 1
-
-        # En az (CROSSWALK_MIN_STRIPES - 1) * 2 geçiş olmalı (1↔0 değişimleri)
-        # 4 bant için min 6 geçiş = 4 beyaz + 3 siyah ara
-        min_transitions = (CROSSWALK_MIN_STRIPES - 1) * 2 - 1
-        if transitions < min_transitions:
+        # Seritler arasinda gercek KARANLIK bosluk bulunmali; aksi halde
+        # bu duz beyaz bir yuzeydir.
+        gaps = [stripes[i + 1][0] - stripes[i][1] - 1
+                for i in range(len(stripes) - 1)]
+        if not gaps or min(gaps) < CROSSWALK_MIN_GAP_ROWS:
             return False, False
 
-        # Yakınlık: ROI'nin alt EVENT_NEAR_ROI_RATIO sonrası bantlarından
-        # en az biri beyazsa desen kareye çok yakın → 30 cm eşiği.
-        near_band_start = int(len(bands) * EVENT_NEAR_ROI_RATIO)
-        near = any(b == 1 for b in bands[near_band_start:])
+        # Yakinlik: GERCEK serit konumuna gore. ROI'nin alt diliminde
+        # sonlanan bir serit varsa desen kareye yakin demektir.
+        near_y = roi_h * EVENT_NEAR_ROI_RATIO
+        near = any(b >= near_y for (a, b) in stripes)
         return True, near
 
     # ------------------------------------------------------------------
@@ -339,8 +481,43 @@ class EventDetector:
     def _detect_speed_bump(road_bgr: np.ndarray) -> bool:
         """Yatay Canny kenarları → tümsek."""
         gray  = cv2.cvtColor(road_bgr, cv2.COLOR_BGR2GRAY)
-        edges = cv2.Canny(cv2.GaussianBlur(gray, (5, 5), 0), 50, 150)
-        return int((edges.sum(axis=1) / 255 > WIDTH * 0.55).sum()) >= 2
+        blur  = cv2.GaussianBlur(gray, (5, 5), 0)
+        edges = cv2.Canny(blur, 50, 150)
+
+        # --- LEGACY-024 -----------------------------------------------
+        # Eski olcut TAMAMEN "iki satirda WIDTH*0.55'ten fazla kenar
+        # pikseli" idi. Duz bir beyaz dikdortgen (siradan yol isareti,
+        # hatta yaya gecidi boyasi) ust ve alt kenarini verdiginde tumsek
+        # sayiliyor, gereksiz fren + yavas mod tetikleniyordu. Iki genel
+        # kenar FIZIKSEL YUKSEKLIK kaniti degildir.
+        rows = (edges.sum(axis=1) / 255) > (WIDTH * 0.55)
+        edge_rows = np.flatnonzero(rows)
+        if edge_rows.size < 2:
+            return False
+
+        # 1) Kenar ciftleri ARASINDA tumsek govdesine karsilik gelen
+        #    makul bir yukseklik olmali (cok ince = duz boya).
+        span = int(edge_rows[-1] - edge_rows[0])
+        if not (SPEED_BUMP_MIN_SPAN_ROWS <= span <= SPEED_BUMP_MAX_SPAN_ROWS):
+            return False
+
+        # 2) Tumsek govdesi, duz boyaya gore DAHA FAZLA ic doku tasir
+        #    (egim/golge). Duz bir dikdortgenin ici neredeyse kenarsizdir.
+        top, bot = int(edge_rows[0]), int(edge_rows[-1])
+        body = edges[top + 1:bot, :]
+        if body.size == 0:
+            return False
+        body_density = float((body > 0).sum()) / float(body.size)
+        if body_density < SPEED_BUMP_MIN_BODY_TEXTURE:
+            return False
+
+        # 3) Yaya gecidi ayrimi: govde icinde COK sayida duzenli yatay
+        #    kenar varsa bu bir gecit deseni, tumsek degil.
+        body_rows = ((body.sum(axis=1) / 255) > (WIDTH * 0.55)).sum()
+        if body_rows >= SPEED_BUMP_MAX_INNER_EDGE_ROWS:
+            return False
+
+        return True
 
     # ------------------------------------------------------------------
     @staticmethod
@@ -360,9 +537,14 @@ class EventDetector:
             return False, False
         roi_h    = road_bgr.shape[0]
         near_y   = roi_h * EVENT_NEAR_ROI_RATIO
-        pos_diag = 0   # \ yönü
-        neg_diag = 0   # / yönü
-        max_y    = 0
+
+        # --- LEGACY-025 -----------------------------------------------
+        # Eski kod Hough parcalarini yalnizca EGIM ISARETINE gore sayiyor,
+        # bunlarin gercekten KESISIP kesismedigine hic bakmiyordu. Birbirini
+        # hic kesmeyen iki ayri egik serit siniri (ornegin bir virajin iki
+        # kenari) "X deseni" sayilip gereksiz hemzemin durusu tetikliyordu.
+        # Ayrica AYNI seridin iki kenari iki bagimsiz cizgi gibi sayiliyordu.
+        pos_segs, neg_segs = [], []
         for line in lines:
             x1, y1, x2, y2 = line[0]
             dx, dy = x2 - x1, y2 - y1
@@ -370,15 +552,62 @@ class EventDetector:
                 continue
             angle = np.degrees(np.arctan2(abs(dy), abs(dx)))
             if 25 <= angle <= 65:
+                seg = (float(x1), float(y1), float(x2), float(y2))
                 if dx * dy > 0:
-                    pos_diag += 1
+                    pos_segs.append(seg)
                 else:
-                    neg_diag += 1
-                max_y = max(max_y, y1, y2)
-        detected = (pos_diag >= HEMZEMIN_DIAG_MIN_LINES and
-                    neg_diag >= HEMZEMIN_DIAG_MIN_LINES)
-        near = detected and max_y >= near_y
-        return detected, near
+                    neg_segs.append(seg)
+
+        # 1) Ayni fiziksel seride ait yinelenen parcalari KUMELE.
+        def _cluster(segs):
+            """Benzer egim + benzer offset'li parcalari tek serit sayar."""
+            clusters = []
+            for (x1, y1, x2, y2) in segs:
+                dx = x2 - x1
+                if dx == 0:
+                    continue
+                slope = (y2 - y1) / dx
+                icept = y1 - slope * x1
+                placed = False
+                for cl in clusters:
+                    if (abs(cl['slope'] - slope) < HEMZEMIN_SLOPE_TOL
+                            and abs(cl['icept'] - icept) < HEMZEMIN_ICEPT_TOL):
+                        cl['segs'].append((x1, y1, x2, y2))
+                        placed = True
+                        break
+                if not placed:
+                    clusters.append({'slope': slope, 'icept': icept,
+                                     'segs': [(x1, y1, x2, y2)]})
+            return clusters
+
+        pos_cl = _cluster(pos_segs)
+        neg_cl = _cluster(neg_segs)
+
+        # NOT: HEMZEMIN_DIAG_MIN_LINES ham PARCA sayisi icin ayarlanmisti.
+        # Artik kumelenmis FIZIKSEL serit sayiyoruz, bu yuzden esik
+        # HEMZEMIN_MIN_STRIPES'tir. Yanlis pozitifi eleyen asil kosul
+        # asagidaki GERCEK KESISIM sartidir.
+        if (len(pos_cl) < HEMZEMIN_MIN_STRIPES
+                or len(neg_cl) < HEMZEMIN_MIN_STRIPES):
+            return False, False
+
+        # 2) GERCEK bir kesisim ROI icinde bulunmali.
+        roi_w = road_bgr.shape[1]
+        cross_y = None
+        for a in pos_cl:
+            for b in neg_cl:
+                denom = a['slope'] - b['slope']
+                if abs(denom) < 1e-6:
+                    continue
+                ix = (b['icept'] - a['icept']) / denom
+                iy = a['slope'] * ix + a['icept']
+                if 0 <= ix < roi_w and 0 <= iy < roi_h:
+                    cross_y = iy if cross_y is None else max(cross_y, iy)
+        if cross_y is None:
+            return False, False        # kesismiyorlar -> X degil
+
+        near = cross_y >= near_y
+        return True, near
 
     # ------------------------------------------------------------------
     def _detect_sign_blue(self, sig_hsv: np.ndarray) -> bool:

@@ -3,25 +3,24 @@
 #
 # Doğrudan çalıştır:  python camtester.py
 # Tuşlar:  w=ileri  s=geri  a=sol dön  d=sağ dön
-#          BOŞLUK=dur  q=çık
+#          BOŞLUK=dur  q=çık  Ctrl+C=acil dur
 # Çalıştırmadan önce TEST_SPEED'i güvenli bir değere ayarlayın.
+#
+# GÜVENLİK: Bu araç GERÇEK motorları sürer. Tekerlekleri yerden kesin.
 # =============================================================================
 try:
-    from gpiozero import DigitalOutputDevice, PWMOutputDevice
-    _HAS_GPIO = True
+    from gpiozero import Device, DigitalOutputDevice, PWMOutputDevice
+    _GPIO_SUPPORTED = True
+    _GPIO_ERROR = None
 except ImportError:
-    _HAS_GPIO = False
-    print("[camtester] gpiozero bulunamadı — simülasyon modunda")
-
-    class DigitalOutputDevice:
-        def __init__(self, pin): pass
-        def on(self): pass
-        def off(self): pass
-
-    class PWMOutputDevice:
-        def __init__(self, pin): self.value = 0.0
+    _GPIO_SUPPORTED = False
+    _GPIO_ERROR = "gpiozero bulunamadı"
+    print("[camtester] gpiozero bulunamadı — motor testi çalıştırılamaz")
+    # NOT: Sessiz no-op sahte sınıf TANIMLANMAZ. Sahte sınıflar, hiçbir
+    # şey yapılmadığı hâlde "test tamamlandı" yazdırılmasına yol açar.
 
 from time import sleep
+import math
 import sys
 
 from config import (
@@ -33,50 +32,188 @@ TEST_SPEED = 0.5    # 0.0 – 1.0
 TURN_SPEED = 0.45
 
 # --- Pin kurulumu (config.py ile eşleşir) --------------------------------
-right_in1 = DigitalOutputDevice(RIGHT_IN1)
-right_in2 = DigitalOutputDevice(RIGHT_IN2)
-left_in1  = DigitalOutputDevice(LEFT_IN1)
-left_in2  = DigitalOutputDevice(LEFT_IN2)
-right_pwm = PWMOutputDevice(RIGHT_PWM_PIN)
-left_pwm  = PWMOutputDevice(LEFT_PWM_PIN)
+# GPIO çıkışları IMPORT sırasında AÇILMAZ; yalnızca bir test açıkça
+# başladığında açılır. İçe aktarmak aracı silahlandırmamalıdır.
+right_in1 = right_in2 = left_in1 = left_in2 = None
+right_pwm = left_pwm = None
+_DEVICES_OPEN = False
+
+
+def close_devices():
+    """Cihazları kapat; başarısız olanları GÖRÜNÜR biçimde bildir.
+
+    LEGACY-069: Kapatma hatalarını sessizce yutma. Başarısız kapatma
+    'tamamlandı' sayılmaz ve yeniden denenebilir kalır.
+    """
+    global right_in1, right_in2, left_in1, left_in2, right_pwm, left_pwm
+    global _DEVICES_OPEN
+    failures = []
+    for name, dev in (("right_in1", right_in1), ("right_in2", right_in2),
+                      ("left_in1", left_in1), ("left_in2", left_in2),
+                      ("right_pwm", right_pwm), ("left_pwm", left_pwm)):
+        if dev is None:
+            continue
+        try:
+            dev.close()
+        except Exception as exc:
+            failures.append(f"{name}: {exc}")
+    if failures:
+        print("[camtester] UYARI: cihaz kapatma tamamlanamadı:")
+        for msg in failures:
+            print(f"  - {msg}")
+        # Bayrakları koru — yeniden denenebilsin.
+        return False
+    right_in1 = right_in2 = left_in1 = left_in2 = None
+    right_pwm = left_pwm = None
+    _DEVICES_OPEN = False
+    return True
+
+
+def open_devices():
+    """Gerçek GPIO çıkışlarını yalnızca bir test açıkça başladığında aç."""
+    global right_in1, right_in2, left_in1, left_in2, right_pwm, left_pwm
+    global _DEVICES_OPEN, _GPIO_ERROR
+    if _DEVICES_OPEN:
+        return
+    if not _GPIO_SUPPORTED:
+        raise RuntimeError(_GPIO_ERROR)
+    try:
+        right_in1 = DigitalOutputDevice(RIGHT_IN1)
+        right_in2 = DigitalOutputDevice(RIGHT_IN2)
+        left_in1  = DigitalOutputDevice(LEFT_IN1)
+        left_in2  = DigitalOutputDevice(LEFT_IN2)
+        right_pwm = PWMOutputDevice(RIGHT_PWM_PIN)
+        left_pwm  = PWMOutputDevice(LEFT_PWM_PIN)
+        factory_type = type(Device.pin_factory)
+        if ("mock" in factory_type.__name__.lower()
+                or ".mock" in factory_type.__module__.lower()):
+            raise RuntimeError("gpiozero mock pin factory gerçek motor çıkışı değildir")
+        _DEVICES_OPEN = True
+    except Exception as exc:
+        close_devices()
+        _GPIO_ERROR = str(exc)
+        raise RuntimeError(_GPIO_ERROR) from exc
+
+
+def require_gpio():
+    try:
+        open_devices()
+    except RuntimeError as exc:
+        raise RuntimeError(
+            f"Motor GPIO donanımı kullanılamıyor ({exc}); "
+            "test hareketi gönderilmedi"
+        ) from exc
+
+
+def validate_speed(speed):
+    speed = float(speed)
+    if not math.isfinite(speed) or not 0.0 <= speed <= 1.0:
+        raise ValueError("Motor test hızı 0.0 ile 1.0 arasında ve sonlu olmalı")
+    return speed
+
+
+def _guarded_speed(speed):
+    """LEGACY-007: Geçersiz hızda ÖNCE dur, sonra hatayı yükselt.
+
+    Eski davranışta doğrulama try bloğunun dışındaydı: helper hata
+    veriyor ama önceki PWM komutu aktif kalıyordu. Bu test aracı için
+    güvenli sözleşme 'fail-stop'tur.
+    """
+    try:
+        return validate_speed(speed)
+    except Exception:
+        try:
+            stop()
+        except Exception:
+            pass
+        raise
 
 
 # --- Temel hareketler -----------------------------------------------------
 def stop():
-    right_pwm.value = 0
-    left_pwm.value  = 0
-    for p in (right_in1, right_in2, left_in1, left_in2):
-        p.off()
+    """Çıkışları sıfırla. Hatalar GÖRÜNÜR biçimde bildirilir."""
+    if not _DEVICES_OPEN:
+        return True
+    failures = []
+    for name, pwm in (("right_pwm", right_pwm), ("left_pwm", left_pwm)):
+        if pwm is None:
+            continue
+        try:
+            pwm.value = 0
+        except Exception as exc:
+            failures.append(f"{name} sıfırlanamadı: {exc}")
+    for name, p in (("right_in1", right_in1), ("right_in2", right_in2),
+                    ("left_in1", left_in1), ("left_in2", left_in2)):
+        if p is None:
+            continue
+        try:
+            p.off()
+        except Exception as exc:
+            failures.append(f"{name} kapatılamadı: {exc}")
+    if failures:
+        # LEGACY-069: 'Motorlar durduruldu' yazdırıp başarıyı varsayma.
+        print("[camtester] UYARI: DURDURMA TAMAMLANAMADI:")
+        for msg in failures:
+            print(f"  - {msg}")
+        print("[camtester] Çıkış hâlâ aktif olabilir — güç kesin.")
+        return False
+    return True
 
 
 def forward(speed=TEST_SPEED):
-    # ⚠️ MOTOR YÖNÜ TERS ÇEVRİLDİ: Sağ motoru geri, sol motoru geri yap (tüm araç geri gider)
-    # Hata: burada hızlı düzeltme için...
-    # Aslında forward mantığında motor yönü ters olduğu için:
-    right_in1.off();  right_in2.on();  right_pwm.value = speed
-    left_in1.off();   left_in2.on();   left_pwm.value  = speed
+    speed = _guarded_speed(speed)
+    require_gpio()
+    try:
+        right_pwm.value = 0; left_pwm.value = 0
+        # Yarış aracının kablolamasında pozitif komut ikinci yön pinidir.
+        right_in1.off();  right_in2.on();  right_pwm.value = speed
+        left_in1.off();   left_in2.on();   left_pwm.value  = speed
+    except Exception:
+        stop()
+        raise
 
 
 def backward(speed=TEST_SPEED):
-    # ⚠️ MOTOR YÖNÜ TERS ÇEVRİLDİ: Sağ motoru ileri, sol motoru ileri yap (tüm araç ileri gider)
-    right_in1.on();  right_in2.off();  right_pwm.value = speed
-    left_in1.on();   left_in2.off();   left_pwm.value  = speed
+    speed = _guarded_speed(speed)
+    require_gpio()
+    try:
+        right_pwm.value = 0; left_pwm.value = 0
+        right_in1.on();  right_in2.off();  right_pwm.value = speed
+        left_in1.on();   left_in2.off();   left_pwm.value  = speed
+    except Exception:
+        stop()
+        raise
 
 
 def turn_left(speed=TURN_SPEED):
-    """Pivot sol: sağ tekerlek geri, sol tekerlek ileri (motor yönü ters olduğu için)."""
-    right_in1.off();  right_in2.on();  right_pwm.value = speed
-    left_in1.on();    left_in2.off();  left_pwm.value  = speed
+    """Pivot sol: sağ tekerlek geri, sol tekerlek ileri."""
+    speed = _guarded_speed(speed)
+    require_gpio()
+    try:
+        right_pwm.value = 0; left_pwm.value = 0
+        right_in1.off();  right_in2.on();  right_pwm.value = speed
+        left_in1.on();    left_in2.off();  left_pwm.value  = speed
+    except Exception:
+        stop()
+        raise
 
 
 def turn_right(speed=TURN_SPEED):
-    """Pivot sağ: sol tekerlek geri, sağ tekerlek ileri (motor yönü ters olduğu için)."""
-    right_in1.on();   right_in2.off(); right_pwm.value = speed
-    left_in1.off();   left_in2.on();   left_pwm.value  = speed
+    """Pivot sağ: sol tekerlek geri, sağ tekerlek ileri."""
+    speed = _guarded_speed(speed)
+    require_gpio()
+    try:
+        right_pwm.value = 0; left_pwm.value = 0
+        right_in1.on();   right_in2.off(); right_pwm.value = speed
+        left_in1.off();   left_in2.on();   left_pwm.value  = speed
+    except Exception:
+        stop()
+        raise
 
 
 # --- Otomatik duman testi -------------------------------------------------
 def run_smoke_test():
+    require_gpio()
     print("=== Motor Duman Testi ===")
     steps = [
         ("İleri  1 s",    forward,     1.0),
@@ -88,11 +225,14 @@ def run_smoke_test():
         ("Sağ    0.8 s",  turn_right,  0.8),
         ("Dur",           stop,        0.0),
     ]
-    for label, fn, dur in steps:
-        print(f"  {label}")
-        fn()
-        if dur:
-            sleep(dur)
+    try:
+        for label, fn, dur in steps:
+            print(f"  {label}")
+            fn()
+            if dur:
+                sleep(dur)
+    finally:
+        stop()
     print("=== Test tamamlandı ===")
 
 
@@ -102,26 +242,49 @@ def run_interactive():
         import tty
         import termios
     except ImportError:
-        print("İnteraktif mod gerçek terminal gerektirir. Duman testi çalıştırılıyor.")
-        run_smoke_test()
-        return
+        # Otomatik motor testine SESSİZCE düşme — kullanıcı interaktif
+        # kontrol istedi; kontrolsüz bir hareket dizisi başlatma.
+        raise RuntimeError(
+            "İnteraktif mod gerçek terminal gerektirir; "
+            "otomatik motor testi kendiliğinden başlatılmadı"
+        )
 
     fd  = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
-    print("İnteraktif mod: w/a/s/d = sürüş | BOŞLUK = dur | q = çık")
+    print("İnteraktif mod: w/a/s/d = sürüş | BOŞLUK = dur | q = çık | Ctrl+C = acil dur")
     try:
         tty.setraw(fd)
         while True:
             ch = sys.stdin.read(1)
-            if   ch == 'w': forward()
+
+            # LEGACY-008: tty.setraw() terminal sinyal üretimini kapatır;
+            # Ctrl+C KeyboardInterrupt DEĞİL, ham '\x03' baytı olarak gelir.
+            # Boş okuma ise girdi akışının kapandığını (EOF) gösterir.
+            # Her ikisi de derhal durdurma/çıkış anlamına gelir — girdi
+            # kaynağını kaybettikten sonra sürmeye devam etme.
+            if ch == '' or ch == '\x03':
+                reason = "EOF" if ch == '' else "Ctrl+C"
+                stop()
+                print(f"\r\n[camtester] {reason} — acil durdurma.", end="")
+                break
+
+            elif ch == 'w': forward()
             elif ch == 's': backward()
             elif ch == 'a': turn_left()
             elif ch == 'd': turn_right()
             elif ch == ' ': stop()
             elif ch == 'q': break
     finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
-        stop()
+        # LEGACY-009: ÖNCE motoru durdur, SONRA terminali geri yükle.
+        # tcsetattr(TCSADRAIN) çıktının boşalmasını bekleyerek bloke
+        # olabilir; terminal kozmetiği asla güvenlik eyleminin önüne geçmez.
+        try:
+            stop()
+        finally:
+            try:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+            except Exception as exc:
+                print(f"\n[camtester] terminal geri yüklenemedi: {exc}")
         print("\nMotorlar durduruldu. Görüşmek üzere.")
 
 
@@ -138,5 +301,12 @@ if __name__ == "__main__":
         else:
             run_interactive()
     except KeyboardInterrupt:
-        stop()
         print("\nKesintiye uğradı.")
+    except RuntimeError as exc:
+        print(f"\n[camtester] HATA: {exc}")
+        sys.exit(1)
+    finally:
+        try:
+            stop()
+        finally:
+            close_devices()

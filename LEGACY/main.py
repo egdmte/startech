@@ -74,8 +74,15 @@ from motor import MotorDriver, MotorHardwareUnavailable
 # Kamera sarmalayıcı
 # ---------------------------------------------------------------------------
 class _Camera:
+    # LEGACY-044: Kabul edilebilir kare yaşı. capture_array() hata
+    # vermeden bloke olursa _latest sonsuza dek eskir; bu sınır olmadan
+    # araç çok eski bir sahneye göre sürülmeye devam eder.
+    MAX_FRAME_AGE_SEC = 0.5
+
     def __init__(self):
         self._latest:  np.ndarray | None = None
+        self._latest_ts: float | None = None   # monotonik yakalama zamanı
+        self._seq: int = 0                     # kare sıra numarası
         self._error: Exception | None = None
         self._lock    = threading.Lock()
         self._running = True
@@ -126,7 +133,11 @@ class _Camera:
                 if CAMERA_ROTATE_180:
                     frame = cv2.rotate(frame, cv2.ROTATE_180)
                 with self._lock:
+                    # LEGACY-044: Görüntü, monotonik yakalama zamanı ve
+                    # sıra numarası TEK atomik işlemde yayımlanır.
                     self._latest = frame
+                    self._latest_ts = time.monotonic()
+                    self._seq += 1
             except Exception as exc:
                 with self._lock:
                     self._error = exc
@@ -137,9 +148,19 @@ class _Camera:
             with self._lock:
                 if self._error is not None:
                     raise RuntimeError("Pi camera capture failed") from self._error
-                if self._latest is not None:
-                    return self._latest
-            raise RuntimeError("Pi camera has not produced a frame")
+                if self._latest is None:
+                    raise RuntimeError("Pi camera has not produced a frame")
+                # LEGACY-044: Üretici thread capture_array() içinde hata
+                # VERMEDEN takılabilir; bu durumda _error boş kalır ve
+                # kamera failsafe'i hiç tetiklenmez. Tek güvenilir kanıt
+                # karenin YAŞIdır — bayatsa sür komutu üretme.
+                age = time.monotonic() - self._latest_ts
+                if age > self.MAX_FRAME_AGE_SEC:
+                    raise RuntimeError(
+                        f"Pi camera frame stale ({age:.2f}s, seq={self._seq}); "
+                        "kare üreticisi takılmış olabilir"
+                    )
+                return self._latest
         else:
             ret, frame = self._cv.read()
             if not ret:
@@ -169,6 +190,7 @@ class _Camera:
 # ---------------------------------------------------------------------------
 # Bileşenler
 # ---------------------------------------------------------------------------
+tur_kayit = None    # TurKaydedici — tur kaydi (kontrol yolu disinda)
 camera = None
 lane_detector = None
 controller = None
@@ -202,6 +224,43 @@ _kb_thread = None
 # Tabela tabanlı sollama yasağı
 _NO_OVERTAKE_SEC = 8.0          # sollamabam tabelası sonrası yasak süresi
 _no_overtake_until: float = 0.0 # bu zamana kadar sollama yapma
+
+# --- LEGACY-046: bağımsız motor komut watchdog'u ---------------------------
+# Sürüş döngüsü herhangi bir yerde bloke olursa (USB kamera okuma, OpenCV
+# işleme, pencere çizimi, konsol çıktısı, CSV dışa aktarma) son motor
+# komutu süresiz aktif kalır. 'q' yalnızca bayrak koyar; bloke bir çağrıyı
+# kesemez. Bu watchdog sürüş döngüsünden BAĞIMSIZ çalışır ve döngü
+# ilerlemeyi bıraktığında motorları frenler.
+_loop_heartbeat: float = 0.0        # drive_loop her turda günceller
+_WATCHDOG_TIMEOUT_SEC = 1.0        # bu süre boyunca ilerleme yoksa frenle
+_watchdog_thread = None
+_watchdog_tripped = False
+
+
+def _motor_watchdog() -> None:
+    """Sürüş döngüsünden bağımsız komut süre sınırı uygulayıcısı."""
+    global _watchdog_tripped
+    while _running:
+        try:
+            hb = _loop_heartbeat
+            if hb and (time.monotonic() - hb) > _WATCHDOG_TIMEOUT_SEC:
+                if not _watchdog_tripped:
+                    _watchdog_tripped = True
+                    try:
+                        print(f"\n[watchdog] Sürüş döngüsü "
+                              f"{_WATCHDOG_TIMEOUT_SEC}s ilerlemedi — FREN.")
+                    except Exception:
+                        pass
+                if motor is not None:
+                    try:
+                        motor.brake()
+                    except Exception:
+                        pass
+            elif hb:
+                _watchdog_tripped = False
+        except Exception:
+            pass
+        time.sleep(0.1)
 
 
 # ---------------------------------------------------------------------------
@@ -369,9 +428,26 @@ def _run_parking(frame: np.ndarray, error) -> None:
         _state = 'PARK_TAMAM'
         return
     
+    # LEGACY-054: Ham `PARKING_SPEED ± 0.3*off` sınırsızdır. 339 px'lik bir
+    # sapma yaklaşık (131.7, -71.7) üretir: motor katmanı pozitif tarafı
+    # kırpar ama NEGATİF tarafa izin verir; sonuç, ilan edilen park hızının
+    # çok üzerinde güçlü bir PIVOT olur. Park ileri-yönlü bir manevradır:
+    # direksiyon düzeltmesi, ortak ölçeklemeden ÖNCE taban hıza doyurulur.
     steer = float(off) * 0.3
+    steer = max(-PARKING_SPEED, min(PARKING_SPEED, steer))   # ileri-yönlü kalsın
     l = PARKING_SPEED + steer
     r = PARKING_SPEED - steer
+
+    # Hiçbir tekerlek park hızının üstüne çıkmasın (ortak ölçekleme).
+    peak = max(abs(l), abs(r))
+    if peak > PARKING_SPEED:
+        scale = PARKING_SPEED / peak
+        l *= scale
+        r *= scale
+
+    # Savunma amaçlı son kontrol: park sırasında ters yön komutu yok.
+    l = max(0.0, min(float(PARKING_SPEED), l))
+    r = max(0.0, min(float(PARKING_SPEED), r))
     motor.set_speed(*_apply_dir(l, r))
 
 
@@ -383,6 +459,7 @@ def drive_loop() -> None:
     global _race_start_time, _finish_printed, _time_warning_printed, _no_overtake_until
     global _crosswalk_consumed, _hemzemin_consumed
     global _speed_bump_consumed, _orange_car_consumed
+    global _loop_heartbeat
 
     frame_count = 0
     last_print = time.time()
@@ -391,7 +468,13 @@ def drive_loop() -> None:
 
     while _running:
       try:
+        # LEGACY-046: Watchdog kalp atışı. Bu satıra ulaşılamıyorsa
+        # (bloke kamera okuma, işleme, çizim, disk G/Ç) bağımsız
+        # watchdog thread'i motorları frenler.
+        _loop_heartbeat = time.monotonic()
         frame = camera.capture()
+        if tur_kayit is not None:
+            tur_kayit.telemetri(durum=_state, hata=None)
         error, debug = lane_detector.process(frame)
         events = event_detector.detect(frame)
         light = events['traffic_light']
@@ -416,6 +499,59 @@ def drive_loop() -> None:
                 and now - _race_start_time > 240.0):
             _time_warning_printed = True
             print("[main] ⚠  240 sn DOLDU — hakem turu sonlandirabilir!")
+
+        # ================================================================
+        # LEGACY-058: KÜRESEL GÜVENLİK ARBİTRAJI
+        # ================================================================
+        # Olaylar her turda tespit ediliyor, ancak özel durum dalları
+        # yalnızca kendi yerel koşullarını ele alıyordu: hareket hâlindeki
+        # YAYA_YAKLAS / HEMZEMIN_YAKLAS / TUMSEK / SOLLAMA / PARK durumları
+        # yeni beliren bir durdurma olayını ya da sollama yasağını tamamen
+        # görmezden geliyordu. Durum makinesine girmeden ÖNCE, hareketli
+        # her durum için izin verilen kesintileri değerlendir.
+        _MOVING_STATES = ('YAYA_YAKLAS', 'HEMZEMIN_YAKLAS', 'TUMSEK',
+                          'SOLLAMA', 'PARK', 'SURUYOR')
+        if _state in _MOVING_STATES:
+            _abort_reason = None
+
+            # 1) Çıkmaz sokak tabelası her hareketli durumu keser.
+            if events.get('sign_type') == 'cikmazsokak':
+                _abort_reason = "ÇIKMAZ SOKAK tabelası"
+                _safe_state = 'CIKMAZSOKAK'
+
+            # 2) Yakın yaya geçidi: TUMSEK/SOLLAMA/PARK sırasında da durdurur.
+            elif (events['crosswalk'] and events['crosswalk_close']
+                  and not _crosswalk_consumed and _state != 'YAYA_YAKLAS'):
+                _abort_reason = "yakın YAYA GEÇİDİ"
+                _safe_state = 'YAYA_GECİDİ'
+                _crosswalk_consumed = True
+
+            # 3) Yakın hemzemin geçit: aynı şekilde.
+            elif (events['hemzemin'] and events['hemzemin_close']
+                  and not _hemzemin_consumed and _state != 'HEMZEMIN_YAKLAS'):
+                _abort_reason = "yakın HEMZEMİN GEÇİT"
+                _safe_state = 'HEMZEMIN'
+                _hemzemin_consumed = True
+
+            # 4) SOLLAMA sırasında beliren sarı araç = sollama yasağı.
+            #    Manevrayı sürdürmek yerine güvenli şekilde iptal et.
+            elif _state == 'SOLLAMA' and events['yellow_car']:
+                _abort_reason = "SOLLAMA sırasında SARI ARAÇ belirdi"
+                _safe_state = 'ENGEL_BEKLE'
+
+            if _abort_reason is not None:
+                print(f"[main] ⚠  GÜVENLİK KESİNTİSİ ({_state}): {_abort_reason}")
+                if tur_kayit is not None:
+                    tur_kayit.durum_degisti(_state, _safe_state,
+                                            sebep=_abort_reason)
+                motor.brake()
+                _state = _safe_state
+                _state_timer = now
+                _ovt_phase = 0
+                controller.reset()
+                logger.update(error)
+                _err_count = 0
+                continue
 
         # ================================================================
         # Durum makinesi
@@ -477,13 +613,46 @@ def drive_loop() -> None:
                 _ovt_phase = 0
                 _orange_car_consumed = True
                 motor.brake()
+            # LEGACY-060: Engel VAR ama geçiş izni YOK (sarı araç görünür
+            # ya da sollama yasağı aktif). Eski kodda bu koşullar yalnızca
+            # sollama dalını devre dışı bırakıyor, kontrol normal şerit
+            # takibine düşüyordu — yani araç, tam da geçmesi yasakken
+            # algılanan engele doğru sürmeye devam ediyordu. Engel varlığı
+            # geçiş izninden BAĞIMSIZ ele alınır: güvenli bekleme durumu.
+            elif events['orange_car'] and not _orange_car_consumed:
+                _blocker = ("sarı araç" if events['yellow_car']
+                            else "sollama yasağı")
+                print(f"[main] 🛑 ENGEL var, geçiş yasak ({_blocker}) — "
+                      "güvenli bekleme")
+                _state = 'ENGEL_BEKLE'
+                _state_timer = now
+                motor.brake()
             elif events['parking_zone']:
                 _state = 'PARK'
                 controller.reset()
                 motor.brake()
             else:
                 # Normal sürüş — şerit kayıp failsafe
-                if error is None:
+                #
+                # LEGACY-039: Zamanlayici artik "error is None" yerine
+                # GERCEK GOZLEM kaybinda baslar. Eski kodda serit detektoru
+                # 25 kare boyunca onbellekten sayisal bir hata uretiyordu;
+                # bu sure boyunca error None OLMADIGI icin guvenlik
+                # zamanlayicisi hic baslamiyor, arac bayat tahminle
+                # surmeye devam ediyordu. Sinirli tahmini direksiyona izin
+                # verilir, ancak guvenlik saati gercek kayipta isler.
+                _lane_seen = getattr(lane_detector, 'lane_observed', error is not None)
+                if not _lane_seen and _lane_lost_time is None:
+                    _lane_lost_time = now
+                    print("[main] ⚠  SERIT GOZLEMI KAYIP — güvenlik saati başladı")
+                elif _lane_seen:
+                    _lane_lost_time = None
+
+                if _lane_lost_time is not None and (now - _lane_lost_time) >= LANE_LOST_TURN_SEC:
+                    # Gercek gozlem uzun suredir yok → guvenli dur
+                    motor.brake()
+                    controller.reset()
+                elif error is None:
                     if _lane_lost_time is None:
                         _lane_lost_time = now
                         print("[main] ⚠  SERIT KAYIP — son gerçek yön korunuyor")
@@ -560,6 +729,20 @@ def drive_loop() -> None:
         elif _state == 'PARK':
             _run_parking(frame, error)
 
+        elif _state == 'ENGEL_BEKLE':
+            # LEGACY-060: Güvenli engel bekleme. Araç DURUR; sollama ancak
+            # açık bir "temiz" kontrolünden sonra başlar. Zaman aşımıyla
+            # kendiliğinden sürüşe dönmez — engel gerçekten kalkmalıdır.
+            motor.brake()
+            _clear = (not events['orange_car']
+                      and not events['yellow_car']
+                      and now >= _no_overtake_until)
+            if _clear:
+                print("[main] ✅ Engel kalktı ve geçiş serbest — sürüşe dönülüyor")
+                _state = 'SURUYOR'
+                controller.reset()
+                _orange_car_consumed = False
+
         elif _state == 'CIKMAZSOKAK':
             motor.brake()
 
@@ -625,16 +808,54 @@ def drive_loop() -> None:
 # Kapatma
 # ---------------------------------------------------------------------------
 def _shutdown(sig=None, frame=None) -> None:
+    """LEGACY-065: Durdurma niyeti önce mandallanır, motor enerjisi
+    HERHANGİ bir tanılama çıktısından ÖNCE kesilir, ve 'tamamlandı'
+    bayrağı yalnızca temizlik GERÇEKTEN çalıştıktan sonra konur.
+
+    Eski sıralama `_shutdown_complete = True` -> print() -> motor.stop()
+    şeklindeydi: print bloke olur ya da hata verirse (örn. kırık boru)
+    hiçbir cihaz temizliği yapılmıyor, üstelik bayrak zaten True olduğu
+    için sonraki tüm kapatma denemeleri de anında geri dönüyordu.
+    """
     global _running, _shutdown_complete
+
+    # 1) Durdurma niyetini derhal mandalla — sürüş döngüsü bir sonraki
+    #    adımda duracak. Bu bayrak tanılamadan bağımsızdır.
+    _running = False
+
     if _shutdown_complete:
         if sig is not None:
             raise SystemExit(128 + int(sig))
         return
-    _shutdown_complete = True
-    print("\n[main] Kapatılıyor...")
-    _running = False
+
+    # 2) Motor enerjisini KES — hiçbir çıktı denemesinden önce.
+    motor_ok = True
+    if motor is not None:
+        try:
+            result = motor.stop()
+            motor_ok = result is not False
+        except Exception:
+            motor_ok = False
+            try:
+                motor.brake()
+            except Exception:
+                pass
+
+    # 3) Tanılama çıktısı ancak şimdi; hata verirse temizlik zaten yapıldı.
+    try:
+        print("\n[main] Kapatılıyor...")
+    except Exception:
+        pass
+
+    # 4) Kalan kaynaklar; her biri bağımsız, biri diğerini engellemez.
+    if tur_kayit is not None:
+        try:
+            tur_kayit.bitir(sonuc=_state)
+        except Exception:
+            pass
+
+    cleanup_ok = motor_ok
     for name, cleanup in (
-        ("motor", motor.stop if motor is not None else None),
         ("camera", camera.stop if camera is not None else None),
         ("logger", logger.finish if logger is not None else None),
         ("button", _button_handle.close if _button_handle is not None else None),
@@ -645,9 +866,25 @@ def _shutdown(sig=None, frame=None) -> None:
         try:
             cleanup()
         except Exception as e:
-            print(f"[main] {name} kapatma hatasi: {e}")
+            cleanup_ok = False
+            try:
+                print(f"[main] {name} kapatma hatasi: {e}")
+            except Exception:
+                pass
+
     if _kb_thread is not None and _kb_thread is not threading.current_thread():
         _kb_thread.join(timeout=0.5)
+
+    # 5) Yalnızca temizlik gerçekten tamamlandıysa 'tamamlandı' işaretle.
+    #    Aksi hâlde bayrak False kalır ve kapatma YENİDEN denenebilir.
+    if cleanup_ok:
+        _shutdown_complete = True
+    else:
+        try:
+            print("[main] UYARI: kapatma eksik kaldı — yeniden denenebilir.")
+        except Exception:
+            pass
+
     if sig is not None:
         raise SystemExit(128 + int(sig))
 
@@ -686,15 +923,18 @@ def _setup_start_button():
 # Giriş noktası
 # ---------------------------------------------------------------------------
 def main() -> int:
-    global camera, lane_detector, controller, motor, logger, event_detector
+    global camera, lane_detector, controller, motor, logger, event_detector, tur_kayit
     global _kb_thread, _running, _shutdown_complete, _state, _state_timer
     global _ovt_phase, _manual_green, _lane_lost_time, _race_start_time
     global _finish_printed, _time_warning_printed, _button_handle
     global _crosswalk_consumed, _hemzemin_consumed
     global _speed_bump_consumed, _orange_car_consumed, _no_overtake_until
+    global _watchdog_thread, _loop_heartbeat, _watchdog_tripped
 
     _running = True
     _shutdown_complete = False
+    _loop_heartbeat = 0.0        # döngü başlayana kadar watchdog tetiklenmez
+    _watchdog_tripped = False
     _state = 'BEKLIYOR'
     _state_timer = 0.0
     _ovt_phase = 0
@@ -724,6 +964,17 @@ def main() -> int:
         logger = ErrorLogger()
         event_detector = EventDetector()
 
+        # Tur kaydi — diske JSONL. Arka plan thread'inde yazar, surus
+        # dongusunu bloke etmez. Hata olursa kayit sessizce devre disi
+        # kalir; surus etkilenmez.
+        try:
+            from tur_kaydedici import TurKaydedici
+            tur_kayit = TurKaydedici()
+            tur_kayit.baslat(tur_adi="yaris")
+        except Exception as exc:
+            print(f"[main] Tur kaydi baslatilamadi (surus etkilenmez): {exc}")
+            tur_kayit = None
+
         print()
         print("[main] ╔════════════════════════════════════════════╗")
         print("[main] ║   OTONOM ARAÇ — BAŞLAMA MODUNDA            ║")
@@ -743,6 +994,13 @@ def main() -> int:
         # Klavye dinleyiciyi ayrı thread'de başlat
         _kb_thread = threading.Thread(target=keyboard_listener, daemon=True)
         _kb_thread.start()
+
+        # LEGACY-046: Sürüş döngüsünden bağımsız motor komut watchdog'u.
+        # Kontrol yolu herhangi bir yerde bloke olursa motorları frenler.
+        # NOT: Bu bir YAZILIM koruması; bağımsız FİZİKSEL acil durdurma
+        # mekanizmasının yerini tutmaz.
+        _watchdog_thread = threading.Thread(target=_motor_watchdog, daemon=True)
+        _watchdog_thread.start()
 
         # Fiziksel start butonu (varsa) — bekletmez, donanım yoksa pas geçer
         _setup_start_button()

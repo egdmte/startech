@@ -23,6 +23,46 @@ class MotorHardwareUnavailable(RuntimeError):
     """Gerçek motor GPIO çıkışı kurulamadığında gönderilen açık hata."""
 
 
+class MotorConfigInvalid(ValueError):
+    """Aktüatör ayarları geçersizken GPIO açılmadan önce gönderilen hata."""
+
+
+def _validate_actuator_config() -> None:
+    """LEGACY-068: Aktüatör ayarlarını GPIO etkinleştirilmeden ÖNCE doğrula.
+
+    DEAD_ZONE_MIN_PWM NaN/sonsuz ya da 100'den büyükse, ölü bölge
+    dönüşümü düşük bir komutu %100 doluluğa çevirebilir. Bu değerleri
+    clip ile gizlemek yerine, hiçbir çıkış açılmadan reddet.
+    """
+    dz = DEAD_ZONE_MIN_PWM
+    if not isinstance(dz, (int, float)) or isinstance(dz, bool):
+        raise MotorConfigInvalid(
+            f"DEAD_ZONE_MIN_PWM sayısal olmalı (bulunan: {dz!r})"
+        )
+    dz = float(dz)
+    if not math.isfinite(dz):
+        raise MotorConfigInvalid(
+            f"DEAD_ZONE_MIN_PWM sonlu olmalı (bulunan: {dz!r})"
+        )
+    if not 0.0 <= dz <= 100.0:
+        raise MotorConfigInvalid(
+            f"DEAD_ZONE_MIN_PWM 0 ile 100 arasında olmalı (bulunan: {dz})"
+        )
+    for name, trim in (
+        ("LEFT_TRIM_LOW", LEFT_TRIM_LOW),
+        ("LEFT_TRIM_HIGH", LEFT_TRIM_HIGH),
+        ("RIGHT_TRIM_LOW", RIGHT_TRIM_LOW),
+        ("RIGHT_TRIM_HIGH", RIGHT_TRIM_HIGH),
+    ):
+        if not isinstance(trim, (int, float)) or isinstance(trim, bool):
+            raise MotorConfigInvalid(f"{name} sayısal olmalı (bulunan: {trim!r})")
+        trim = float(trim)
+        if not math.isfinite(trim) or trim <= 0.0:
+            raise MotorConfigInvalid(
+                f"{name} sonlu ve sıfırdan büyük olmalı (bulunan: {trim})"
+            )
+
+
 class MotorDriver:
     """İki DC motoru H-köprüsü üzerinden (örn. L298N) kontrol eder.
 
@@ -32,8 +72,13 @@ class MotorDriver:
     """
 
     def __init__(self):
+        # LEGACY-068: Geçersiz ayarlar hiçbir GPIO çıkışı açılmadan reddedilir.
+        _validate_actuator_config()
         self._has_gpio = _HAS_GPIO
         self._closed = not _HAS_GPIO
+        # LEGACY-069: Kapatma başarısı cihaz başına izlenir; başarısız
+        # kapatma "tamamlandı" sayılmaz ve yeniden denenebilir.
+        self._cleanup_failures: list[str] = []
         self._right_in1 = None
         self._right_in2 = None
         self._left_in1 = None
@@ -111,8 +156,16 @@ class MotorDriver:
             # yaklasma/tumsek hiz olceklemesi telafiyi geri alamaz.
             left = self._apply_dead_zone(left)
             right = self._apply_dead_zone(right)
-            left  = max(-100.0, min(100.0, left))
-            right = max(-100.0, min(100.0, right))
+            # LEGACY-068: Ölü bölge dönüşümünden SONRA tekrar doğrula.
+            # Clamp'e geçersiz bir değerin ulaşması, düşük bir komutun
+            # %100 doluluğa dönüşmesi demektir; bunu clip ile gizleme.
+            if not math.isfinite(left) or not math.isfinite(right):
+                raise ValueError("Ölü bölge sonrası motor hızı sonlu değil")
+            if abs(left) > 100.0 or abs(right) > 100.0:
+                raise ValueError(
+                    f"Ölü bölge sonrası motor hızı sınır dışı "
+                    f"(sol={left}, sağ={right}); ayarlar geçersiz"
+                )
 
             self._apply(self._left_in1, self._left_in2, self._left_pwm, left)
             self._apply(self._right_in1, self._right_in2, self._right_pwm, right)
@@ -163,29 +216,92 @@ class MotorDriver:
             pin.off()
 
     # ------------------------------------------------------------------
-    def stop(self) -> None:
-        """Serbest frenleme ve tüm GPIO kaynaklarını serbest bırakma."""
-        if not self._has_gpio or self._closed:
-            return
-        self._closed = True
-        for pwm in (self._right_pwm, self._left_pwm):
+    def stop(self) -> bool:
+        """Çıkışları sıfırla ve GPIO kaynaklarını serbest bırak.
+
+        LEGACY-069: Kapatma BAŞARISI cihaz başına izlenir. Eski davranışta
+        `_closed` daha çıkışlar sıfırlanmadan True yapılıyor, hatalar
+        yutuluyor ve sonraki `stop()` çağrıları hiçbir şey denemeden
+        dönüyordu — yani arka uç hâlâ aktif komut tutuyorken yazılım
+        "kapandı" diyebiliyordu.
+
+        Dönüş: tüm cihazlar başarıyla enerjisizleştirilip kapatıldıysa True.
+        Başarısızlık durumunda nesne kapanmış SAYILMAZ; tekrar çağrılabilir.
+        """
+        if not self._has_gpio:
+            return True
+
+        failures: list[str] = []
+
+        # 1) Önce çıkışları sıfırla — her birini bağımsız dene, ilk hata
+        #    diğerlerini engellemesin.
+        for name, pwm in (("right_pwm", self._right_pwm),
+                          ("left_pwm", self._left_pwm)):
+            if pwm is None:
+                continue
             try:
                 pwm.value = 0
-            except Exception:
-                pass
-        self._close_devices()
-        self._has_gpio = False
+            except Exception as exc:
+                failures.append(f"{name} sıfırlanamadı: {exc}")
 
-    def _close_devices(self) -> None:
-        for dev in (self._right_in1, self._right_in2,
-                    self._left_in1, self._left_in2,
-                    self._right_pwm, self._left_pwm):
+        # 2) Yön pinlerini de düşür (H-köprüsünü serbest bırak).
+        for name, pin in (("right_in1", self._right_in1),
+                          ("right_in2", self._right_in2),
+                          ("left_in1", self._left_in1),
+                          ("left_in2", self._left_in2)):
+            if pin is None:
+                continue
+            try:
+                pin.off()
+            except Exception as exc:
+                failures.append(f"{name} kapatılamadı: {exc}")
+
+        # 3) Cihazları kapat.
+        failures.extend(self._close_devices())
+
+        self._cleanup_failures = failures
+        if failures:
+            # Kapanma TAMAMLANMADI: bayrakları koru ki tekrar denenebilsin.
+            print("[motor] UYARI: motor kapatma tamamlanamadı:")
+            for msg in failures:
+                print(f"  - {msg}")
+            print("[motor] Çıkış hâlâ aktif olabilir — "
+                  "bağımsız donanım kesme kullanın.")
+            return False
+
+        self._closed = True
+        self._has_gpio = False
+        return True
+
+    @property
+    def cleanup_failed(self) -> bool:
+        """Son stop() denemesi eksik kaldıysa True."""
+        return bool(self._cleanup_failures)
+
+    @property
+    def cleanup_failures(self) -> list[str]:
+        """Son stop() denemesindeki başarısız işlemlerin açıklamaları."""
+        return list(self._cleanup_failures)
+
+    def _close_devices(self) -> list[str]:
+        """Cihazları kapat; başarısız olanların açıklamalarını döndür.
+
+        LEGACY-069: Başarıyla kapanan cihaz None yapılır, böylece yeniden
+        denemede yalnızca gerçekten kapanmamış olanlar denenir.
+        """
+        failures: list[str] = []
+        for attr in ("_right_in1", "_right_in2", "_left_in1", "_left_in2",
+                     "_right_pwm", "_left_pwm"):
+            dev = getattr(self, attr, None)
             if dev is None:
                 continue
             try:
                 dev.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                failures.append(f"{attr.lstrip('_')} close() başarısız: {exc}")
+            else:
+                setattr(self, attr, None)
+        return failures
 
     # ------------------------------------------------------------------
     @staticmethod

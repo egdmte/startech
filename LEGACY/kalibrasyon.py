@@ -85,9 +85,17 @@ def motor_dengeleme():
     print("3. Cetvel veya mezura hazır olsun")
     print()
     
-    secim = input("Test başlasın mı? [E/H]: ").strip().lower()
-    if secim != 'e' and secim != '':
-        print("İptal edildi.")
+    # LEGACY-026: Bos girdi (sadece Enter) MOTOR HAREKETINI yetkilendiremez.
+    # Eski kosul `secim != 'e' and secim != ''` idi: Enter'a basmak onay
+    # sayiliyor, GPIO aciliyor ve geri sayimdan sonra 50/50 surus
+    # basliyordu. Istem hicbir yerde varsayilan onay ilan etmiyor, ayni
+    # menudeki diger surus istemleri ise acik 'e' istiyor.
+    print()
+    print("⚠️  UYARI: Bu test GERCEK MOTORLARI calistirir ve arac HAREKET EDER.")
+    print("   Tekerleklerin yerden kesik veya onunde bos alan oldugundan emin olun.")
+    secim = input("Test başlasın mı? Onaylamak icin 'E' yazin [E/H]: ").strip().lower()
+    if secim != 'e':
+        print("İptal edildi (acik onay verilmedi).")
         bekle()
         return
     
@@ -126,36 +134,81 @@ def motor_dengeleme():
     print("• Düz gittiysе: 0")
     print()
     
+    # LEGACY-027: Sonlu olmayan olcum (nan/inf) makul gorunen ama tamamen
+    # keyfi trim tavsiyesi uretiyordu. Acikca reddet.
+    import math as _math
     try:
         sapma = float(input("Sapma (cm, sağ=+, sol=-): "))
     except ValueError:
         print("❌ Geçersiz değer.")
         basinca_devam()
         return
-    
+    if not _math.isfinite(sapma):
+        print("❌ Ölçüm sonlu bir sayı olmalı (nan/inf kabul edilmez).")
+        basinca_devam()
+        return
+    if abs(sapma) > 500:
+        print("❌ Ölçüm makul aralığın dışında (|sapma| > 500 cm).")
+        basinca_devam()
+        return
+
+    # LEGACY-028: Olcum ZATEN TRIMLENMIS bir araca aittir (motor.set_speed
+    # trim uygular). Tavsiyeleri 1.0 etrafinda yeniden kurmak, calisan bir
+    # kalibrasyonu geri alir. Bu yuzden mevcut AKTIF trim tabani okunur ve
+    # duzeltme ona GORECELI hesaplanir.
+    try:
+        from config import (LEFT_TRIM_LOW as _LTL, LEFT_TRIM_HIGH as _LTH,
+                            RIGHT_TRIM_LOW as _RTL, RIGHT_TRIM_HIGH as _RTH)
+    except Exception:
+        _LTL = _LTH = _RTL = _RTH = 1.0
+
     print()
+    print("📊 MEVCUT AKTİF TRIM TABANI (ölçüm bu değerlerle yapıldı):")
+    print(f"   LEFT_TRIM_LOW={_LTL}  LEFT_TRIM_HIGH={_LTH}")
+    print(f"   RIGHT_TRIM_LOW={_RTL} RIGHT_TRIM_HIGH={_RTH}")
+    print()
+
     if abs(sapma) < 2:
-        print("✅ ARAÇ DENGELİ! TRIM değişikliği gerekmiyor.")
-        print("   config.py satır 98-101: 1.0 olarak bırak.")
-    elif sapma > 0:
-        # Sağa sapıyor → sağ motor güçlü → RIGHT_TRIM azalt
-        new_right = round(1.0 - min(0.15, sapma / 100), 3)
-        print(f"⚠️  ARAÇ SAĞA SAPIYOR ({sapma:.1f} cm)")
-        print()
-        print("📋 ÇÖZÜM — config.py'de şu değerleri yaz:")
-        print("─" * 62)
-        print(f"   RIGHT_TRIM_LOW  = {new_right}    ← satır 100")
-        print(f"   RIGHT_TRIM_HIGH = {new_right}    ← satır 101")
+        # LEGACY-028: Dengeli sonuc "1.0 yaz" DEMEZ; mevcut degerleri KORU der.
+        print("✅ ARAÇ DENGELİ! Mevcut TRIM değerlerini DEĞİŞTİRMEYİN.")
+        print("   Bu ölçüm yukarıdaki aktif trim tabanıyla yapıldı;")
+        print("   1.0'a döndürmek çalışan kalibrasyonu geri alır.")
     else:
-        # Sola sapıyor → sol motor güçlü → LEFT_TRIM azalt
-        new_left = round(1.0 - min(0.15, abs(sapma) / 100), 3)
-        print(f"⚠️  ARAÇ SOLA SAPIYOR ({abs(sapma):.1f} cm)")
+        # LEGACY-029: DOKUMANLI konvansiyon altinda (pozitif komut her iki
+        # tekeri ILERI surer, sol/sag etiketleri fiziksel olarak dogru):
+        # SAGA kivrilan aracin SOL tekeri, sag tekerine gore DAHA HIZLIDIR.
+        # Duzeltme bu yuzden SOL tekeri azaltmalidir. Eski kod sag tekeri
+        # azaltarak kivrimi ARTIRIYORDU. Sol sapma dali da simetrik olarak
+        # tersti.
+        oran = min(0.15, abs(sapma) / 100.0)
+        if sapma > 0:
+            yon, hedef = "SAĞA", "SOL"
+            new_low  = round(_LTL * (1.0 - oran), 3)
+            new_high = round(_LTH * (1.0 - oran), 3)
+            adlar = ("LEFT_TRIM_LOW", "LEFT_TRIM_HIGH")
+        else:
+            yon, hedef = "SOLA", "SAĞ"
+            new_low  = round(_RTL * (1.0 - oran), 3)
+            new_high = round(_RTH * (1.0 - oran), 3)
+            adlar = ("RIGHT_TRIM_LOW", "RIGHT_TRIM_HIGH")
+
+        # LEGACY-071: Surucu sifir/negatif trimi reddeder; asla onermeyin.
+        new_low  = max(0.05, new_low)
+        new_high = max(0.05, new_high)
+
+        print(f"⚠️  ARAÇ {yon} SAPIYOR ({abs(sapma):.1f} cm)")
+        print(f"   Bu, {hedef} tekerleğin göreli olarak daha hızlı olduğu anlamına gelir.")
         print()
-        print("📋 ÇÖZÜM — config.py'de şu değerleri yaz:")
+        print("📋 ÖNERİ — mevcut tabana GÖRECELİ düzeltme:")
         print("─" * 62)
-        print(f"   LEFT_TRIM_LOW  = {new_left}    ← satır 98")
-        print(f"   LEFT_TRIM_HIGH = {new_left}    ← satır 99")
-    
+        print(f"   {adlar[0]}  = {new_low}")
+        print(f"   {adlar[1]} = {new_high}")
+        print()
+        print("⚠️  FİZİKSEL DOĞRULAMA GEREKLİ: Bu öneri, pozitif komutun her iki")
+        print("   tekerleği İLERİ sürdüğü ve sol/sağ etiketlerinin fiziksel olarak")
+        print("   doğru olduğu varsayımına dayanır. Uygulamadan önce tekerlekleri")
+        print("   yerden kesip yön konvansiyonunu doğrulayın.")
+
     print()
     basinca_devam()
 

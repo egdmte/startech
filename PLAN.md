@@ -1,5 +1,12 @@
 # STARTECH current state and plan
 
+Agents: Please read /AGENTS_CHECK_FIRST.
+It includes everything to fix the code.
+You may not even need this plan to work with, since the problems are all listed there.
+
+Use the python script available, it will give the current error to fix.
+Only when you need more information, read the markdown files.
+
 Updated: 29 August 2026
 
 This is the current project plan. It describes what exists now, what is trusted,
@@ -12,6 +19,8 @@ and Git history provide the underlying evidence.
 STARTECH is a camera-only autonomous vehicle built for a multi-task competition
 track. The physical car exists and is stored at SCHOOL. The team cannot access it
 at present, so new physical claims cannot be made until access resumes.
+
+THE CAR EXISTS, DOES ARM, AND THE HARDWARE IS COMPLETE.
 
 The vehicle software baseline is the code under `LEGACY/`. Despite the directory
 name, this is not merely an obsolete reference: this lineage was used during the
