@@ -10,6 +10,7 @@
 #
 # Kullanım: python main.py
 # =============================================================================
+import os
 import signal
 import sys
 import threading
@@ -51,7 +52,8 @@ from config import (
     WIDTH, HEIGHT,
     CROSSWALK_WAIT_SEC, HEMZEMIN_WAIT_SEC,
     SPEED_BUMP_SLOW_SEC, SPEED_BUMP_SPEED,
-    APPROACH_SPEED, APPROACH_TIMEOUT_SEC,
+    APPROACH_SPEED, APPROACH_TIMEOUT_SEC, APPROACH_RECOVERY_SEC,
+    SPEED_BUMP_MAX_EXTEND_MULT, PARKING_TARGET_LOST_SEC,
     OVERTAKING_STEER_BIAS, OVERTAKING_CROSS_SEC,
     OVERTAKING_PASS_SEC, OVERTAKING_RETURN_SEC, OVERTAKING_SPEED,
 
@@ -89,6 +91,7 @@ class _Camera:
         self._stopped = False
         self._pi = None
         self._cv = None
+        self._size_warned = False   # LEGACY-043: uyariyi bir kez yazdir
 
         if _USE_PICAMERA:
             self._pi = Picamera2()
@@ -165,6 +168,23 @@ class _Camera:
             ret, frame = self._cv.read()
             if not ret:
                 raise RuntimeError("USB camera capture failed")
+            # LEGACY-043: Bazi USB arka uclari ISTENEN boyutu HONOR ETMEZ
+            # (orn. 800x680 istenip 640x480 dondurulur). Bu, asagi akis
+            # perspektif noktalarini, piksel-alan esiklerini, ROI'lari ve
+            # sabit genislik oranlarini (tumsek genislik kontrolu gibi)
+            # KALIBRE EDILMEMIS bir kare karsisinda calistirir — hata
+            # vermez, sessizce YANLIS sonuc uretir. camera.py'deki
+            # gorsellestirici zaten yeniden boyutluyordu; calisan yol
+            # boyutlanmiyordu, bu da dagitim uyusmazligini gizliyordu.
+            actual_h, actual_w = frame.shape[:2]
+            if (actual_w, actual_h) != (WIDTH, HEIGHT):
+                frame = cv2.resize(frame, (WIDTH, HEIGHT),
+                                   interpolation=cv2.INTER_LINEAR)
+                if not self._size_warned:
+                    print(f"[main] UYARI: USB kamera {actual_w}x{actual_h} "
+                          f"döndürdü, istenen {WIDTH}x{HEIGHT} değil. "
+                          "Kareler yeniden ölçekleniyor.")
+                    self._size_warned = True
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             if CAMERA_ROTATE_180:
                 frame = cv2.rotate(frame, cv2.ROTATE_180)
@@ -280,8 +300,19 @@ def keyboard_listener():
             tty.setcbreak(fd)
 
             def read_key():
+                # LEGACY-047: sys.stdin.read(1) TextIOWrapper icine fazladan
+                # karakter ONBELLEKLEYEBILIR (prefetch). select() alttaki
+                # descriptor'i kontrol eder; Python'un kendi tamponundaki
+                # bekleyen bir tusu GOREMEZ. Sonuc: yapistirilmis 'GG' ya da
+                # arka arkaya gelen bir DUR tusu, daha fazla girdi gelene
+                # kadar islenmeden bekleyebiliyordu. os.read() dogrudan
+                # descriptor'dan okur, TextIOWrapper tamponunu devre disi
+                # birakir.
                 if select.select([sys.stdin], [], [], 0.1)[0]:
-                    return sys.stdin.read(1)
+                    try:
+                        return os.read(fd, 1).decode(errors='replace')
+                    except OSError:
+                        return ""
                 return ""
         elif msvcrt is not None:
             def read_key():
@@ -348,50 +379,97 @@ def _apply_dir(left: float, right: float) -> tuple:
     return left, right
 
 
+def _send_motor(left: float, right: float) -> None:
+    """TUM hareket komutlari bu fonksiyondan gecer (motor.brake() haric).
+
+    LEGACY-048: Klavye thread'i _running=False yaptiginda, ana dongu
+    zaten while kosulunu GECMIS ve mevcut yinelemenin icindeydi. Eski
+    kod bu yinelemede baska bir motor.set_speed cagrisini ONLEMIYORDU;
+    kapanma yalnizca dongu sinirinda gerceklesiyordu. Bu fonksiyon,
+    komutu donanima ULASTIRMADAN HEMEN ONCE durdurma bayragini tekrar
+    kontrol eder — dongu ust seviyesindeki tek bir kontrol yeterli degil.
+    """
+    if not _running:
+        if motor is not None:
+            try:
+                motor.brake()
+            except Exception:
+                pass
+        return
+    motor.set_speed(left, right)
+
+
 # ---------------------------------------------------------------------------
 # Sollama alt durum makinesi (3 aşamalı)
 # ---------------------------------------------------------------------------
+# LEGACY-050: Faz suresi DUVAR SAATI DEGIL, biriken GERCEK HAREKET
+# suresidir. Eski kod her seritsiz karede _state_timer'i 'now'a sifirliyordu;
+# serit geri geldiginde faz esigi SIFIRDAN basliyor, o zamana kadar
+# katedilen mesafe/donus TAMAMEN cop oluyordu. Kayip tekrarlandiginda
+# manevra sureklice uzayabiliyordu. Simdi ilerleme yalnizca GERCEKTEN
+# hareket edilirken (error is not None) birikir; kayipta DONUYOR, sifirlanmiyor.
+_ovt_phase_elapsed: float = 0.0
+_ovt_last_call: float | None = None
+
+
 def _run_overtaking(error, now: float) -> None:
     global _state, _ovt_phase, _state_timer
+    global _ovt_phase_elapsed, _ovt_last_call
+
+    dt = 0.0 if _ovt_last_call is None else max(0.0, now - _ovt_last_call)
+    _ovt_last_call = now
 
     if error is None:
         motor.brake()
-        _state_timer = now
+        # LEGACY-050: _state_timer ARTIK SIFIRLANMIYOR — biriken ilerleme
+        # korunuyor. Yalnizca "hareket etmiyoruz" gercegini yansitiyoruz.
         return
 
-    elapsed = now - _state_timer
-    
+    # LEGACY-050: Sure yalnizca GERCEK hareket sirasinda birikir.
+    _ovt_phase_elapsed += dt
+    elapsed = _ovt_phase_elapsed
+
+    # LEGACY-051: Faz ilerlemesi icin GORSEL serit kaniti da aranir —
+    # yalnizca duvar/hareket suresine guvenmek, gercekte serit degisimi
+    # hic gozlenmeden manevranin "tamamlandigini" ilan edebiliyordu.
+    _lane_ok = getattr(lane_detector, 'lane_observed', True)
+
     if _ovt_phase == 0:
         eff_error = error - OVERTAKING_STEER_BIAS
         l, r = controller.compute(eff_error)
         scale = OVERTAKING_SPEED / max(abs(l), abs(r), 1)
-        motor.set_speed(*_apply_dir(l * scale, r * scale))
-        if elapsed >= OVERTAKING_CROSS_SEC:
+        _send_motor(*_apply_dir(l * scale, r * scale))
+        if elapsed >= OVERTAKING_CROSS_SEC and _lane_ok:
             _ovt_phase = 1
-            _state_timer = now
+            _ovt_phase_elapsed = 0.0
     elif _ovt_phase == 1:
         l, r = controller.compute(error)
         scale = OVERTAKING_SPEED / max(abs(l), abs(r), 1)
-        motor.set_speed(*_apply_dir(l * scale, r * scale))
-        if elapsed >= OVERTAKING_PASS_SEC:
+        _send_motor(*_apply_dir(l * scale, r * scale))
+        if elapsed >= OVERTAKING_PASS_SEC and _lane_ok:
             _ovt_phase = 2
-            _state_timer = now
+            _ovt_phase_elapsed = 0.0
     elif _ovt_phase == 2:
         eff_error = error + OVERTAKING_STEER_BIAS
         l, r = controller.compute(eff_error)
         scale = OVERTAKING_SPEED / max(abs(l), abs(r), 1)
-        motor.set_speed(*_apply_dir(l * scale, r * scale))
-        if elapsed >= OVERTAKING_RETURN_SEC:
+        _send_motor(*_apply_dir(l * scale, r * scale))
+        if elapsed >= OVERTAKING_RETURN_SEC and _lane_ok:
             _state = 'SURUYOR'
             _ovt_phase = 0
+            _ovt_phase_elapsed = 0.0
+            _ovt_last_call = None
             controller.reset()
 
 
 # ---------------------------------------------------------------------------
 # Park etme
 # ---------------------------------------------------------------------------
+_park_target_lost_since: float | None = None   # LEGACY-052
+
+
 def _run_parking(frame: np.ndarray, error) -> None:
-    global _state
+    global _state, _park_target_lost_since
     
     hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
     roi = hsv[PARKING_ROI_TOP:, :]
@@ -414,14 +492,29 @@ def _run_parking(frame: np.ndarray, error) -> None:
                 best_cx = int(M['m10'] / M['m00'])
     
     if best_area < PARKING_MIN_AREA or best_cx is None:
+        # LEGACY-052: Eski kod, kirmizi hedef kayboldugunda SINIRSIZCA
+        # serit takibine devam ediyordu (PARKING_SPEED ile) — hicbir hedef-
+        # kaybi butcesi, arama siniri veya guvenli-duruma donus yoktu. Simdi
+        # kayip suresi izlenir; butce asilirsa arac DURUR (sonsuz ilerlemez).
+        now_mono = time.monotonic()
+        if _park_target_lost_since is None:
+            _park_target_lost_since = now_mono
+        lost_for = now_mono - _park_target_lost_since
+
+        if lost_for >= PARKING_TARGET_LOST_SEC:
+            motor.brake()
+            return
         if error is None:
             motor.brake()
             return
         l, r = controller.compute(error)
         scale = PARKING_SPEED / max(abs(l), abs(r), 1)
-        motor.set_speed(*_apply_dir(l * scale, r * scale))
+        _send_motor(*_apply_dir(l * scale, r * scale))
         return
-    
+
+    # Hedef yeniden goruldu — kayip zamanlayicisini temizle.
+    _park_target_lost_since = None
+
     off = best_cx - (WIDTH // 2)
     if abs(off) <= PARKING_CENTER_TOL and best_area > PARKING_MIN_AREA * 4:
         motor.brake()
@@ -448,7 +541,7 @@ def _run_parking(frame: np.ndarray, error) -> None:
     # Savunma amaçlı son kontrol: park sırasında ters yön komutu yok.
     l = max(0.0, min(float(PARKING_SPEED), l))
     r = max(0.0, min(float(PARKING_SPEED), r))
-    motor.set_speed(*_apply_dir(l, r))
+    _send_motor(*_apply_dir(l, r))
 
 
 # ---------------------------------------------------------------------------
@@ -460,9 +553,11 @@ def drive_loop() -> None:
     global _crosswalk_consumed, _hemzemin_consumed
     global _speed_bump_consumed, _orange_car_consumed
     global _loop_heartbeat
+    global _ovt_phase_elapsed, _ovt_last_call, _park_target_lost_since
 
     frame_count = 0
-    last_print = time.time()
+    _last_processed_seq = None   # LEGACY-045
+    last_print = time.monotonic()   # LEGACY-055
 
     _err_count = 0
 
@@ -473,12 +568,32 @@ def drive_loop() -> None:
         # watchdog thread'i motorları frenler.
         _loop_heartbeat = time.monotonic()
         frame = camera.capture()
+
+        # LEGACY-045: Islem dongusu Pi kamerasindan HIZLI calisirsa, ayni
+        # yayimlanmis kare BIRDEN FAZLA kez islenebilir. Bu, TEK bir
+        # optik gozlemin ardisik-kare dogrulamasini (event debounce,
+        # serit hafizasi, kontrolor turevi/integrali) sahte sekilde
+        # BIRDEN FAZLA kez ilerletmesine yol acar — ornegin tek bir
+        # yesil kare, 6 karelik baslama esigini tek basina doldurabilir.
+        # Kamera sira numarasi degismediyse bu YENI bir gozlem degildir.
+        _cur_seq = getattr(camera, '_seq', None)
+        if _cur_seq is not None and _cur_seq == _last_processed_seq:
+            _err_count = 0   # capture basarili — bu bir HATA degil
+            time.sleep(0.005)   # yeni kare bekle; kontrol yolunu mesgul etme
+            continue
+        _last_processed_seq = _cur_seq
+
         if tur_kayit is not None:
             tur_kayit.telemetri(durum=_state, hata=None)
         error, debug = lane_detector.process(frame)
         events = event_detector.detect(frame)
         light = events['traffic_light']
-        now = time.time()
+        # LEGACY-055: TUM kontrol sureleri (state_timer, race_start_time,
+        # lane_lost_time, no_overtake_until) bu 'now' ile karsilastirilir.
+        # time.time() DUVAR SAATIDIR; sistem saati ayarlanirsa (NTP senk,
+        # elle duzeltme) her bekleme/manevra/yasak suresi yanlis hesaplanir.
+        # time.monotonic() sistem saatinden BAGIMSIZDIR ve yalnizca ileri akar.
+        now = time.monotonic()
 
         if not events['crosswalk']:
             _crosswalk_consumed = False
@@ -611,6 +726,8 @@ def drive_loop() -> None:
                 _state = 'SOLLAMA'
                 _state_timer = now
                 _ovt_phase = 0
+                _ovt_phase_elapsed = 0.0     # LEGACY-050: taze giris
+                _ovt_last_call = None
                 _orange_car_consumed = True
                 motor.brake()
             # LEGACY-060: Engel VAR ama geçiş izni YOK (sarı araç görünür
@@ -629,6 +746,7 @@ def drive_loop() -> None:
                 motor.brake()
             elif events['parking_zone']:
                 _state = 'PARK'
+                _park_target_lost_since = None   # LEGACY-052: taze giris
                 controller.reset()
                 motor.brake()
             else:
@@ -660,7 +778,7 @@ def drive_loop() -> None:
                     if lost_sec < LANE_LOST_TURN_SEC:
                         # Denetleyicinin son gerçek yönünü türev üretmeden azalt.
                         l, r = controller.compute(None)
-                        motor.set_speed(*_apply_dir(l, r))
+                        _send_motor(*_apply_dir(l, r))
                     else:
                         # Süre doldu, hâlâ şerit yok → güvenli dur
                         motor.brake()
@@ -670,36 +788,64 @@ def drive_loop() -> None:
                         _lane_lost_time = None
                         controller.reset()
                     l, r = controller.compute(error)
-                    motor.set_speed(*_apply_dir(l, r))
+                    _send_motor(*_apply_dir(l, r))
 
         elif _state == 'YAYA_YAKLAS':
             # Yaya geçidini gördük, henüz 30 cm eşiğine gelmedik — yavaş yaklaş.
+            #
+            # LEGACY-061: Zaman asimi eskiden DOGRUDAN 'basariyla varildi'
+            # anlamina geliyordu (YAYA_GECIDI'ye gecip olayi TUKETIYORDU),
+            # araç durmus olsa veya seridi kaybetmis olsa bile. Bu, aracin
+            # gerekli durma noktasindan cok once beklemesine, sonra GERCEK
+            # gecidin uzerinden GECMESINE yol acabilirdi. Zaman asimi artik
+            # bir ARIZA/yeniden-deneme durumudur: DUR ve konum kanitini
+            # (yakin tespit) bekle; sonsuz surmeyi de onlemek icin sinirli
+            # bir kurtarma penceresinden sonra guvenli sekilde olayi tuket.
             timeout = (now - _state_timer) >= APPROACH_TIMEOUT_SEC
-            if events['crosswalk_close'] or timeout:
+            if events['crosswalk_close']:
                 _state = 'YAYA_GECİDİ'
                 _state_timer = now
                 _crosswalk_consumed = True
                 motor.brake()
+            elif timeout:
+                # Konum kaniti YOK — arizali yaklasma. Dur, tekrar deneme.
+                motor.brake()
+                if (now - _state_timer) >= (APPROACH_TIMEOUT_SEC
+                                            + APPROACH_RECOVERY_SEC):
+                    print("[main] ⚠ YAYA_YAKLAS: yakin tespit hic gelmedi — "
+                          "güvenli sekilde tüketiliyor")
+                    _state = 'YAYA_GECİDİ'
+                    _state_timer = now
+                    _crosswalk_consumed = True
             elif error is None:
                 motor.brake()
             else:
                 l, r = controller.compute(error)
                 scale = APPROACH_SPEED / max(abs(l), abs(r), 1)
-                motor.set_speed(*_apply_dir(l * scale, r * scale))
+                _send_motor(*_apply_dir(l * scale, r * scale))
 
         elif _state == 'HEMZEMIN_YAKLAS':
             timeout = (now - _state_timer) >= APPROACH_TIMEOUT_SEC
-            if events['hemzemin_close'] or timeout:
+            if events['hemzemin_close']:
                 _state = 'HEMZEMIN'
                 _state_timer = now
                 _hemzemin_consumed = True
                 motor.brake()
+            elif timeout:
+                motor.brake()
+                if (now - _state_timer) >= (APPROACH_TIMEOUT_SEC
+                                            + APPROACH_RECOVERY_SEC):
+                    print("[main] ⚠ HEMZEMIN_YAKLAS: yakin tespit hic gelmedi "
+                          "— güvenli sekilde tüketiliyor")
+                    _state = 'HEMZEMIN'
+                    _state_timer = now
+                    _hemzemin_consumed = True
             elif error is None:
                 motor.brake()
             else:
                 l, r = controller.compute(error)
                 scale = APPROACH_SPEED / max(abs(l), abs(r), 1)
-                motor.set_speed(*_apply_dir(l * scale, r * scale))
+                _send_motor(*_apply_dir(l * scale, r * scale))
 
         elif _state == 'YAYA_GECİDİ':
             motor.brake()
@@ -719,8 +865,21 @@ def drive_loop() -> None:
             else:
                 l, r = controller.compute(error)
                 scale = SPEED_BUMP_SPEED / max(abs(l), abs(r), 1)
-                motor.set_speed(*_apply_dir(l * scale, r * scale))
-            if now - _state_timer >= SPEED_BUMP_SLOW_SEC:
+                _send_motor(*_apply_dir(l * scale, r * scale))
+            # LEGACY-062: Sabit sureli yavas mod, arac o sure boyunca hic
+            # hareket etmemis (serit kaybi nedeniyle frenlemis) OLSA BILE
+            # doluyordu; speed_bump_consumed=True kaldigi icin normal hiz
+            # dogrudan tumsegin USTUNDE devam edebiliyordu. Simdi cikis icin
+            # HEM sure dolmus HEM de GORSEL olarak tumsek artik algilanmiyor
+            # olmali (araç fiilen gecmis). Yalnizca sure yeterli degildir.
+            _bump_time_ok = (now - _state_timer) >= SPEED_BUMP_SLOW_SEC
+            _bump_visually_clear = not events.get('speed_bump', False)
+            if _bump_time_ok and _bump_visually_clear:
+                _state = 'SURUYOR'
+            elif (now - _state_timer) >= SPEED_BUMP_SLOW_SEC * SPEED_BUMP_MAX_EXTEND_MULT:
+                # Guvenlik supabi: gorsel temizlik hic gelmezse (sensor
+                # kaybi vb.) sonsuza dek yavas modda KALMA — sinirli bir
+                # uzatmadan sonra yine de devam et.
                 _state = 'SURUYOR'
 
         elif _state == 'SOLLAMA':
@@ -930,6 +1089,7 @@ def main() -> int:
     global _crosswalk_consumed, _hemzemin_consumed
     global _speed_bump_consumed, _orange_car_consumed, _no_overtake_until
     global _watchdog_thread, _loop_heartbeat, _watchdog_tripped
+    global _ovt_phase_elapsed, _ovt_last_call, _park_target_lost_since
 
     _running = True
     _shutdown_complete = False
@@ -938,6 +1098,9 @@ def main() -> int:
     _state = 'BEKLIYOR'
     _state_timer = 0.0
     _ovt_phase = 0
+    _ovt_phase_elapsed = 0.0    # LEGACY-050
+    _ovt_last_call = None
+    _park_target_lost_since = None   # LEGACY-052
     _manual_green = False
     _lane_lost_time = None
     _race_start_time = None

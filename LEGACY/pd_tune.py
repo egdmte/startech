@@ -138,10 +138,14 @@ def run_tuning(kp: float, kd: float, duration: float = 10.0):
         det = LaneDetector()
         ctrl = PDController()
 
-        # ctrl'nin config değerleri yerine test değerlerini kullan
-        import controller as ctrl_mod
-        ctrl_mod.KP = kp
-        ctrl_mod.KD = kd
+        # LEGACY-075: Eski kod PAYLASILAN modul degiskenlerini
+        # (controller.KP/KD) DEGISTIRIYORDU ve hicbir zaman GERI YUKLEMIYORDU.
+        # Ayni interpreter'daki HER PDController ornegi (gecmis, simdiki,
+        # gelecek) test kazanclarini goruyordu; config.KP/config.KD ise
+        # eski degerleri raporlamaya devam ediyordu (tutarsizlik). Kazanclar
+        # artik yalnizca BU ORNEGE atanir — paylasilan durum degismez.
+        ctrl.KP = kp
+        ctrl.KD = kd
 
         start = time.time()
         print(f"\nKP={kp}  KD={kd}  |  {duration}s test  |  q=dur")
@@ -150,11 +154,24 @@ def run_tuning(kp: float, kd: float, duration: float = 10.0):
         try:
             import tty, termios
             fd = sys.stdin.fileno()
+            if not sys.stdin.isatty():
+                raise OSError("stdin bir TTY değil — ham mod anlamsız")
             old = termios.tcgetattr(fd)
             tty.setraw(fd)
             nonblock = True
-        except Exception:
+        except Exception as exc:
             nonblock = False
+            # LEGACY-076: Eski kod bu istisnayi YUTUYOR, dinleyiciyi
+            # SESSIZCE devre disi birakiyor, ama arac yine de hareket
+            # dongusune giriyordu — ekranda hala 'q=dur' YAZARKEN. Ilan
+            # edilen dur girdisi yoksa KAPALI-GUVENLI ol: motor testine
+            # HIC girme.
+            print(f"\n[pd_tune] HATA: klavye ham modu kurulamadi ({exc}).")
+            print("[pd_tune] 'q=dur' girdisi bu haliyle ÇALIŞMAYACAKTI — "
+                  "GÜVENLİK için test BAŞLATILMIYOR.")
+            print("[pd_tune] Gerçek bir terminalden çalıştırın, ya da "
+                  "--noninteractive gibi ayrı bir mod ekleyin.")
+            return
 
         def key_listener():
             nonlocal running
@@ -195,16 +212,21 @@ def run_tuning(kp: float, kd: float, duration: float = 10.0):
 
     finally:
         running = False
+        # LEGACY-077: Eski sira ONCE thread.join(timeout=0.5) SONRA fren
+        # idi — dinleyici thread'i yavas/bloke olursa motor, gereksiz
+        # yere 0.5 saniyeye kadar KOMUTLU kalmaya devam ediyordu. Fren
+        # ARTIK HERSEYDEN ONCE gelir; is parcaciklarina katilmak ve
+        # kaynaklari geri yuklemek ondan SONRA olur.
         try:
-            if thread is not None:
-                thread.join(timeout=0.5)
+            try:
+                mot.brake()
+                time.sleep(0.3)
+            finally:
+                mot.stop()
         finally:
             try:
-                try:
-                    mot.brake()
-                    time.sleep(0.3)
-                finally:
-                    mot.stop()
+                if thread is not None:
+                    thread.join(timeout=0.5)
             finally:
                 try:
                     if cam is not None:

@@ -29,7 +29,10 @@ class ErrorLogger:
     ):
         self.duration    = duration_sec
         self.export_file = Path(export_file)
-        self.start_time  = time.time()
+        # LEGACY-055: sure hesabi icin duvar saati DEGIL, monotonik saat.
+        # Sistem saati geri alinirsa self.duration hic dolmayabilir;
+        # ileri alinirsa pencere zamanindan once kapanabilir.
+        self.start_time  = time.monotonic()
         self.finished    = False
 
         self._errors:     list[float | None] = []
@@ -41,7 +44,7 @@ class ErrorLogger:
         """Bir karenin hata değerini kaydeder. Kayıp şerit için None geçin."""
         if self.finished:
             return
-        now = time.time()
+        now = time.monotonic()   # LEGACY-055
         if error is None:
             self._lost += 1
             self._errors.append(None)

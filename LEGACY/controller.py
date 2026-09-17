@@ -30,7 +30,12 @@ class PDController:
 
     def __init__(self):
         self.prev_error:  float = 0.0
-        self.prev_time:   float = time.time()
+        # LEGACY-055: time.time() DUVAR SAATIDIR ve sistem saati ileri/geri
+        # ayarlanabilir. Independent test: +120s'lik bir saat sicramasi,
+        # sabit +1px gozlemle bile integrali 50'ye DOYURUYORDU (dt=120
+        # olarak entegre ediliyor). Butun kontrol sureleri time.monotonic()
+        # kullanmalidir; yalnizca insan-okur zaman damgalari time.time() alir.
+        self.prev_time:   float = time.monotonic()
         self.lost_frames: int   = 0
         self.integral:    float = 0.0
         self._has_seen_lane: bool = False
@@ -39,6 +44,13 @@ class PDController:
         # (veya yeniden yakalama) uydurma bir "0 -> hata" sicramasi uretir
         # ve tam baslangicta gereksiz keskin bir donus komutu verir.
         self._prev_error_valid: bool = False
+        # LEGACY-075: KP/KD ARTIK ORNEK-KAPSAMLI. pd_tune.py gibi bir
+        # ayarlama araci bu ikisini degistirebilir, ancak yalnizca BU
+        # denetleyici ornegini etkiler — modul-genel config.KP/config.KD'yi
+        # ya da PAYLASILAN interpreter'daki BASKA denetleyici ornegini
+        # DEGISTIRMEZ.
+        self.KP = KP
+        self.KD = KD
 
         # Tani sayaclari — eklendi 5 Agustos 2026. Davranisi DEGISTIRMEZ,
         # yalnizca sayar. Sebep: 20.7 deneyi "arac duzeldi mi" diye soruyor,
@@ -58,7 +70,7 @@ class PDController:
         - Dinamik Kazanç: Büyük hatalar için KP/KD çarpanı
         - Ölü Bölge Telafisi: PWM sinyalini offset et
         """
-        now = time.time()
+        now = time.monotonic()   # LEGACY-055: duvar saati DEGIL
         dt = max(now - self.prev_time, 1e-3)
 
         if error is None:
@@ -125,8 +137,8 @@ class PDController:
         speed = float(np.clip(speed, MIN_SPEED, MAX_SPEED))
 
         # Dinamik Kazanç: Büyük hatalar için KP/KD çarpanı
-        kp_eff = KP
-        kd_eff = KD
+        kp_eff = self.KP   # LEGACY-075: ornek-kapsamli, modul-genel degil
+        kd_eff = self.KD
 
         if abs(error) > 30:
             kp_eff *= KP_LARGE_ERROR_MULT
@@ -275,7 +287,7 @@ class PDController:
     def reset(self) -> None:
         """İç durumu sıfırla (örn. bir duraklamadan sonra)."""
         self.prev_error  = 0.0
-        self.prev_time   = time.time()
+        self.prev_time   = time.monotonic()   # LEGACY-055
         self.lost_frames = 0
         self.integral    = 0.0
         self._has_seen_lane = False

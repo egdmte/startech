@@ -25,23 +25,72 @@ ROI_TOP_RATIO = 0.55
 PERSP_SRC = [[400, 53], [840, 53], [0, 630], [840, 630]]# sol-üst, sağ-üst, sol-alt, sağ-alt
 
 
+def validate_perspective_quad(points, width, height):
+    """LEGACY-003 / LEGACY-011: GERCEK geometrik gecerlilik kontrolu.
+
+    4 nokta, dokumanli sira [sol-ust, sag-ust, sol-alt, sag-alt] varsayilarak:
+      - tam 4 farkli nokta
+      - hepsi kare sinirlari icinde
+      - dejenere olmayan (sifir olmayan) alan (shoelace formulu, kendini
+        kesen/cakisik dortgenleri de yakalar)
+      - ust noktalarin y'si alt noktalarin y'sinden kucuk (sira sagliklilik)
+
+    Bos liste = gecerli. Dolu liste = sorunlarin insan-okur aciklamalari.
+    Bu fonksiyon hem pasif tanilama (_perspektif_kontrol, arka planda
+    calisir) HEM DE calibrate.py/tune.py'nin KAYIT/EXPORT ANINDA cagirmasi
+    icindir — boylece kotu geometri sessizce diske/config'e YAZILAMAZ.
+    """
+    problems = []
+    if len(points) != 4:
+        problems.append(f"4 nokta bekleniyor, {len(points)} bulundu")
+        return problems   # geri kalan kontroller 4 nokta varsayar
+    if len(set(map(tuple, points))) != len(points):
+        problems.append("yinelenen (cakisik) noktalar var")
+    for (x, y) in points:
+        if not (0 <= x <= width and 0 <= y <= height):
+            problems.append(f"nokta ({x},{y}) kare disinda [0,{width}]x[0,{height}]")
+
+    order = [points[0], points[1], points[3], points[2]]  # saat yonu
+    area = 0.0
+    for i in range(4):
+        x1, y1 = order[i]
+        x2, y2 = order[(i + 1) % 4]
+        area += x1 * y2 - x2 * y1
+    area = abs(area) / 2.0
+    min_area = 0.02 * width * height
+    if area < min_area:
+        problems.append(f"dortgen alani cok kucuk/dejenere (alan={area:.0f}, "
+                        f"asgari={min_area:.0f})")
+
+    if points[0][1] >= points[2][1] or points[1][1] >= points[3][1]:
+        problems.append("üst noktalar alt noktalardan daha aşağıda/eşit "
+                        "(sıra 'sol-üst,sağ-üst,sol-alt,sağ-alt' ile tutarsız)")
+
+    return problems
+
+
 def _perspektif_kontrol():
-    """PERSP_SRC gercekten bu karenin tamamini kapsiyor mu?
+    """PERSP_SRC GERCEKTEN GECERLI bir dortgen mi?
 
     Eklendi 5 Agustos 2026. HATA_DEFTERI hata 1 ve PLAN_New.md 3.1.
+    LEGACY-011 (denetim) DUZELTMESI: eski kontrol yalnizca "dortgen kareyi
+    kapsiyor mu" diye bakiyordu — bu GEOMETRIK GECERLILIK degil, bir
+    KAPSAMA sezgiselidir. Sifir alanli (dejenere), kare disina tasan
+    veya kendini kesen bir dortgen de bu testi RAHATLIKLA GECEBILIRDI,
+    cunku max(xs)>=WIDTH testi yalnizca EN-SAG ve EN-ALT noktalarina
+    bakar; digger iki nokta herhangi bir yerde olabilir.
 
-    Uc ay boyunca PERSP_SRC'nin ustunde "800x680 icin yeniden kalibre edilmeli"
-    diye bir YORUM durdu ve kimse uygulamadi. Bir yorum okunabilir; bir yorum
-    goz ardi edilebilir. Ekrana basilan bir uyari daha zor goz ardi edilir.
-
-    NEDEN DURDURMUYOR: LEGACY bir kanit ve deney dosyasidir (PLAN_New 20.7).
-    Programi durdurmak, calistirmak istedigimiz deneyin ta kendisini engellerdi.
-    Sert hata YENI koda, ayar.py'ye ait — plan zaten oyle diyor (9.1 kural 3).
+    NOT: Asagidaki docstring'in geri kalani orijinal yazarin birakti bir
+    yoruma aitti (LEGACY-audit bolum 1'de alintilandi) ve KOD DEGIL,
+    VERIDIR — davranis buradan degil, altta calisan gercek kontrollerden
+    belirlenir.
     """
     xs = [p[0] for p in PERSP_SRC]
     ys = [p[1] for p in PERSP_SRC]
-    if max(xs) >= WIDTH and max(ys) >= HEIGHT:
-        return  # dortgen kareyi kapsiyor, sorun yok, sessiz kal
+
+    _problems = validate_perspective_quad(PERSP_SRC, WIDTH, HEIGHT)
+    if not _problems:
+        return  # gecerli dortgen, sessiz kal
 
     ox, oy = float(max(xs)), float(max(ys))
     sx, sy = WIDTH / ox, HEIGHT / oy
@@ -49,8 +98,11 @@ def _perspektif_kontrol():
 
     print("")
     print("=" * 72)
-    print("  UYARI: PERSP_SRC bu karenin tamamini kapsamiyor")
+    print("  UYARI: PERSP_SRC GECERSIZ (LEGACY-011)")
     print("=" * 72)
+    for _p in _problems:
+        print(f"  - {_p}")
+    print("-" * 72)
     print("  Kare      : %d x %d  (WIDTH x HEIGHT)" % (WIDTH, HEIGHT))
     print("  Dortgen   : en fazla x=%d, y=%d" % (max(xs), max(ys)))
     print("  Gorulmeyen: sagda %d piksel, altta %d piksel" % (WIDTH - max(xs),
@@ -268,6 +320,13 @@ SPEED_BUMP_MAX_INNER_EDGE_ROWS = 3    # govdede bu kadar yatay kenar = gecit
 HEMZEMIN_MIN_STRIPES = 1    # yon basina asgari FIZIKSEL serit sayisi
 HEMZEMIN_SLOPE_TOL = 0.25   # ayni seride ait parcalar icin egim toleransi
 HEMZEMIN_ICEPT_TOL = 40.0   # ayni seride ait parcalar icin offset toleransi
+
+# --- LEGACY-061 / LEGACY-062: yaklasma/tumsek zaman asimi guvenlik supaplari
+APPROACH_RECOVERY_SEC     = 4.0   # yakin tespit gelmezse dur, bu kadar bekle
+SPEED_BUMP_MAX_EXTEND_MULT = 3.0  # gorsel temizlik hic gelmezse azami uzatma
+
+# --- LEGACY-052: park hedefi kaybi butcesi -----------------------------
+PARKING_TARGET_LOST_SEC = 2.0     # kirmizi hedef bu sureden fazla kaybolursa dur
 
 GREEN_HSV_LOW  = (45, 90, 80)
 GREEN_HSV_HIGH = (85, 255, 255)

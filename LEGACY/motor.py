@@ -152,10 +152,21 @@ class MotorDriver:
             right = right * right_trim
             if not math.isfinite(left) or not math.isfinite(right):
                 raise ValueError("Trim sonrası motor hızı sonlu değil")
-            # Motor olu bolgesi son uygulanacak kuraldir. Main'in
-            # yaklasma/tumsek hiz olceklemesi telafiyi geri alamaz.
-            left = self._apply_dead_zone(left)
-            right = self._apply_dead_zone(right)
+            # LEGACY-067: Eski kod her tekeri BAGIMSIZ olarak tabana
+            # (DEAD_ZONE_MIN_PWM) yukseltiyordu. Main.py yavas durumlarda
+            # (tumsek, park dususu) cifti ORTAK bir tavana OLCEKLIYOR;
+            # olceklenmis cift zaten taban civarindaysa, iki tekerin
+            # BAGIMSIZ yukseltilmesi ikisini de AYNI degere esitleyip
+            # direksiyon farkini SILIYORDU. Ornek: (60.51,54.49) -> main
+            # tarafindan (30, 27.01)'e olceklenir -> eski kod 27.01'i
+            # bagimsiz olarak 30'a yukseltir -> (30,30) = DUZ GIDIS,
+            # istenen donus tamamen kayboluyor.
+            #
+            # Dogru sira: TRIM + OLU BOLGE + CIFT TAHSISI TEK asamada,
+            # ORTAK-MOD + FARK ayristirmasiyla yapilir (controller.py'deki
+            # _apply_dead_zone_pair ile ayni algoritma). Boylece taban
+            # ORTAK bileşene uygulanir, FARK (yani direksiyon) korunur.
+            left, right = self._apply_dead_zone_pair(left, right)
             # LEGACY-068: Ölü bölge dönüşümünden SONRA tekrar doğrula.
             # Clamp'e geçersiz bir değerin ulaşması, düşük bir komutun
             # %100 doluluğa dönüşmesi demektir; bunu clip ile gizleme.
@@ -190,9 +201,64 @@ class MotorDriver:
 
     @staticmethod
     def _apply_dead_zone(pwm: float) -> float:
+        """Tek teker icin ham olu bolge tabani (yalnizca tek tekerlekli
+        cagrilar icin; TEKERLEK CIFTLERI icin _apply_dead_zone_pair kullanin
+        — bkz. LEGACY-067)."""
         if pwm == 0.0 or abs(pwm) >= DEAD_ZONE_MIN_PWM:
             return pwm
         return DEAD_ZONE_MIN_PWM if pwm > 0 else -DEAD_ZONE_MIN_PWM
+
+    @staticmethod
+    def _apply_dead_zone_pair(left: float, right: float) -> tuple:
+        """LEGACY-067: Ortak-mod + fark ayristirmali cift olu bolge tahsisi.
+
+        controller.py._apply_dead_zone_pair ile AYNI algoritma. Taban
+        yalnizca ORTAK bilesene uygulanir; FARK (direksiyon) korunur.
+        Boylece ikinci, bagimsiz bir taban yukseltmesi bir onceki asamanin
+        (main.py hiz olceklemesi ya da controller'in kendi cift tahsisi)
+        zaten koruduğu direksiyon farkini SILEMEZ.
+        """
+        if left == 0.0 and right == 0.0:
+            return 0.0, 0.0
+
+        _ZERO_BAND = 1.0
+        if 0.0 < abs(left) < _ZERO_BAND:
+            left = 0.0
+        if 0.0 < abs(right) < _ZERO_BAND:
+            right = 0.0
+        if left == 0.0 and right == 0.0:
+            return 0.0, 0.0
+
+        if left == 0.0:
+            right_out = (math.copysign(DEAD_ZONE_MIN_PWM, right)
+                         if abs(right) < DEAD_ZONE_MIN_PWM else right)
+            return 0.0, float(max(-100.0, min(100.0, right_out)))
+        if right == 0.0:
+            left_out = (math.copysign(DEAD_ZONE_MIN_PWM, left)
+                        if abs(left) < DEAD_ZONE_MIN_PWM else left)
+            return float(max(-100.0, min(100.0, left_out))), 0.0
+
+        same_sign = (left >= 0 and right >= 0) or (left <= 0 and right <= 0)
+
+        if same_sign:
+            common = (left + right) / 2.0
+            diff   = (left - right) / 2.0
+            if common != 0.0 and abs(common) < DEAD_ZONE_MIN_PWM:
+                common = math.copysign(DEAD_ZONE_MIN_PWM, common)
+            left_out  = common + diff
+            right_out = common - diff
+            if 0 < abs(left_out) < DEAD_ZONE_MIN_PWM:
+                left_out = math.copysign(DEAD_ZONE_MIN_PWM, left_out)
+            if 0 < abs(right_out) < DEAD_ZONE_MIN_PWM:
+                right_out = math.copysign(DEAD_ZONE_MIN_PWM, right_out)
+        else:
+            left_out  = (math.copysign(DEAD_ZONE_MIN_PWM, left)
+                         if 0 < abs(left) < DEAD_ZONE_MIN_PWM else left)
+            right_out = (math.copysign(DEAD_ZONE_MIN_PWM, right)
+                         if 0 < abs(right) < DEAD_ZONE_MIN_PWM else right)
+
+        return (float(max(-100.0, min(100.0, left_out))),
+                float(max(-100.0, min(100.0, right_out))))
 
     # ------------------------------------------------------------------
     def brake(self) -> None:

@@ -126,15 +126,26 @@ def run_pwm_sweep():
     print("\n" + "="*50)
     print("  PWM SÜPÜRME TESTİ (tek tek motor)")
     print("="*50)
-    
+
+    # LEGACY-072: Eski kod --hiz/--sure NE VERILIRSE VERILSIN her zaman
+    # %50 / 1.5s kullaniyordu. Baslangicta 'TEST_SPEED=X TEST_DURATION=Y'
+    # yazdirilip GERCEKTE farkli, SABIT degerler uygulaniyordu — dusuk bir
+    # test hizi secen biri, cagriya bakarak beklemedigi kadar YUKSEK bir
+    # gercek komut alabiliyordu. Simdi taninmis/dogrulanmis ayarlar
+    # kullanilir ve gercek supurme degerleri onay ISTEMINDEN ONCE
+    # acikca yazdirilir.
+    spd = TEST_SPEED
+    dur = TEST_DURATION
+    print(f"\nSüpürme ayarları: hız={spd}%  süre={dur}s  (--hiz / --sure ile ayarlanır)")
+
     for side, spd_l, spd_r in [
-        ("SOL  motor ileri", 50, 0),
-        ("SAĞ  motor ileri", 0,  50),
-        ("Her ikisi", 50, 50),
+        ("SOL  motor ileri", spd, 0),
+        ("SAĞ  motor ileri", 0,  spd),
+        ("Her ikisi", spd, spd),
     ]:
-        input(f"\n[ENTER] → {side} testi başlasın")
+        input(f"\n[ENTER] → {side} testi ({spd}%, {dur}s) başlasın")
         motor.set_speed(spd_l, spd_r)
-        time.sleep(1.5)
+        time.sleep(dur)
         motor.brake()
         time.sleep(0.3)
         motor.coast()

@@ -172,12 +172,42 @@ def test_069_successful_stop_still_idempotent():
     check("kapatma hatası bildirilmiyor", not drv.cleanup_failed)
 
 
+# ---------------------------------------------------------------- LEGACY-067
+def test_067_slow_state_steering_preserved():
+    print("\nLEGACY-067 — yavaş durum ölçeklemesi direksiyon farkını silmemeli")
+    motor = fresh_motor(DEAD_ZONE_MIN_PWM=30)
+    drv = motor.MotorDriver()
+
+    # Denetimin bildirdigi tam senaryo.
+    l, r = 60.5133, 54.4867
+    scale = 30 / max(abs(l), abs(r), 1)
+    sl, sr = l * scale, r * scale
+    drv.set_speed(sl, sr)
+    lp, rp = drv._left_pwm.value * 100, drv._right_pwm.value * 100
+    check("(30, 27.01) girdisi (30,30)'a ESITLENMIYOR",
+          abs(lp - rp) > 0.5, f"sol={lp:.2f} sağ={rp:.2f}")
+
+    # Duz gidis hala duz kalmali (esit girdi -> esit cikti)
+    drv2 = motor.MotorDriver()
+    drv2.set_speed(25, 25)
+    lp2, rp2 = drv2._left_pwm.value * 100, drv2._right_pwm.value * 100
+    check("eşit girdi hâlâ düz gidiş üretiyor", abs(lp2 - rp2) < 1e-6,
+          f"sol={lp2:.2f} sağ={rp2:.2f}")
+
+    # Sifir teker hala sifir kalmali (kasitli pivot korunur)
+    drv3 = motor.MotorDriver()
+    drv3.set_speed(40, 0)
+    check("kasıtlı sıfır teker korunuyor", drv3._right_pwm.value == 0.0,
+          f"sağ={drv3._right_pwm.value}")
+
+
 if __name__ == "__main__":
     install_fake_gpiozero()
     sys.path.insert(0, ".")
     test_068_invalid_deadzone_rejected()
     test_069_failed_stop_retryable()
     test_069_successful_stop_still_idempotent()
+    test_067_slow_state_steering_preserved()
     print(f"\n{'='*60}")
     print(f"PASS: {len(PASS)}   FAIL: {len(FAIL)}")
     if FAIL:

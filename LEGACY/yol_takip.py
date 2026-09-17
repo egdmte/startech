@@ -128,6 +128,7 @@ class Camera:
 # Global durum
 # ---------------------------------------------------------------------------
 _running = True
+_drive_thread = None   # LEGACY-089
 _started = False
 _latest_frame: np.ndarray | None = None
 _cur_error: float | None = None
@@ -156,6 +157,22 @@ def read_key_nonblocking() -> str:
 # ---------------------------------------------------------------------------
 # Sürüş döngüsü
 # ---------------------------------------------------------------------------
+def _send_motor(l: float, r: float) -> None:
+    """LEGACY-089: Yazmadan HEMEN ONCE durdurma mandalini tekrar kontrol
+    eder. _shutdown() _running'i False yapip ayni anda kamera/motor/logger
+    kapatmaya baslayabilir; bu fonksiyon, dongu govdesi zaten baslamis bir
+    yinelemede olsa bile donanima ULASMADAN once bir SON kontrol sunar —
+    main.py'deki _send_motor ile ayni sozlesme."""
+    if not _running:
+        if motor is not None:
+            try:
+                motor.brake()
+            except Exception:
+                pass
+        return
+    motor.set_speed(l, r)
+
+
 def drive_loop():
     """Ana sürüş döngüsü — sadece şerit takibi."""
     global _latest_frame, _started, _cur_error, _fps
@@ -198,7 +215,7 @@ def drive_loop():
         if _started:
             # Şerit takibi — PD denetleyici
             l, r = controller.compute(error)
-            motor.set_speed(l, r)
+            _send_motor(l, r)   # LEGACY-089: yazimdan hemen once mandal kontrolu
             
             # Hata logla (CSV'ye)
             #
@@ -368,7 +385,7 @@ def setup_flask():
 # ---------------------------------------------------------------------------
 def _shutdown(sig=None, frame=None):
     """Ctrl+C ile temiz çıkış."""
-    global _running, _cleanup_done
+    global _running, _cleanup_done, _drive_thread
 
     # LEGACY-065: Durdurma niyetini önce mandalla, motor enerjisini
     # HER TÜRLÜ tanılama çıktısından ÖNCE kes, 'tamamlandı' bayrağını
@@ -395,6 +412,23 @@ def _shutdown(sig=None, frame=None):
                 pass
             try:
                 print(f"[yol_takip] Motor kapatma hatası: {exc}")
+            except Exception:
+                pass
+
+    # LEGACY-089: _running=False YALNIZCA bir sonraki yinelemeyi engeller.
+    # Mevcut yinelemenin GOVDESI (capture/process/motor-yaz/logger.update)
+    # hala calisiyor olabilir. Kamera/logger'i KAPATMADAN ONCE, calisan
+    # yineleme GERCEKTEN bitene kadar bekle (join). Motor enerjisi zaten
+    # yukarida — herhangi bir join'den ONCE — kesildi; join burada yalnizca
+    # KAYNAK kapatma ile calisan yinelemenin capture()/logger.update()
+    # cagrilari arasindaki yarisi onlemek icin var.
+    if _drive_thread is not None and _drive_thread.is_alive():
+        _drive_thread.join(timeout=2.0)
+        if _drive_thread.is_alive():
+            cleanup_ok = False
+            try:
+                print("[yol_takip] UYARI: sürüş iş parçacığı 2s içinde "
+                      "bitmedi — kaynaklar yine de kapatılacak.")
             except Exception:
                 pass
 
@@ -451,7 +485,7 @@ def _shutdown(sig=None, frame=None):
 def main(argv=None) -> int:
     global camera, lane_detector, controller, motor, logger
     global _started, _running, _cleanup_done, _worker_failed
-    global _latest_frame, _cur_error, _fps
+    global _latest_frame, _cur_error, _fps, _drive_thread
 
     _running = True
     _cleanup_done = False
@@ -499,6 +533,7 @@ def main(argv=None) -> int:
         print("[yol_takip] Sürüş thread'i başlatılıyor...")
 
         t = threading.Thread(target=guarded_drive_loop, daemon=True)
+        _drive_thread = t          # LEGACY-089: _shutdown bunu join edebilsin
         t.start()
 
         if args.no_stream:

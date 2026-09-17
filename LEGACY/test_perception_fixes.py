@@ -280,6 +280,39 @@ def test_039_observed_vs_cached():
           f"sayac={det.frames_since_observation}")
 
 
+# ---------------------------------------------------------------- LEGACY-011
+def test_011_perspective_geometry():
+    print("\nLEGACY-011 — perspektif dörtgeni GERÇEK geometri ile doğrulanmalı")
+    import importlib
+    import config
+    importlib.reload(config)
+
+    def problems_for(quad):
+        saved = config.PERSP_SRC
+        config.PERSP_SRC = quad
+        import io, contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            config._perspektif_kontrol()
+        config.PERSP_SRC = saved
+        return buf.getvalue()
+
+    check("geçerli mevcut PERSP_SRC sessiz kalıyor",
+          problems_for(config.PERSP_SRC) == "")
+
+    out = problems_for([[10, 10], [10, 10], [20, 20], [20, 20]])
+    check("dejenere (sıfır alan) dörtgen REDDEDİLİYOR", "GEÇERSİZ" in out
+          or "GECERSIZ" in out, out[:80])
+
+    out = problems_for([[400, 600], [840, 600], [0, 50], [840, 50]])
+    check("ters (üst/alt karışmış) dörtgen REDDEDİLİYOR",
+          "GEÇERSİZ" in out or "GECERSIZ" in out, out[:80])
+
+    out = problems_for([[400, 53], [900, 53], [0, 630], [840, 630]])
+    check("kare dışına taşan nokta REDDEDİLİYOR",
+          "GEÇERSİZ" in out or "GECERSIZ" in out, out[:80])
+
+
 if __name__ == "__main__":
     test_037_blur_axis()
     test_016_green_square_rejected()
@@ -291,6 +324,7 @@ if __name__ == "__main__":
     test_015_deadzone_continuity()
     test_035_036_lane_rejects()
     test_039_observed_vs_cached()
+    test_011_perspective_geometry()
     print(f"\n{'='*60}")
     print(f"PASS: {len(PASS)}   FAIL: {len(FAIL)}")
     if FAIL:
