@@ -58,6 +58,12 @@ class LaneDetector:
         self.frames_since_observation: int = 0
         self._last_observation_time: float | None = None
 
+        # LEGACY-006/005: process() cagrilmadan once bu alanlar None'dir.
+        self.last_bird = None
+        self.last_bird_proc = None
+        self.last_mask = None
+        self.last_bird_hsv = None
+
         # Morfoloji kernel'i (3×3 — ince bant çizgilerini korur)
         self._kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
@@ -106,6 +112,20 @@ class LaneDetector:
         mask = cv2.inRange(hsv, white_low, white_high)
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN,  self._kernel)
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self._kernel)
+
+        # LEGACY-006 / LEGACY-005: HAM ara ciktilar ADLANDIRILMIS ornek
+        # (instance) niteligi olarak disariya acilir. Eskiden 't' (esik) ve
+        # 'b' (kus bakisi) modlari process()'in TEK donen degeri olan tam
+        # ACIKLAMALI `debug` goruntusunu kullaniyordu — ikisi de AYNI
+        # goruntuydu. Ayrica imlec HSV okumasi HER ZAMAN HAM (donusturulmemis)
+        # kareden yapiliyordu; kus bakisi/esik modunda GORUNTULENEN goruntu
+        # ile FARKLI bir koordinat uzayindaydi. Bu alanlar sayesinde
+        # cagiran taraf (camera.py) GERCEKTEN AYRI goruntuler ve DOGRU
+        # koordinat uzayinda HSV okumasi sunabilir.
+        self.last_bird     = bird       # ham kus bakisi (RGB, CLAHE ONCESI)
+        self.last_bird_proc = bird_proc  # CLAHE SONRASI kus bakisi (RGB)
+        self.last_mask     = mask       # ikili esik maskesi (0/255, kus-bakisi uzayi)
+        self.last_bird_hsv = hsv        # esigi ureten HSV (kus-bakisi uzayi)
 
         # 4. Sütun sürekliliği ağırlığı (yansıma filtresi)
         #    Şerit çizgileri kuş bakışında dikey yönde süreklidir.

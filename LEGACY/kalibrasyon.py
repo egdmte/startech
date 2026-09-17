@@ -23,6 +23,66 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
+
+def _write_config_assignment(config_path: Path, assignments: dict) -> None:
+    """LEGACY-032: config.py'ye ATOMIK ve DOGRULANMIS yaz.
+
+    Eski kod dogrudan config.py'yi acip yazıyordu (re.sub + write_text).
+    Yazma sirasinda kesinti/disk-dolu/IO hatasi olursa, ORIJINAL dosya
+    KISMEN UZERINE YAZILMIS, GECERSIZ bir Python modulu olarak kalabilir
+    — bu da HER ARACI (main.py dahil) baslangicta bozar.
+
+    Bu fonksiyon:
+      1. Degisikligi BELLEKTE uygular (orijinal dosyaya DOKUNMADAN).
+      2. Sonucu `ast.parse` ile SOZDIZIMSEL olarak dogrular.
+      3. Ayni klasorde bir GECICI KARDES dosyaya yazip flush+fsync yapar.
+      4. `os.replace` ile ATOMIK olarak yerine koyar (POSIX'te ya
+         TAMAMI ya HICBIRI gerceklesir; yarim dosya olusmaz).
+    Herhangi bir adim basarisiz olursa ORIJINAL DOSYA DEGISMEDEN kalir.
+    """
+    import ast
+    import re
+    import tempfile
+
+    content = config_path.read_text(encoding="utf-8")
+    new_content = content
+    for name, value in assignments.items():
+        pattern = rf'^{re.escape(name)}\s*=\s*.+$'
+        replacement = f"{name} = {value!r}"
+        updated, count = re.subn(pattern, replacement, new_content,
+                                 count=1, flags=re.MULTILINE)
+        if count != 1:
+            raise RuntimeError(
+                f"config.py içinde '{name}' ataması tam olarak bir kez "
+                f"bulunamadı (bulunan: {count})"
+            )
+        new_content = updated
+
+    # Yazmadan ÖNCE doğrula: sonuç geçerli Python olmalı.
+    try:
+        ast.parse(new_content)
+    except SyntaxError as exc:
+        raise RuntimeError(
+            f"oluşan config.py sözdizimi hatalı olurdu, YAZILMADI: {exc}"
+        ) from exc
+
+    # Geçici kardeş dosyaya yaz, flush+fsync, sonra ATOMİK yer değiştir.
+    fd, tmp_path = tempfile.mkstemp(
+        dir=str(config_path.parent), prefix=".config_tmp_", suffix=".py"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(new_content)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, str(config_path))   # POSIX'te atomik
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
 # Türkçe karakter desteği
 try:
     sys.stdout.reconfigure(encoding='utf-8')
@@ -281,12 +341,46 @@ def hsv_kalibrasyon():
         cv2.namedWindow("HSV Ayarları", cv2.WINDOW_NORMAL)
         cv2.resizeWindow("HSV Ayarları", 400, 300)
 
-        # Mevcut değerleri yükle
+        # LEGACY-031: `from config import ...` zaten ICE AKTARILMIS
+        # modulu okur — ayni surec icinde bu menu daha once ACILIP
+        # KAYDETMISSE (ya da baska bir arac config.py'yi disaridan
+        # degistirdiyse), burada hala ESKI (surec baslangicindaki)
+        # degerler gorulur. importlib.reload ile GERCEKTEN GUNCEL dosya
+        # okunur.
+        import importlib
+        import config as _cfg
+        importlib.reload(_cfg)
+
+        # LEGACY-031 (devam): Slider ARTIK KOR KORUNE 'NORMAL' ile
+        # baslamiyor. Onizleme icin BIR kare orneklenip GERCEK V_mean
+        # olculur; slider o anki AYDINLATMAYA uyan profille acilir —
+        # boylece KARANLIK/PARLAK bir ortamda NORMAL degerlerle
+        # baslayip yanlislikla o profili KAYDETME riski azalir.
         try:
-            from config import WHITE_HSV_LOW_NORMAL, WHITE_HSV_HIGH_NORMAL
-            h_low, s_low, v_low = WHITE_HSV_LOW_NORMAL
-            h_high, s_high, v_high = WHITE_HSV_HIGH_NORMAL
-        except (ImportError, AttributeError, TypeError, ValueError):
+            if is_picam:
+                _probe = camera.capture_array()
+                _probe_bgr = cv2.cvtColor(_probe, cv2.COLOR_RGB2BGR)
+            else:
+                _ok, _probe_bgr = camera.read()
+                if not _ok:
+                    raise RuntimeError("örnek kare alınamadı")
+            _probe_v = float(np.mean(cv2.cvtColor(_probe_bgr, cv2.COLOR_BGR2HSV)[:, :, 2]))
+        except Exception:
+            _probe_v = 150.0   # bilinmiyorsa NORMAL varsay
+
+        if _probe_v < 100:
+            _initial_profile = "DARK"
+        elif _probe_v > 200:
+            _initial_profile = "BRIGHT"
+        else:
+            _initial_profile = "NORMAL"
+
+        try:
+            h_low, s_low, v_low = getattr(_cfg, f"WHITE_HSV_LOW_{_initial_profile}")
+            h_high, s_high, v_high = getattr(_cfg, f"WHITE_HSV_HIGH_{_initial_profile}")
+            print(f"   (Örnek V_mean={_probe_v:.0f} → {_initial_profile} "
+                  "profili ile başlatılıyor)")
+        except (AttributeError, TypeError, ValueError):
             h_low, s_low, v_low = 0, 0, 120
             h_high, s_high, v_high = 180, 85, 255
 
@@ -368,31 +462,17 @@ def hsv_kalibrasyon():
             print()
 
             try:
-                import re
-                config_path = SCRIPT_DIR / "config.py"
-                content = config_path.read_text(encoding="utf-8")
-                old_low = f"WHITE_HSV_LOW_{profile}"
-                old_high = f"WHITE_HSV_HIGH_{profile}"
-                pattern_low = rf'{old_low}\s*=\s*\([^)]+\)'
-                pattern_high = rf'{old_high}\s*=\s*\([^)]+\)'
-                new_content, low_count = re.subn(
-                    pattern_low,
-                    f'{old_low} = ({h_low}, {s_low}, {v_low})',
-                    content,
-                    count=1,
+                _write_config_assignment(
+                    SCRIPT_DIR / "config.py",
+                    {
+                        f"WHITE_HSV_LOW_{profile}":  (h_low, s_low, v_low),
+                        f"WHITE_HSV_HIGH_{profile}": (h_high, s_high, v_high),
+                    },
                 )
-                new_content, high_count = re.subn(
-                    pattern_high,
-                    f'{old_high} = ({h_high}, {s_high}, {v_high})',
-                    new_content,
-                    count=1,
-                )
-                if low_count != 1 or high_count != 1:
-                    raise RuntimeError("config.py içinde hedef HSV profili bulunamadı")
-                config_path.write_text(new_content, encoding="utf-8")
-                print("✅ config.py OTOMATİK GÜNCELLENDİ!")
+                print("✅ config.py OTOMATİK GÜNCELLENDİ! (atomik yazma doğrulandı)")
             except Exception as exc:
                 print(f"⚠️  Otomatik güncelleme başarısız: {exc}")
+                print("   ORİJİNAL config.py DEĞİŞTİRİLMEDİ (güvenli).")
                 print("   Yukarıdaki değerleri manuel olarak yaz.")
             break
     finally:
@@ -450,12 +530,19 @@ def perspektif_kalibrasyon():
     print("• Bu alan 'kuş bakışı'na dönüştürülür")
     print("• Şerit takibi bu görüntüde yapılır")
     print()
+    # LEGACY-033: Bu talimatlar eskiden calibrate.py'nin desteklemediği
+    # 's' (kaydet) ve 'r' (sıfırla) tuşlarını vaat ediyordu. Gerçek dispatch
+    # tablosu (calibrate.py) yalnızca şunları destekler: mevcut 4 noktayı
+    # SÜRÜKLEME, ENTER (doğrulayıp EKRANA yazdırır — DİSKE OTOMATİK YAZMAZ),
+    # ve 'q' (çık). Talimatları gerçek davranışla eşleştiriyoruz.
     print("🎮 KONTROLLER:")
     print("─" * 62)
-    print("• 4 köşeyi tıkla: sol-üst → sağ-üst → sol-alt → sağ-alt")
-    print("• 's' tuşu = kaydet")
-    print("• 'r' tuşu = sıfırla")
-    print("• 'q' tuşu = çık")
+    print("• Var olan 4 köşe noktasını FARE İLE SÜRÜKLEYİN")
+    print("  (sıra: sol-üst, sağ-üst, sol-alt, sağ-alt)")
+    print("• ENTER = geometriyi doğrula ve PERSP_SRC değerini EKRANA YAZDIR")
+    print("  (bu adım config.py'yi OTOMATİK GÜNCELLEMEZ — yazdırılan")
+    print("   değeri elle config.py'ye kopyalamanız gerekir)")
+    print("• 'q' tuşu = kaydetmeden çık")
     print()
     
     basinca_devam()
@@ -671,11 +758,18 @@ def ana_menu():
 
 
 if __name__ == "__main__":
+    # LEGACY-034: bu ust duzey giris noktasi da artik ACIK bir cikis
+    # koduyla sonlanir — tutarlilik icin (bu betik kendisi bir baska
+    # betik tarafindan check=True ile calistirilirsa dogru davranir).
+    _exit_code = 0
     try:
         ana_menu()
     except KeyboardInterrupt:
         print("\n\nÇıkılıyor...")
+        _exit_code = 130
     except Exception as e:
         print(f"\n❌ Hata: {e}")
         import traceback
         traceback.print_exc()
+        _exit_code = 1
+    raise SystemExit(_exit_code)

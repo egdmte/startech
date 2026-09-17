@@ -53,6 +53,8 @@ from config import (
     CROSSWALK_WAIT_SEC, HEMZEMIN_WAIT_SEC,
     SPEED_BUMP_SLOW_SEC, SPEED_BUMP_SPEED,
     APPROACH_SPEED, APPROACH_TIMEOUT_SEC, APPROACH_RECOVERY_SEC,
+    CAMERA_STARTUP_TIMEOUT_SEC, EVENT_REARM_HYSTERESIS_FRAMES,
+    PARKING_CONFIRM_FRAMES,
     SPEED_BUMP_MAX_EXTEND_MULT, PARKING_TARGET_LOST_SEC,
     OVERTAKING_STEER_BIAS, OVERTAKING_CROSS_SEC,
     OVERTAKING_PASS_SEC, OVERTAKING_RETURN_SEC, OVERTAKING_SPEED,
@@ -92,6 +94,7 @@ class _Camera:
         self._pi = None
         self._cv = None
         self._size_warned = False   # LEGACY-043: uyariyi bir kez yazdir
+        self._ready = threading.Event()   # LEGACY-042: ilk gercek kare
 
         if _USE_PICAMERA:
             self._pi = Picamera2()
@@ -102,8 +105,21 @@ class _Camera:
                 )
                 self._pi.configure(cfg)
                 self._pi.start()
-                time.sleep(2)                # AWB ısınma
+                # LEGACY-042: Eski kod SABIT 2 saniye uyuyor, SONRA
+                # yayimlama thread'ini baslatiyordu. __init__ dondugunde
+                # _loop() HENUZ TEK KARE BILE yayimlamamis olabiliyordu;
+                # capture() hemen "kare yok" hatasi veriyor ve drive_loop
+                # bunu SINIRSIZ, gecikmesiz yeniden deneyip 30 hatada
+                # iptal ediyordu — saglikli ama yavas baslayan bir kamera
+                # bile baslangici engelleyebiliyordu. Simdi: thread HEMEN
+                # baslar, __init__ ilk GERCEK karenin yayimlanmasini
+                # (monotonik bir sure siniriyla) BEKLER.
                 threading.Thread(target=self._loop, daemon=True).start()
+                if not self._ready.wait(timeout=CAMERA_STARTUP_TIMEOUT_SEC):
+                    raise RuntimeError(
+                        f"Pi kamerası {CAMERA_STARTUP_TIMEOUT_SEC}s içinde "
+                        "ilk kareyi üretmedi"
+                    )
             except BaseException:
                 try:
                     self._pi.close()
@@ -141,6 +157,7 @@ class _Camera:
                     self._latest = frame
                     self._latest_ts = time.monotonic()
                     self._seq += 1
+                self._ready.set()   # LEGACY-042: ilk gercek kare yayimlandi
             except Exception as exc:
                 with self._lock:
                     self._error = exc
@@ -232,6 +249,11 @@ _crosswalk_consumed = False
 _hemzemin_consumed = False
 _speed_bump_consumed = False
 _orange_car_consumed = False
+# LEGACY-056: rearm histerezisi icin ardisik-yanlis-kare sayaclari
+_crosswalk_false_count = 0
+_hemzemin_false_count = 0
+_speed_bump_false_count = 0
+_orange_car_false_count = 0
 
 # Yarış zaman tracking (Görev/PDF 4.4: 240 sn üst sınır + bitirme katsayısı)
 _race_start_time: float | None = None
@@ -466,10 +488,11 @@ def _run_overtaking(error, now: float) -> None:
 # Park etme
 # ---------------------------------------------------------------------------
 _park_target_lost_since: float | None = None   # LEGACY-052
+_park_confirm_count: int = 0   # LEGACY-053: ardisik dogrulama sayaci
 
 
 def _run_parking(frame: np.ndarray, error) -> None:
-    global _state, _park_target_lost_since
+    global _state, _park_target_lost_since, _park_confirm_count
     
     hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
     roi = hsv[PARKING_ROI_TOP:, :]
@@ -501,6 +524,7 @@ def _run_parking(frame: np.ndarray, error) -> None:
             _park_target_lost_since = now_mono
         lost_for = now_mono - _park_target_lost_since
 
+        _park_confirm_count = 0   # LEGACY-053: hedef kayipken ilerleme yok
         if lost_for >= PARKING_TARGET_LOST_SEC:
             motor.brake()
             return
@@ -516,10 +540,23 @@ def _run_parking(frame: np.ndarray, error) -> None:
     _park_target_lost_since = None
 
     off = best_cx - (WIDTH // 2)
+    # LEGACY-053: TEK KARELIK bir merkezleme+alan okumasi TAM ARAC
+    # KAPSANIMINI (containment) KANITLAMAZ — bu, kalibre edilmis zemin
+    # duzlemi + arac ayak izi POZ TAHMINI gerektirir ve GERCEK OLCUM
+    # olmadan kod-tarafinda guvenilir sekilde uygulanamaz. Ancak burada
+    # yapabilecegimiz gercek bir iyilestirme var: TEK bir gurultulu/
+    # ANLIK kare ile "PARK TAMAM" ilan ETME. Kosul PARKING_CONFIRM_FRAMES
+    # ARDISIK karede DOGRULANMADAN tamamlanma ilan edilmez; herhangi bir
+    # karede kosul bozulursa sayac SIFIRLANIR (gecici bir blob sicramasi
+    # yetmez).
     if abs(off) <= PARKING_CENTER_TOL and best_area > PARKING_MIN_AREA * 4:
         motor.brake()
-        _state = 'PARK_TAMAM'
+        _park_confirm_count += 1
+        if _park_confirm_count >= PARKING_CONFIRM_FRAMES:
+            _state = 'PARK_TAMAM'
         return
+    else:
+        _park_confirm_count = 0
     
     # LEGACY-054: Ham `PARKING_SPEED ± 0.3*off` sınırsızdır. 339 px'lik bir
     # sapma yaklaşık (131.7, -71.7) üretir: motor katmanı pozitif tarafı
@@ -552,10 +589,15 @@ def drive_loop() -> None:
     global _race_start_time, _finish_printed, _time_warning_printed, _no_overtake_until
     global _crosswalk_consumed, _hemzemin_consumed
     global _speed_bump_consumed, _orange_car_consumed
+    global _crosswalk_false_count, _hemzemin_false_count
+    global _speed_bump_false_count, _orange_car_false_count
     global _loop_heartbeat
     global _ovt_phase_elapsed, _ovt_last_call, _park_target_lost_since
+    global _park_confirm_count
+    global _preview_disabled
 
     frame_count = 0
+    _preview_disabled = False   # LEGACY-064
     _last_processed_seq = None   # LEGACY-045
     last_print = time.monotonic()   # LEGACY-055
 
@@ -595,14 +637,36 @@ def drive_loop() -> None:
         # time.monotonic() sistem saatinden BAGIMSIZDIR ve yalnizca ileri akar.
         now = time.monotonic()
 
+        # LEGACY-056: Rearm ARTIK tek bir yanlis karede olmuyor. Her olay
+        # icin ardisik YANLIS kare sayacini tutuyoruz; sayac
+        # EVENT_REARM_HYSTERESIS_FRAMES'e ulasinca (onaylamayla AYNI esik)
+        # bayrak gercekten geri aciliyor. Boylece devam eden bir manevra
+        # sirasindaki tek karelik bir goz kirpma, ayni nesne icin ikinci
+        # bir dur/manevra TETIKLEYEMEZ.
         if not events['crosswalk']:
-            _crosswalk_consumed = False
+            _crosswalk_false_count += 1
+            if _crosswalk_false_count >= EVENT_REARM_HYSTERESIS_FRAMES:
+                _crosswalk_consumed = False
+        else:
+            _crosswalk_false_count = 0
         if not events['hemzemin']:
-            _hemzemin_consumed = False
+            _hemzemin_false_count += 1
+            if _hemzemin_false_count >= EVENT_REARM_HYSTERESIS_FRAMES:
+                _hemzemin_consumed = False
+        else:
+            _hemzemin_false_count = 0
         if not events['speed_bump']:
-            _speed_bump_consumed = False
+            _speed_bump_false_count += 1
+            if _speed_bump_false_count >= EVENT_REARM_HYSTERESIS_FRAMES:
+                _speed_bump_consumed = False
+        else:
+            _speed_bump_false_count = 0
         if not events['orange_car']:
-            _orange_car_consumed = False
+            _orange_car_false_count += 1
+            if _orange_car_false_count >= EVENT_REARM_HYSTERESIS_FRAMES:
+                _orange_car_consumed = False
+        else:
+            _orange_car_false_count = 0
 
         # GG/EZ/SPACE/buton ile elle başlangıç onayı
         if _manual_green:
@@ -678,6 +742,10 @@ def drive_loop() -> None:
                 controller.reset()
                 if _race_start_time is None:
                     _race_start_time = now
+                    # LEGACY-040: kayit penceresi TAM BURADA baslar —
+                    # BEKLIYOR'da gecen sure penceriyi tuketmez.
+                    if logger is not None:
+                        logger.start_recording()
                 print("[main] 🚦 YEŞİL IŞIK ALGILANDI — HAREKET! (Kural 3.4.1)")
 
         elif _state == 'SURUYOR':
@@ -747,6 +815,7 @@ def drive_loop() -> None:
             elif events['parking_zone']:
                 _state = 'PARK'
                 _park_target_lost_since = None   # LEGACY-052: taze giris
+                _park_confirm_count = 0          # LEGACY-053: taze giris
                 controller.reset()
                 motor.brake()
             else:
@@ -919,16 +988,30 @@ def drive_loop() -> None:
         logger.update(error)
 
         # ---- Önizleme penceresi ----
-        if SHOW_PREVIEW:
-            raw_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            cv2.putText(raw_bgr,
-                        f"{_state} | {f'{error:+d}px' if error is not None else 'SERIT YOK'}",
-                        (8, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 255), 2)
-            debug_bgr = cv2.cvtColor(debug, cv2.COLOR_RGB2BGR)
-            debug_bgr = cv2.resize(debug_bgr, (WIDTH, debug_bgr.shape[0]))
-            cv2.imshow('Otonom Arac', np.vstack([raw_bgr, debug_bgr]))
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                _running = False
+        # LEGACY-064: GUI cagrisi surus mantigindan IZOLE edilir. Bir
+        # imshow/waitKey hatasi (orn. headless ortamda calisan gorunum
+        # destegi olmayan bir OpenCV derlemesi) surus HATASI sayilip
+        # _err_count'u ARTIRMAZ ve kapatmayi TETIKLEMEZ — yalnizca
+        # onizleme kendini KAPATIR, arac surmeye devam eder.
+        if SHOW_PREVIEW and not _preview_disabled:
+            try:
+                raw_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                cv2.putText(raw_bgr,
+                            f"{_state} | {f'{error:+d}px' if error is not None else 'SERIT YOK'}",
+                            (8, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 255), 2)
+                debug_bgr = cv2.cvtColor(debug, cv2.COLOR_RGB2BGR)
+                debug_bgr = cv2.resize(debug_bgr, (WIDTH, debug_bgr.shape[0]))
+                cv2.imshow('Otonom Arac', np.vstack([raw_bgr, debug_bgr]))
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    _running = False
+            except Exception as exc:
+                _preview_disabled = True
+                print(f"[main] UYARI: önizleme penceresi kullanılamıyor "
+                      f"({exc}); GUI olmadan (headless) devam ediliyor.")
+                try:
+                    cv2.destroyAllWindows()
+                except Exception:
+                    pass
 
         # ---- Periyodik bilgi (her 2 saniyede bir) ----
         frame_count += 1
@@ -1088,8 +1171,11 @@ def main() -> int:
     global _finish_printed, _time_warning_printed, _button_handle
     global _crosswalk_consumed, _hemzemin_consumed
     global _speed_bump_consumed, _orange_car_consumed, _no_overtake_until
+    global _crosswalk_false_count, _hemzemin_false_count
+    global _speed_bump_false_count, _orange_car_false_count
     global _watchdog_thread, _loop_heartbeat, _watchdog_tripped
     global _ovt_phase_elapsed, _ovt_last_call, _park_target_lost_since
+    global _preview_disabled, _park_confirm_count
 
     _running = True
     _shutdown_complete = False
@@ -1101,6 +1187,7 @@ def main() -> int:
     _ovt_phase_elapsed = 0.0    # LEGACY-050
     _ovt_last_call = None
     _park_target_lost_since = None   # LEGACY-052
+    _park_confirm_count = 0          # LEGACY-053
     _manual_green = False
     _lane_lost_time = None
     _race_start_time = None
@@ -1111,6 +1198,10 @@ def main() -> int:
     _hemzemin_consumed = False
     _speed_bump_consumed = False
     _orange_car_consumed = False
+    _crosswalk_false_count = 0    # LEGACY-056
+    _hemzemin_false_count = 0
+    _speed_bump_false_count = 0
+    _orange_car_false_count = 0
     _no_overtake_until = 0.0
     _kb_thread = None
 

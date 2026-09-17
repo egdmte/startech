@@ -32,17 +32,39 @@ class ErrorLogger:
         # LEGACY-055: sure hesabi icin duvar saati DEGIL, monotonik saat.
         # Sistem saati geri alinirsa self.duration hic dolmayabilir;
         # ileri alinirsa pencere zamanindan once kapanabilir.
-        self.start_time  = time.monotonic()
+        # LEGACY-040: kayit penceresi ARTIK insa aninda BASLAMAZ. Eski
+        # kodda main.py, BEKLIYOR (yesil isik bekleme) dahil HER karede
+        # logger.update() cagiriyordu; saat kurulumda basladigi icin uzun
+        # bir bekleme, LOG_DURATION_SEC penceresinin bir kismini ya da
+        # tamamini SÜRÜŞ BAŞLAMADAN once tuketebiliyordu. Artik pencere
+        # yalnizca start_recording() acikca cagrildiginda baslar (main.py
+        # gercek yaris baslangicinda cagirir); ondan once gelen update()
+        # cagrilari SESSIZCE GOZ ARDI EDILIR — 'bekleme' suresi hic
+        # sayilmaz.
+        self.start_time  = None
         self.finished    = False
+        self._recording  = False
 
         self._errors:     list[float | None] = []
         self._timestamps: list = []
         self._lost:       int  = 0
 
     # ------------------------------------------------------------------
+    def start_recording(self) -> None:
+        """LEGACY-040: Kayit penceresini SIMDI baslat (yaris/surus
+        gercekten basladiginda cagirin — arac beklerken DEGIL)."""
+        if self._recording or self.finished:
+            return
+        self._recording = True
+        self.start_time = time.monotonic()
+
     def update(self, error) -> None:
-        """Bir karenin hata değerini kaydeder. Kayıp şerit için None geçin."""
-        if self.finished:
+        """Bir karenin hata değerini kaydeder. Kayıp şerit için None geçin.
+
+        LEGACY-040: start_recording() cagrilmadan ONCE gelen kareler
+        SESSIZCE goz ardi edilir — bekleme suresi pencereyi tuketmez.
+        """
+        if self.finished or not self._recording:
             return
         now = time.monotonic()   # LEGACY-055
         if error is None:
@@ -56,12 +78,62 @@ class ErrorLogger:
 
     # ------------------------------------------------------------------
     def finish(self) -> None:
-        """Kayıt işlemini sonlandır, raporu yazdır, CSV'e aktar."""
+        """Kayıt işlemini sonlandır, raporu yazdır, CSV'e aktar.
+
+        LEGACY-041: 'finished' ARTIK yalnizca kayit ALMAYI durdurmak icin
+        kullanilir; DIŞA AKTARMA BAŞARISINI ifade ETMEZ. Eski kodda
+        finished=True rapor/CSV denenmeden ONCE konuyordu — biri hata
+        verirse (disk dolu, izin, vb.) sonraki finish()/update() cagrilari
+        SESSIZCE hicbir sey yapmadan donuyordu ve export BIR DAHA asla
+        denenmiyordu. Simdi kayit alma hemen durur (veri artik degismez),
+        ama export basarisiz olursa acikca bildirilir ve export_ok=False
+        kalir — cagiran taraf export'u (orn. farkli bir yola) yeniden
+        deneyebilir.
+        """
         if self.finished:
             return
-        self.finished = True
-        self._report()
-        self._export_csv()
+        self.finished = True     # veri toplama durdu — bu adim GERI ALINMAZ
+        self._recording = False
+
+        report_ok = True
+        try:
+            self._report()
+        except Exception as exc:
+            report_ok = False
+            try:
+                print(f"[Logger] UYARI: rapor üretilemedi: {exc}")
+            except Exception:
+                pass
+
+        export_ok = True
+        try:
+            self._export_csv()
+        except Exception as exc:
+            export_ok = False
+            try:
+                print(f"[Logger] UYARI: CSV dışa aktarılamadı: {exc}")
+                print(f"[Logger] Veri bellekte kalıyor — export_csv_to() ile "
+                      "farklı bir yola yeniden deneyebilirsiniz.")
+            except Exception:
+                pass
+
+        self.export_ok = export_ok and report_ok
+        return self.export_ok
+
+    def export_csv_to(self, path) -> bool:
+        """LEGACY-041: Başarısız bir dışa aktarımı FARKLI bir yola yeniden
+        dener. finish() sonrasında da çağrılabilir — veri bellekte kalır."""
+        from pathlib import Path as _Path
+        old_file = self.export_file
+        self.export_file = _Path(path)
+        try:
+            self._export_csv()
+            self.export_ok = True
+            return True
+        except Exception as exc:
+            print(f"[Logger] Yeniden dışa aktarma da başarısız: {exc}")
+            self.export_file = old_file
+            return False
 
     # ------------------------------------------------------------------
     def _report(self) -> None:
@@ -91,7 +163,10 @@ class ErrorLogger:
             print("  Ortalama hata: -- (hic serit bulunamadi)")
             print("  Std sapma    : --")
             print("  Maks |hata|  : --")
-        print(f"  CSV kaydedil : {self.export_file}")
+        # LEGACY-041: Bu satır eskiden CSV dışa aktarımından ÖNCE
+        # yazdırılıyordu — export başarısız olsa bile 'kaydedildi' derdi.
+        # Gerçek başarı/başarısızlık finish() içinde ayrıca bildirilir.
+        print(f"  CSV hedefi   : {self.export_file}  (dışa aktarım deneniyor...)")
         print("======================================")
         print()
 

@@ -10,7 +10,7 @@
 # =============================================================================
 import cv2
 import numpy as np
-from config import WIDTH, HEIGHT, PERSP_SRC
+from config import WIDTH, HEIGHT, PERSP_SRC, validate_perspective_quad
 
 try:
     from picamera2 import Picamera2
@@ -36,7 +36,7 @@ def draw_overlay(frame: np.ndarray, pts: list, selected: int) -> np.ndarray:
         cv2.circle(vis, (x, y), POINT_RADIUS, color, -1)
         cv2.putText(vis, str(i), (x + 10, y - 5),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-    cv2.putText(vis, "Noktaları sürükle | ENTER=kaydet | q=çık",
+    cv2.putText(vis, "Noktaları sürükle | ENTER=doğrula/yazdır | q=çık",
                 (8, HEIGHT - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
     return vis
 
@@ -92,32 +92,45 @@ def main():
             cap.release()
         cam_label = "USB Camera"
 
-    pts      = [list(p) for p in PERSP_SRC]
-    selected = -1
-    dragging = False
-
-    def on_mouse(event, x, y, flags, param):
-        nonlocal selected, dragging
-        if event == cv2.EVENT_LBUTTONDOWN:
-            dists = [abs(x - p[0]) + abs(y - p[1]) for p in pts]
-            idx   = int(np.argmin(dists))
-            if dists[idx] < POINT_RADIUS * 3:
-                selected = idx
-                dragging = True
-        elif event == cv2.EVENT_MOUSEMOVE and dragging:
-            pts[selected] = [np.clip(x, 0, WIDTH - 1), np.clip(y, 0, HEIGHT - 1)]
-        elif event == cv2.EVENT_LBUTTONUP:
-            dragging = False
-
-    cv2.namedWindow(f"Kalibrasyon ({cam_label})")
-    cv2.setMouseCallback(f"Kalibrasyon ({cam_label})", on_mouse)
-
-    print(f"Kamera: {cam_label}")
-    print("Dört köşe tutacağını şerit sınırlarına sürükleyin.")
-    print("Nokta sırası:  0=sol-üst  1=sağ-üst  2=sol-alt  3=sağ-alt")
-    print("ENTER = kaydet, 'q' = kaydetmeden çık.")
-
+    # LEGACY-001: Kamera SORUMLULUK SINIRI artik ACILDIGI ANDAN itibaren
+    # TEK bir try/finally ile korunur. Eski kodda pencere/callback kurulumu
+    # (namedWindow, setMouseCallback, pts listesi olusturma) kamerayi
+    # koruyan try/finally'nin DISINDA kalıyordu — bu adimlardan biri
+    # (ornegin GUI kurulumu, Ctrl+C) istisna atarsa kamera KAPATILMADAN
+    # yayilıyordu. Simdi acilistan sonraki HER SEY bu blogun icinde.
     try:
+        pts      = [list(p) for p in PERSP_SRC]
+        selected = -1
+        dragging = False
+
+        def on_mouse(event, x, y, flags, param):
+            nonlocal selected, dragging
+            if event == cv2.EVENT_LBUTTONDOWN:
+                dists = [abs(x - p[0]) + abs(y - p[1]) for p in pts]
+                idx   = int(np.argmin(dists))
+                if dists[idx] < POINT_RADIUS * 3:
+                    selected = idx
+                    dragging = True
+            elif event == cv2.EVENT_MOUSEMOVE and dragging:
+                # LEGACY-004: np.clip Python int degil NumPy SKALER
+                # dondurur (NumPy 2.x'te np.int64). int() ile ACIKCA
+                # Python builtin'e cevir — aksi halde bu sayilar pts
+                # icinde TASINIR ve export anindaki int() donusumune
+                # kadar NumPy tipinde kalirdi (export zaten donusturuyor,
+                # ama kaynakta da temiz tutmak hatasiz).
+                pts[selected] = [int(np.clip(x, 0, WIDTH - 1)),
+                                int(np.clip(y, 0, HEIGHT - 1))]
+            elif event == cv2.EVENT_LBUTTONUP:
+                dragging = False
+
+        cv2.namedWindow(f"Kalibrasyon ({cam_label})")
+        cv2.setMouseCallback(f"Kalibrasyon ({cam_label})", on_mouse)
+
+        print(f"Kamera: {cam_label}")
+        print("Dört köşe tutacağını şerit sınırlarına sürükleyin.")
+        print("Nokta sırası:  0=sol-üst  1=sağ-üst  2=sol-alt  3=sağ-alt")
+        print("ENTER = doğrula ve yazdır (KAYDETMEZ), 'q' = çık.")
+
         while True:
             frame = _get_frame()
             if frame.shape[1] != WIDTH or frame.shape[0] != HEIGHT:
@@ -131,12 +144,36 @@ def main():
                 print("Kalibrasyon iptal edildi.")
                 break
             elif key in (13, 10):   # ENTER
-                print("\n# Bunu config.py'ye yapıştır:")
-                print(f"PERSP_SRC = {pts}")
-                break
+                # LEGACY-003: Eski kod noktalari yalnizca SURUKLEME
+                # sirasinda kare sinirlarina KIRPIYORDU (np.clip); ENTER'da
+                # HICBIR geometrik gecerlilik kontrolu yoktu. Cakisik,
+                # dogrusal, kendini kesen ya da ters (ust/alt karismis)
+                # bir dortgen SESSIZCE yazdirilip config.py'ye
+                # yapistirilmaya hazir sunulabiliyordu — dejenere/ters bir
+                # homografi aktif serit girdisini BOZAR. Simdi export
+                # ANINDA ayni geometrik kontrol calisir; gecersizse
+                # REDDEDILIR, SON GECERLI nokta seti korunur.
+                _problems = validate_perspective_quad(
+                    [[int(x), int(y)] for x, y in pts], WIDTH, HEIGHT)
+                if _problems:
+                    print("\n❌ GEÇERSİZ dörtgen — KAYDEDİLMEDİ:")
+                    for _p in _problems:
+                        print(f"   - {_p}")
+                    print("   Köşeleri düzeltip tekrar ENTER'a basın.")
+                else:
+                    print("\n# Bunu config.py'ye yapıştır:")
+                    print(f"PERSP_SRC = {[[int(x), int(y)] for x, y in pts]}")
+                    break
     finally:
-        _stop()
-        cv2.destroyAllWindows()
+        # LEGACY-001: IC ICE finally — kamera kapatma basarisiz olsa BILE
+        # pencere temizligi yine de DENENIR (biri digerini engellemez).
+        try:
+            _stop()
+        finally:
+            try:
+                cv2.destroyAllWindows()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

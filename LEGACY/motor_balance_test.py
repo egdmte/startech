@@ -38,6 +38,26 @@ def run_straight_test():
     time.sleep(3)
 
     motor.set_speed(TEST_SPEED, TEST_SPEED)
+    # LEGACY-070: Istenen hiz DEAD_ZONE_MIN_PWM'in altindaysa (ya da
+    # trim sonrasi altina duserse), motor.py komutu tabana YUKSELTIR.
+    # O zaman "TEST_SPEED hizinda gidiyor" yazisi YANLISTIR — gercekte
+    # UYGULANAN PWM farklidir ve bu, trim cikarimini gecersiz kilar
+    # (doygun bolgede iki teker HER ZAMAN esitlenir, gercek dengesizlik
+    # gizlenir). Gercek uygulanan degerleri OKUYUP goster.
+    _actual_l = getattr(motor, "_left_pwm", None)
+    _actual_r = getattr(motor, "_right_pwm", None)
+    _clamped = False
+    if _actual_l is not None and _actual_r is not None:
+        _al, _ar = _actual_l.value * 100, _actual_r.value * 100
+        if abs(_al - TEST_SPEED) > 0.5 or abs(_ar - TEST_SPEED) > 0.5:
+            _clamped = True
+            print(f"\n⚠️  UYARI: istenen hız {TEST_SPEED}% idi, GERÇEK uygulanan "
+                  f"PWM: sol={_al:.1f}% sağ={_ar:.1f}% (ölü bölge/trim tabanı "
+                  "devreye girdi).")
+            print("   Bu ölçüm, DOYGUN bölgede yapıldığı için trim çıkarımı "
+                  "GÜVENİLMEZ olabilir — iki teker taban tarafından eşitlenmiş "
+                  "olabilir. --hiz ile DEAD_ZONE_MIN_PWM'in belirgin üzerinde "
+                  "bir değer (örn. 40+) seçerek tekrarlayın.")
     time.sleep(TEST_DURATION)
     motor.brake()
     time.sleep(0.5)
@@ -62,28 +82,42 @@ def run_straight_test():
     oran = sapma / mesafe
 
     print(f"\nSapma oranı: {oran:.4f}")
-    
+
+    if _clamped:
+        print("\n⚠️  Bu ölçüm ölü bölge/trim tabanında YAPILDI (yukarıdaki")
+        print("   uyarıya bakın) — aşağıdaki trim önerisi GÜVENİLMEZ olabilir.")
+
     if abs(sapma) < 2:
         print("\n✅ Araç dengeli! Trim değişikliği gerekmiyor.")
         print("   config.py'deki dört değer de 1.0 kalabilir:")
         print("   LEFT_TRIM_LOW / LEFT_TRIM_HIGH / RIGHT_TRIM_LOW / RIGHT_TRIM_HIGH")
         return
 
-    # Trim önerisi
-    # Sağa sapıyorsa sağ motor fazla güçlü → RIGHT_TRIM azalt
-    # Sola  sapıyorsa sol motor fazla güçlü → LEFT_TRIM  azalt
+    # LEGACY-029 (bu dosyadaki ayni formul yonu — denetimin "same formula
+    # direction" olarak isaretledigi yer): DOKUMANLI ileri-yonlu kablolama
+    # altinda (pozitif komut HER IKI tekeri ileri surer), SAGA sapan bir
+    # aracin SOL tekeri SAG tekere gore DAHA HIZLIDIR. Duzeltme SOL tekeri
+    # azaltmalidir. Eski kod SAG tekeri azaltiyordu — bu sapmayi ARTIRIRDI.
+    # LEGACY-071: sonuc asla sifir/negatif olamaz (surucu boylelerini
+    # reddeder).
+    oran_clamped = min(abs(oran), 0.30)   # asiri duzeltmeyi sinirla
     if sapma > 0:
-        # Sağa sapıyor
-        new_right = round(1.0 - abs(oran) * 0.5, 3)
-        new_left  = 1.0
+        # Sağa sapıyor → SOL teker hızlı → SOL trim azalt (SAĞ değil)
+        new_left  = max(0.05, round(1.0 - oran_clamped * 0.5, 3))
+        new_right = 1.0
         print(f"\n⚠️  Araç SAĞA sapıyor ({sapma:.1f} cm)")
+        print(f"   Bu, SOL tekerin göreli olarak daha hızlı olduğu anlamına gelir.")
         print(f"   Ölçülen oran: sol {new_left}, sağ {new_right}")
     else:
-        # Sola sapıyor
-        new_left  = round(1.0 - abs(oran) * 0.5, 3)
-        new_right = 1.0
+        # Sola sapıyor → SAĞ teker hızlı → SAĞ trim azalt (SOL değil)
+        new_right = max(0.05, round(1.0 - oran_clamped * 0.5, 3))
+        new_left  = 1.0
         print(f"\n⚠️  Araç SOLA sapıyor ({sapma:.1f} cm)")
+        print(f"   Bu, SAĞ tekerin göreli olarak daha hızlı olduğu anlamına gelir.")
         print(f"   Ölçülen oran: sol {new_left}, sağ {new_right}")
+    print("   ⚠️  FİZİKSEL DOĞRULAMA GEREKLİ: bu öneri, pozitif komutun her iki")
+    print("   tekerleği İLERİ sürdüğü varsayımına dayanır. Uygulamadan önce")
+    print("   tekerlekleri yerden kesip yön konvansiyonunu doğrulayın.")
 
     # -----------------------------------------------------------------
     # DÜZELTİLDİ 5 Ağustos 2026 — PLAN_New.md 20.3e, HATA_DEFTERİ hata 3.
@@ -181,6 +215,12 @@ if __name__ == "__main__":
     print("1) Düz gidiş testi (trim hesapla)")
     print("2) PWM süpürme testi (motor fiziksel kontrolü)")
 
+    # LEGACY-034: Yakalanan her hata artik ACIKCA bir cikis koduyla
+    # bildiriliyor. Eski kod hatayi yazdirip SIFIR (basari) koduyla
+    # cikiyordu; kalibrasyon.py'nin `subprocess.run(check=True)` ile
+    # calistirdigi cagiran, basarisiz bir donanim/girdi denemesini
+    # BASARILI sanip devam edebiliyordu.
+    _exit_code = 0
     try:
         motor = MotorDriver()
         motor.require_hardware()
@@ -191,10 +231,14 @@ if __name__ == "__main__":
             run_pwm_sweep()
         else:
             print("Geçersiz seçim.")
+            _exit_code = 1
     except KeyboardInterrupt:
         print("\nKesintiye uğradı.")
+        _exit_code = 130
     except MotorHardwareUnavailable as exc:
         print(f"\nBaşlatılamadı: {exc}")
+        _exit_code = 1
     finally:
         if motor is not None:
             motor.stop()
+    raise SystemExit(_exit_code)

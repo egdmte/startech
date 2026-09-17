@@ -101,7 +101,12 @@ def draw_graph(errors: collections.deque) -> str:
         line = []
         for i, e in enumerate(list(errors)[-GRAPH_WIDTH:]):
             # e: -ERROR_SCALE..+ERROR_SCALE → 0..GRAPH_HEIGHT
-            mapped = int((e / ERROR_SCALE) * mid) + mid
+            # LEGACY-073: Satir indeksi YUKARIDAN AŞAĞIYA artar (row=0 en
+            # ust), ama alt bilgi etiketi "+ERROR_SCALE YUKARI" diyordu.
+            # Eski isaret pozitif hatayi ALT satira ciziyordu — etiketle
+            # ZIT. Isareti ters cevir: pozitif hata artik DAHA KUCUK satir
+            # indeksine (goruntude daha YUKARI) haritalanir.
+            mapped = mid - int((e / ERROR_SCALE) * mid)
             mapped = max(0, min(GRAPH_HEIGHT - 1, mapped))
             if row == mid:
                 ch = '─' if mapped != mid else '┼'
@@ -126,6 +131,14 @@ def run_tuning(kp: float, kd: float, duration: float = 10.0):
     mot  = MotorDriver()
     mot.require_hardware()
     errors  = collections.deque(maxlen=GRAPH_WIDTH * 2)
+    # LEGACY-074: 'errors' yalnizca SON 120 GECERLI kareyi tutan bir
+    # GORUNTULEME kuyrugudur. Eski ozet SADECE bunu kullaniyordu — kayip
+    # kareler tamamen ATILIYOR, erken salinim (kuyruk dolup taskinca)
+    # SESSIZCE UNUTULUYORDU. Tam kosu istatistikleri AYRI izlenir.
+    _total_valid = 0
+    _total_lost  = 0
+    _full_sum    = 0.0
+    _full_sumsq  = 0.0
     running = True
     cam = None
     thread = None
@@ -192,6 +205,11 @@ def run_tuning(kp: float, kd: float, duration: float = 10.0):
             error, _ = det.process(frame)
             if error is not None:
                 errors.append(float(error))
+                _total_valid += 1
+                _full_sum    += float(error)
+                _full_sumsq  += float(error) ** 2
+            else:
+                _total_lost += 1
 
             l, r = ctrl.compute(error)
             mot.set_speed(l, r)
@@ -243,21 +261,43 @@ def run_tuning(kp: float, kd: float, duration: float = 10.0):
         ea = list(errors)
         mean = sum(ea) / len(ea)
         std  = (sum((e-mean)**2 for e in ea) / len(ea)) ** 0.5
+
+        # LEGACY-074: TAM KOŞU istatistikleri (SON kuyruk değil).
+        _total_frames = _total_valid + _total_lost
+        _coverage = (_total_valid / _total_frames) if _total_frames else 0.0
+        _full_mean = (_full_sum / _total_valid) if _total_valid else 0.0
+        _full_std = (((_full_sumsq / _total_valid) - _full_mean ** 2) ** 0.5
+                    if _total_valid else 0.0)
+
         print(f"\n{'='*50}")
         print(f"SONUÇ  KP={kp}  KD={kd}")
-        print(f"  Ortalama hata : {mean:+.1f} px  (0'a yakın = iyi)")
-        print(f"  Std sapma     : {std:.1f} px   (düşük = stabil)")
+        print(f"  Kapsam        : {_total_valid}/{_total_frames} kare geçerli "
+              f"({_coverage*100:.0f}%), {_total_lost} kayıp")
+        print(f"  Son {len(ea)} kare — Ortalama: {mean:+.1f}px  Std: {std:.1f}px")
+        print(f"  TÜM koşu     — Ortalama: {_full_mean:+.1f}px  Std: {_full_std:.1f}px")
         print("  Tavsiye:")
-        if std > 30:
+
+        # LEGACY-074: Kapsam yetersizse (kayıp kare oranı yüksek) niteliksiz
+        # bir 'stabil' hükmü verme — kayıp süresince denetleyici GÜVENLİ
+        # DURMUŞ olabilir, bu da düşük std'yi YANILTICI şekilde iyi gösterir.
+        if _coverage < 0.70:
+            print(f"  ⚠️  DÜŞÜK KAPSAM (%{_coverage*100:.0f} geçerli) — "
+                  "'stabil/salınımlı' hükmü GÜVENİLMEZ. Kayıp kareler "
+                  "muhtemelen serit kaybı/güvenli duruş nedeniyle; "
+                  "önce algılama güvenilirliğini düzeltin.")
+        elif _full_std > 30 or std > 30:
             print("  ⚠️  Yüksek salınım → KP'yi azalt veya KD'yi artır")
-        elif std > 15:
+        elif _full_std > 15 or std > 15:
             print("  ⚠️  Orta salınım → KD'yi biraz artır")
         else:
-            print("  ✅  Stabil görünüyor!")
-        if abs(mean) > 20:
-            print(f"  ⚠️  Kalıcı sapma ({mean:+.0f}px) → LEFT_TRIM/RIGHT_TRIM kontrol et")
+            print("  ✅  Stabil görünüyor! (tam koşu ve son pencere ikisi de)")
+        if abs(mean) > 20 or abs(_full_mean) > 20:
+            print(f"  ⚠️  Kalıcı sapma (son:{mean:+.0f}px tam-koşu:{_full_mean:+.0f}px) "
+                  "→ LEFT_TRIM/RIGHT_TRIM kontrol et")
     else:
         print("\nSONUÇ: Geçerli şerit hatası ölçülemedi.")
+        if _total_lost:
+            print(f"  ({_total_lost} kare işlendi, hepsi şerit kaybı)")
 
 
 # ---------------------------------------------------------------------------
@@ -268,6 +308,10 @@ if __name__ == "__main__":
     print("PD Kazanç Ayarlama Aracı")
     print(f"Mevcut değerler: KP={cfg.KP}  KD={cfg.KD}\n")
 
+    # LEGACY-034: cikis kodu artik gercek sonucu yansitiyor —
+    # kalibrasyon.py'nin `subprocess.run(check=True)` cagirani basarisiz
+    # bir donenimi/girdiyi basari SANMASIN.
+    _exit_code = 0
     try:
         kp_in = input(f"Yeni KP [{cfg.KP}]: ").strip()
         kd_in = input(f"Yeni KD [{cfg.KD}]: ").strip()
@@ -285,7 +329,12 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
         print("\nKesintiye uğradı.")
+        _exit_code = 130
     except MotorHardwareUnavailable as exc:
         print(f"\nBaşlatılamadı: {exc}")
+        _exit_code = 1
     except ValueError:
         print("Geçersiz sayı girişi.")
+        _exit_code = 1
+
+    raise SystemExit(_exit_code)

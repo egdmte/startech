@@ -110,6 +110,19 @@ class MotorDriver:
             raise MotorHardwareUnavailable(
                 f"Motor GPIO çıkışları açılamadı: {exc}"
             ) from exc
+        except BaseException:
+            # LEGACY-066: KeyboardInterrupt/SystemExit BASE İSTİSNALARDIR,
+            # yukarıdaki `except Exception` bunları YAKALAMAZ. Bazı GPIO
+            # cihazları zaten açılmışken bu tür bir kesinti gelirse, eski
+            # kod temizlik YAPMADAN yayılıyordu — çağrının atama işlemi
+            # tamamlanmadığı için normal kapatma yolunun bu yarım nesneye
+            # hiçbir referansı olmuyordu; cihazlar SIZDIRILIYORDU. Kesinti
+            # türünü DEĞİŞTİRMEDEN, yalnızca zaten açılmış cihazları kapatıp
+            # yeniden yükselt.
+            self._close_devices()
+            self._has_gpio = False
+            self._closed = True
+            raise
 
     @property
     def hardware_available(self) -> bool:
